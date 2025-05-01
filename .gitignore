@@ -1,12 +1,64 @@
-# Environnement virtuel
+# === ENVIRONNEMENT VIRTUEL ===
 env/
 venv/
 .venv/
 
-# Dossiers de cache Python
-__pycache__/
-*.pyc
-*.pyo
+# === VARIABLES D'ENVIRONNEMENT ===
+.env
+.env.*
 
-# Fichiers de logs
+# === FICHIERS PYTHON COMPILÉS & CACHES ===
+__pycache__/
+*.py[cod]
+*$py.class
+
+# === LOGS & SORTIES ===
 *.log
+*.out
+*.err
+
+# === FICHIERS TEMPORAIRES ===
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+
+# === CONFIGURATION D'ÉDITEURS ===
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# === TESTS & COVERAGE ===
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+.cache/
+.pytest_cache/
+nosetests.xml
+*.cover
+*.coverage
+.cache
+
+# === PACKAGING PYTHON ===
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# === ALEMBIC ===
+migrations/__pycache__/
+migrations/versions/__pycache__/
+
+# === BASE DE DONNÉES TEMPORAIRE ===
+*.sqlite3
+*.db
+
+# === JUPYTER NOTEBOOK ===
+.ipynb_checkpoints/
+
+# === SYSTEME D’EXPLOITATION ===
+.DS_Store
+Thumbs.db
