@@ -1,3 +1,0 @@
-[submodule "my-full-stack"]
-	path = my-full-stack
-	url = git@github.com:fastapi/full-stack-fastapi-template.git
