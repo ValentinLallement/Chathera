@@ -21,7 +21,7 @@ from app.models import MessageRequest, AutoReplyResponse, Memory, Message, Conve
 from app.schemas import CreateBotRequest
 from app.auth import verify_token,get_user_from_token
 from app.websocket.router import websocket_router
-from app.utils.auto_reply import build_prompt, get_auto_reply_from_grok
+from app.utils.auto_reply import build_prompt, get_auto_reply_from_grok, get_auto_reply_from_deepseek
 from app.database import get_session
 from app.dependencies import get_db
 from app.routers import message
@@ -150,7 +150,8 @@ async def auto_reply(request: MessageRequest, session: Session = Depends(get_ses
         prompt = build_prompt(request.messages_recents, request.dernier_message)
 
         # 2. Appel API Grok-3
-        response_data = get_auto_reply_from_grok(prompt)
+        #response_data = get_auto_reply_from_grok(prompt)
+        response_data = get_auto_reply_from_deepseek(prompt)
         auto_reply_data = json.loads(response_data)
 
         # 3. Enregistrement des mémoires
@@ -225,3 +226,21 @@ def create_bot_and_conversation(request: CreateBotRequest, token: str = Depends(
 
     # Retourner l'ID de la conversation et du bot
     return {"bot_id": bot.id, "conversation_id": conversation.id}
+
+
+@app.get("/my_bots")
+def get_my_bots(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    # Vérifie le token
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    user = get_user_from_token(token, db, credentials_exception)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Récupère les bots créés par l’utilisateur
+    bots = db.query(Bot).filter(Bot.user_id == user.id).all()
+
+    return [{"bot_id": bot.id, "name": bot.name} for bot in bots]

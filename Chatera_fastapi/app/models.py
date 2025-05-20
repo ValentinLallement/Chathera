@@ -1,9 +1,11 @@
 import uuid
+import enum
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import Field, SQLModel, Relationship
 from pydantic import BaseModel, root_validator
-from sqlalchemy import Column, String, UniqueConstraint
+from sqlalchemy import Column, String, UniqueConstraint, DateTime, Text, Enum, ForeignKey
+from sqlalchemy.orm import relationship
 from uuid import uuid4, UUID
 from sqlalchemy.dialects.postgresql import UUID as SA_UUID
 from app.db.base import Base
@@ -67,6 +69,8 @@ class Conversation(SQLModel, table=True):
     bot: Optional["Bot"] = Relationship(back_populates="conversations")
     messages: List["Message"] = Relationship(back_populates="conversation")
     memories: List["Memory"] = Relationship(back_populates="conversation")
+    memory_entries: List["MemoryEntry"] = Relationship(back_populates="conversation")
+   
 
     # Assure-toi d'utiliser le type UUID correct pour SQLAlchemy
     class Config:
@@ -125,3 +129,33 @@ class Bot(SQLModel, table=True):
 
     # Relation avec la conversation
     conversations: List["Conversation"] = Relationship(back_populates="bot")
+
+
+# -------------------------------
+# New Memory Model
+
+class MemoryType(str, enum.Enum):
+    SHORT = "short"
+    LONG = "long"
+    BEHAVIOR = "behavior"
+    FACT = "fact"
+    OTHER = "other"
+
+class MemoryImportance(str, enum.Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class MemoryEntry(SQLModel, table=True):
+    __tablename__ = "memory_entries"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    conversation_id: UUID = Field(foreign_key="conversation.id", nullable=False)
+    type: MemoryType = Field(sa_column_kwargs={"default": MemoryType.OTHER})
+    importance: MemoryImportance = Field(sa_column_kwargs={"default": MemoryImportance.MEDIUM})
+    content: str = Field(nullable=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Relation inverse
+    conversation: Optional[Conversation] = Relationship(back_populates="memory_entries")
