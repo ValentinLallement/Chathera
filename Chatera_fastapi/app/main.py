@@ -21,7 +21,7 @@ from app.models import MessageRequest, AutoReplyResponse, Memory, Message, Conve
 from app.schemas import CreateBotRequest
 from app.auth import verify_token,get_user_from_token
 from app.websocket.router import websocket_router
-from app.utils.auto_reply import build_prompt, get_auto_reply_from_grok, get_auto_reply_from_deepseek
+from app.utils.auto_reply import build_prompt, get_auto_reply_from_deepseek
 from app.database import get_session
 from app.dependencies import get_db
 from app.routers import message

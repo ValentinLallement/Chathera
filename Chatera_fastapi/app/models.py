@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 # -------------------------------
 # Modèle utilisateur
 class User(SQLModel, table=True):
-    id: int = Field(default=None, primary_key=True)
+    id: uuid.UUID = Field(default=None, primary_key=True)
     username: str
     email: str
     password: str
@@ -138,7 +138,10 @@ class MemoryType(str, enum.Enum):
     SHORT = "short"
     LONG = "long"
     BEHAVIOR = "behavior"
+    DIRECTIVE = "directive"
     FACT = "fact"
+    PERSONAL = "personal"
+    EVENT = "event"
     OTHER = "other"
 
 class MemoryImportance(str, enum.Enum):
@@ -156,6 +159,9 @@ class MemoryEntry(SQLModel, table=True):
     importance: MemoryImportance = Field(sa_column_kwargs={"default": MemoryImportance.MEDIUM})
     content: str = Field(nullable=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Date réelle de l'événement si applicable (optionnelle)
+    event_date: Optional[datetime] = Field(default=None)
 
     # Relation inverse
     conversation: Optional[Conversation] = Relationship(back_populates="memory_entries")

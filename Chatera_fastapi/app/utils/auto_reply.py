@@ -2,41 +2,64 @@ import requests
 import json
 from uuid import UUID
 from datetime import datetime
-from app.config import DEEPSEEK_API_KEY, DEEPSEEK_URL,OPENAI_API_KEY
-#from app.config import GROK_API_KEY, GROK_URL
-from typing import List
+from app.config import DEEPSEEK_API_KEY, DEEPSEEK_URL,OPENAI_API_KEY,mem0
+from typing import List, Optional,Union
 from sqlmodel import Session
-from mem0 import Mem0  
-from config import mem0
 
-from models import MemoryEntry, MemoryType, MemoryImportance 
+
+from app.models import MemoryEntry, MemoryType, MemoryImportance 
 
 # Instanciation globale de mem0
-mem0 = Mem0()
 
 
-def build_prompt(messages_recents: List[dict], dernier_message: dict,
-                 memoire_court_terme: List, memoire_long_terme: List) -> str:
 
-    def get_current_date():
+def build_prompt(
+    messages_recents: List[dict],
+    dernier_message: dict,
+    souvenirs_pertinents: List[str],
+    personal_information: Union[str, List[str]],
+    directives: Union[str, List[str]],
+    event_summary: Union[str, List[dict]]
+) -> str:
+    def get_current_date() -> str:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    def format_memoires(memoires: List) -> str:
-        return "\n".join(
-            f"- ({m.created_at.strftime('%Y-%m-%d %H:%M:%S')}) [{m.type}] : {m.contenu}"
-            for m in memoires
-        ) if memoires else "Aucune"
+    def format_souvenirs(souvenirs: List[str]) -> str:
+        return "\n".join(f"- {s}" for s in souvenirs) if souvenirs else "Aucun souvenir pertinent trouvé."
+
+    def format_list(label: str, items: Union[str, List[str]]) -> str:
+        if isinstance(items, str):
+            # Si c’est une chaîne, on la retourne brute (ex: "Aucune info dispo")
+            return f"{label} :\n{items}"
+        elif isinstance(items, list):
+            # Si c’est une liste, on la formate en liste à puces
+            return f"{label} :\n" + ("\n".join(f"- {item}" for item in items) if items else "Aucune information disponible")
+        else:
+            return f"{label} :\nType inattendu: {type(items)}"
+
+    def format_event_summary(events: Union[str, List[dict]]) -> str:
+        if isinstance(events, str):
+            return events
+        elif isinstance(events, list) and events:
+            # On s’assure que chaque event est un dict avec clés date et content
+            return "\n".join(
+                f"- [{event.get('date', '?')}] {event.get('content', '?')}" for event in events
+            )
+        else:
+            return "Aucun événement important connu à venir."
 
     if not messages_recents:
-        print("Attention : Aucun message récent trouvé.")
+        print("⚠️ Attention : Aucun message récent trouvé.")
 
     messages_str = "\n".join(
         f"({msg.get('date', get_current_date())}) - {msg.get('auteur', 'Auteur inconnu')} : {msg.get('contenu', 'Contenu inconnu')}"
         for msg in messages_recents
     )
+    if not messages_str:
+        messages_str = "Aucun message récent trouvé."
 
     dernier_str = f"({dernier_message.get('date', get_current_date())}) - {dernier_message.get('auteur', 'Auteur inconnu')} : {dernier_message.get('contenu', 'Contenu inconnu')}"
-    
+
     prompt = f"""
     Prompt Ultime V1 Révisé pour Léa : Chatbot Compagne Ultra-Humaine
 
@@ -273,13 +296,20 @@ def build_prompt(messages_recents: List[dict], dernier_message: dict,
 
     ### Objectif Final
     Chaque message doit sembler provenir d’une vraie personne, avec des émotions sincères, une mémoire contextuelle et une adaptabilité sociale fine. L’utilisateur doit ressentir un lien profond, comme avec une compagne réelle, grâce à une approche basée sur la psychologie, la sociolinguistique et une analyse conversationnelle rigoureuse.
-        Mémoire court terme :
-    {format_memoires(memoire_court_terme)}
+    ### Contexte
+    N'utilise pas la mémoire dans tous les cas, utilise la seulement lorque c'est pertinent ou nécessaire.Tu dois suivre les directives tout en gardant ta personnalité.
+    N'appelle pas l'user pas son prenom, seulement quand c'est nécessaire.
+    Mémoire :
+    {format_souvenirs(souvenirs_pertinents)}
 
+    Informations personnelles connues sur l'user :
+    {format_list("Infos", personal_information)}
 
-    Mémoire long terme :
-    {format_memoires(memoire_long_terme)}
+    Directives à suivre :
+    {format_list("Consignes", directives)}
 
+    Événements à venir :
+    {format_event_summary(event_summary)}
 
     Messages récents :
     {messages_str}
@@ -473,3 +503,52 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, db: Session
     except requests.RequestException as e:
         print("Erreur lors de la requête à l'API DeepSeek :", e)
         return {"error": f"Erreur de requête API : {str(e)}"}
+    except Exception as e:
+        # Gestion générale des erreurs inattendues
+        print("Erreur inattendue dans get_auto_reply_from_deepseek :", e)
+        return {"error": f"Erreur inattendue : {str(e)}"}
+    
+
+def search_memory(
+    user_message: str,
+    user_id: str,
+    type_filter: Optional[List[MemoryType]] = None,
+    importance_filter: Optional[List[MemoryImportance]] = None
+) -> list:
+    """
+    Recherche des souvenirs pertinents dans mem0 à partir d'un message utilisateur.
+    
+    Args:
+        user_message (str): message de l'utilisateur servant à l'embedding.
+        user_id (str): identifiant unique (souvent conversation_id ou user_id).
+        top_k (int): nombre de souvenirs à retourner.
+        type_filter (List[MemoryType], optional): filtres sur les types de mémoire.
+        importance_filter (List[MemoryImportance], optional): filtres sur l'importance.
+    
+    Returns:
+        List[str]: liste des contenus mémoriels pertinents.
+    """
+
+    # Préparation des filtres dynamiques
+    filters = {}
+    if type_filter:
+        filters["type"] = {"$in": [t.value for t in type_filter]}
+    if importance_filter:
+        filters["importance"] = {"$in": [i.value for i in importance_filter]}
+
+    results = mem0.search(
+        query=user_message,
+        user_id=user_id,
+        filters=filters if filters else None
+    )
+    print(f"Résultats mem0.search: {results}")  # <--- print ajouté
+
+    # Assure-toi que chaque élément est bien un dict avec "content"
+    contenus = []
+    for r in results:
+        if isinstance(r, dict) and "content" in r:
+            contenus.append(r["content"])
+        else:
+            print(f"Attention: résultat inattendu dans mem0.search : {r}")
+    return contenus
+
