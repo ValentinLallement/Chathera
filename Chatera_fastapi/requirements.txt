@@ -91,7 +91,7 @@ markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 matplotlib==3.10.1
 mdurl==0.1.2
-mem0ai==0.1.100
+mem0ai==0.1.101
 mock==5.2.0
 monotonic==1.6
 more-itertools==10.7.0
