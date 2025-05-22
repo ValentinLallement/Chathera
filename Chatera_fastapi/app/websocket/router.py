@@ -1,5 +1,6 @@
 import uuid
 import asyncio
+import re
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect,Depends
 from uuid import uuid4
 from app.models import Message, Conversation, Memory, FutureAction, MemoryType, MemoryImportance, MemoryEntry
@@ -16,6 +17,20 @@ websocket_router = APIRouter()
 
 session = get_session()  # Ne pas oublier d'utiliser la session dans le bon contexte
 
+
+
+
+def extract_json_block(content: str):
+    """
+    Extrait un bloc JSON contenu entre des balises ```json ... ``` dans une chaîne markdown.
+    """
+    match = re.search(r"```json\s*(\{.*?\})\s*```", content, re.DOTALL)
+    if not match:
+        raise ValueError("Aucun bloc JSON valide trouvé.")
+    json_str = match.group(1)
+    return json.loads(json_str)
+
+
 @websocket_router.websocket("/ws/chat")
 async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
     # Récupération de l'utilisateur à partir du WebSocket
@@ -27,8 +42,8 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
     await websocket.accept()
 
     try:
-        # Exemple de tâche en arrière-plan pour les actions futures (désactivée ici)
-        # asyncio.create_task(check_and_send_future_actions(user, db, websocket))
+        # Exemple de tâche en arrière-plan pour les actions futures
+        asyncio.create_task(check_and_send_future_actions(user, db, websocket))
 
         while True:
             # Réception du message envoyé par le client
@@ -168,7 +183,6 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
             # Construction du prompt à envoyer à Grok
             prompt = build_prompt(
                 messages_recents,
-                dernier_message,
                 souvenirs_pertinents,
                 directives_text,
                 personal_information,
@@ -176,7 +190,15 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
             )
             print(f"Prompt envoyé à Grok : {prompt}")
             # Appel à la fonction de génération de réponse automatique Grok
-            auto_reply = get_auto_reply_from_deepseek(prompt, conversation.id, db)
+            try:
+                auto_reply = get_auto_reply_from_deepseek(prompt, conversation.id, dernier_message, db)
+            except Exception as e:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"Erreur lors du parsing JSON de DeepSeek : {str(e)}",
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                continue
 
             # Vérification des erreurs dans la réponse de Grok
             if "error" in auto_reply:
@@ -232,7 +254,7 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
         })
         await websocket.close()
 
-"""
+
 async def check_and_send_future_actions(user, db, websocket):
     # Fonction pour vérifier et envoyer les actions futures toutes les 5 secondes
     while True:
@@ -256,4 +278,3 @@ async def check_and_send_future_actions(user, db, websocket):
 
         db.commit()
         await asyncio.sleep(5)  # Attendre 5 secondes avant de vérifier à nouveau
-"""
