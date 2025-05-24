@@ -15,15 +15,17 @@ if TYPE_CHECKING:
 # -------------------------------
 # Modèle utilisateur
 class User(SQLModel, table=True):
-    id: uuid.UUID = Field(default=None, primary_key=True)
-    username: str
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    username: Optional[str] = None
     email: str
-    password: str
-    name: str  # Ce champ est requis (non-nullable)
+    password: Optional[str] = None  
+    name: Optional[str] = None 
+
+    profile_picture: Optional[str] = None  # URL de la photo de profil Google
+    google_sub: Optional[str] = None  # ID Google (subject) unique, pour reconnaitre l’utilisateur Google
 
     conversations: List["Conversation"] = Relationship(back_populates="user")
     bots: List["Bot"] = Relationship(back_populates="user")
-
 # -------------------------------
 # Modèle mémoire
 class Memory(SQLModel, table=True):

@@ -1,8 +1,9 @@
 # app/config.py
 
 import os
+from dotenv import load_dotenv
 from mem0 import Memory
-
+load_dotenv()
 GROK_API_KEY = os.getenv("GROK_API_KEY")
 GROK_URL = os.getenv("GROK_URL", "https://api.x.ai/v1/chat/completions")
 
@@ -11,8 +12,16 @@ DEEPSEEK_URL=os.getenv("DEEPSEEK_URL", "https://api.deepseek.com/chat/completion
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+REFRESH_SECRET_KEY = os.getenv("REFRESH_SECRET_KEY")
 
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))  
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))  
 
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")    
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 config = {

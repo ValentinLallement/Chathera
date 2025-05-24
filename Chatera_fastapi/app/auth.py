@@ -8,14 +8,10 @@ from . import models, schemas
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status
-# Utilisation des variables d'environnement pour la configuration de la base de données
-load_dotenv()  # Charge les variables d'environnement à partir du fichier .env
+
+from app.config import REFRESH_SECRET_KEY, SECRET_KEY, ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES,REFRESH_TOKEN_EXPIRE_DAYS
 
 
-
-SECRET_KEY = (os.getenv("SECRET_KEY"))  # Utilisez os.getenv pour obtenir la valeur de l'environnement
-ALGORITHM = (os.getenv("ALGORITHM"))  # Utilisez os.getenv pour obtenir la valeur de l'environnement
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))  # Convertir en entier et utiliser 30 par défaut si la variable n'est pas définie
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 def hash_password(password: str):
@@ -31,18 +27,27 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7)):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_user_from_token(token: str, db: Session, credentials_exception):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        user_id: str = payload.get("sub")
+        if user_id is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = db.query(models.User).filter(models.User.username == username).first()
+
+    # Suppression de int() car user_id est un UUID string
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+
     if user is None:
         raise credentials_exception
     return user

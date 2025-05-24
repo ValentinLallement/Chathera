@@ -1,13 +1,18 @@
+import re
+import unicodedata
+
+
 from sqlalchemy.orm import Session
 from . import models, schemas,auth
 from passlib.context import CryptContext
 from app.models import Conversation, Message, Memory, FutureAction
 from uuid import UUID
 from datetime import datetime
+from typing import Optional
 
 
 
-
+#----------------------  User  --------------------------------------------------
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -27,13 +32,92 @@ def create_user(db: Session, user: schemas.UserCreate):
 def get_user_by_username(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()
 
+def get_user_by_username_or_email(db: Session, login: str):
+    return db.query(models.User).filter(
+        (models.User.username == login) | (models.User.email == login)
+    ).first()
 
 
-#------------------------------------------------------------------------
+#----------------------  GOOGLE  --------------------------------------------------
+
+
+def generate_unique_username(db: Session, base_username: str) -> str:
+    username = base_username
+    i = 1
+    while db.query(models.User).filter(models.User.username == username).first():
+        username = f"{base_username}{i}"
+        i += 1
+    return username
+
+def normalize_username(name: str) -> str:
+    # Supprimer les accents et caractères spéciaux
+    name = unicodedata.normalize('NFD', name).encode('ascii', 'ignore').decode('utf-8')
+    # Remplacer les espaces par des underscores et mettre en minuscules
+    name = re.sub(r'\s+', '_', name).lower()
+    # Supprimer les caractères non alphanumériques ou underscore
+    name = re.sub(r'[^\w_]', '', name)
+    return name
+
+def create_or_update_user_google(db: Session, email: str, name: Optional[str], google_sub: str, picture: Optional[str] = None):
+    user = db.query(models.User).filter(models.User.google_sub == google_sub).first()
+    if user:
+        updated = False
+        if name and user.name != name:
+            user.name = name
+            updated = True
+        if picture and user.profile_picture != picture:
+            user.profile_picture = picture
+            updated = True
+        if updated:
+            db.commit()
+            db.refresh(user)
+        return user
+
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user:
+        updated = False
+        if user.google_sub != google_sub:
+            user.google_sub = google_sub
+            updated = True
+        if name and user.name != name:
+            user.name = name
+            updated = True
+        if picture and user.profile_picture != picture:
+            print("a")
+            user.profile_picture = picture
+            updated = True
+        if updated:
+            db.commit()
+            db.refresh(user)
+        return user
+
+    # Création nouvel utilisateur
+    base_username = normalize_username(name or email.split('@')[0])
+    username = generate_unique_username(db, base_username)
+
+    new_user = models.User(
+        email=email,
+        name=name,
+        google_sub=google_sub,
+        password=None,
+        username=username,
+        profile_picture=picture 
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
+def get_user_by_google_sub(db: Session, google_sub: str):
+    return db.query(models.User).filter(models.User.google_sub == google_sub).first()
+
+
+#-----------------------------  Conversation  -------------------------------------------
 
 
 
-# ✅ Conversation
+# Conversation
 def create_conversation(session: Session, user_id: UUID) -> Conversation:
     conversation = Conversation(user_id=user_id)
     session.add(conversation)

@@ -5,8 +5,11 @@ from datetime import datetime
 from sqlmodel import SQLModel
 
 # ----------------------------- Utilisateur -----------------------------
+class UserLogin(BaseModel):
+    login: str  # Peut être un email ou un nom d'utilisateur
+    password: str
 class UserBase(BaseModel):
-    username: str
+    username: Optional[str] = None
     email: str
 
 class UserCreate(UserBase):
@@ -18,13 +21,20 @@ class UserCreate(UserBase):
 
 class User(UserBase):
     id: UUID
+    name: Optional[str] = None
+    profile_picture: Optional[str] = None
 
     class Config:
         orm_mode = True
 
+class GoogleLogin(BaseModel):
+    token: str  # Token ID JWT envoyé par le client Google
+    access_token: str
+
 # ----------------------------- Authentification -----------------------------
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
 
 # ----------------------------- Message -----------------------------
@@ -59,3 +69,4 @@ class MessageRequest(BaseModel):
 
 class CreateBotRequest(BaseModel):
     name: str
+    

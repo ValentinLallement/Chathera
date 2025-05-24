@@ -3,10 +3,7 @@ import io
 import requests
 import json
 
-from uuid import UUID
-from datetime import datetime
-
-from fastapi import FastAPI, Depends, HTTPException, status,APIRouter
+from fastapi import FastAPI, Depends, HTTPException, status,APIRouter,Body
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse
 
@@ -15,16 +12,25 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List
 from sqlalchemy.exc import SQLAlchemyError
-from . import models, crud, schemas, dependencies, auth
 
+from google.auth.transport import requests
+from starlette.middleware.sessions import SessionMiddleware
+from jose import JWTError, jwt
+from uuid import UUID
+from datetime import datetime, timedelta
+
+from . import models, crud, schemas, dependencies, auth
 from app.models import MessageRequest, AutoReplyResponse, Memory, Message, Conversation, FutureAction, User,Bot
-from app.schemas import CreateBotRequest
+from app.schemas import CreateBotRequest, UserLogin, GoogleLogin, PromptRequest
 from app.auth import verify_token,get_user_from_token
 from app.websocket.router import websocket_router
-from app.utils.auto_reply import build_prompt, get_auto_reply_from_deepseek
 from app.database import get_session
 from app.dependencies import get_db
 from app.routers import message
+from app.routers import auth_google
+from app.config import REFRESH_SECRET_KEY, ALGORITHM, GOOGLE_CLIENT_ID
+
+
 
 
 
@@ -33,8 +39,9 @@ session = get_session()
 app = FastAPI()
 app.include_router(websocket_router)
 app.include_router(message.router)
-
-
+app.include_router(auth_google.router)
+app.add_middleware(SessionMiddleware, secret_key="une_clef_secrete_pour_session")
+router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 WEBUI_API_URL = "http://127.0.0.1:7860"
 
@@ -47,25 +54,50 @@ def read_root():
 def register(user: schemas.UserCreate, db: Session = Depends(dependencies.get_db)):
     return crud.create_user(db=db, user=user)
 
-class UserLogin(BaseModel):
-    username: str
-    password: str
+
 
 @app.post("/token", response_model=schemas.Token)
 def login_for_access_token(
-    user: UserLogin,  # Changer ici pour accepter un corps JSON
+    user: UserLogin,
     db: Session = Depends(dependencies.get_db)
 ):
-    # Vérification des informations d'identification
-    user_from_db = crud.get_user_by_username(db=db, username=user.username)
+    # Cherche par username ou email
+    user_from_db = crud.get_user_by_username_or_email(db=db, login=user.login)
     if not user_from_db or not auth.verify_password(user.password, user_from_db.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email/username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = auth.create_access_token(data={"sub": user_from_db.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+    
+    access_token = auth.create_access_token(data={"sub": str(user_from_db.id)})
+    refresh_token = auth.create_refresh_token(data={"sub": str(user_from_db.id)})
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+    
+@app.post("/refresh", response_model=schemas.Token)
+def refresh_token(refresh_token: str = Body(...), db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        user = db.query(models.User).get(user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        new_access_token = auth.create_access_token(data={"sub": str(user.id)})
+        return {
+            "access_token": new_access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
 
 
 
@@ -76,8 +108,6 @@ def read_users_me(current_user: schemas.User = Depends(dependencies.get_current_
 
 
 
-class PromptRequest(BaseModel):
-    prompt: str
 
 @app.post("/generate-image/")
 async def generate_image(data: PromptRequest, token: str = Depends(verify_token)):

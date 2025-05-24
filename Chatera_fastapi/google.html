@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login avec Google</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    function handleCredentialResponse(response) {
+      const id_token = response.credential;
+      console.log("ID Token Google :", id_token);
+      
+
+      // Envoie le token à ton backend FastAPI
+      fetch("http://localhost:8000/auth/google", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ id_token })
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log("Réponse de ton API :", data);
+        // Stocke ton access_token localement si besoin
+      });
+    }
+
+    window.onload = function () {
+      google.accounts.id.initialize({
+        client_id: "765199255006-hbnp2urusok1ngalfmf4tjhuh1mc8vn6.apps.googleusercontent.com",
+        callback: handleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById("buttonDiv"),
+        { theme: "outline", size: "large" }
+      );
+    };
+  </script>
+</head>
+<body>
+  <h2>Connexion Google</h2>
+  <div id="buttonDiv"></div>
+</body>
+</html>

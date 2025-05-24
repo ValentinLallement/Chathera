@@ -17,8 +17,7 @@ session = get_session()
 SECRET_KEY = (os.getenv("SECRET_KEY"))  # Utilisez os.getenv pour obtenir la valeur de l'environnement
 ALGORITHM = (os.getenv("ALGORITHM"))  # Utilisez os.getenv pour obtenir la valeur de l'environnement
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 def get_db():
     db = SessionLocal()
     try:
