@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 
 from . import models, crud, schemas, dependencies, auth
 from app.models import MessageRequest, AutoReplyResponse, Memory, Message, Conversation, FutureAction, User,Bot
-from app.schemas import CreateBotRequest, UserLogin, GoogleLogin, PromptRequest
+from app.schemas import CreateBotRequest, UserLogin, GoogleLogin, PromptRequest, RefreshTokenRequest
 from app.auth import verify_token,get_user_from_token
 from app.websocket.router import websocket_router
 from app.database import get_session
@@ -79,10 +79,14 @@ def login_for_access_token(
         "token_type": "bearer"
     }
     
+
 @app.post("/refresh", response_model=schemas.Token)
-def refresh_token(refresh_token: str = Body(...), db: Session = Depends(get_db)):
+def refresh_token(
+    body: RefreshTokenRequest,  # <== ici on reçoit le JSON
+    db: Session = Depends(get_db)
+):
     try:
-        payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(body.refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
@@ -92,12 +96,11 @@ def refresh_token(refresh_token: str = Body(...), db: Session = Depends(get_db))
         new_access_token = auth.create_access_token(data={"sub": str(user.id)})
         return {
             "access_token": new_access_token,
-            "refresh_token": refresh_token,
+            "refresh_token": body.refresh_token,
             "token_type": "bearer"
         }
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-
 
 
 
