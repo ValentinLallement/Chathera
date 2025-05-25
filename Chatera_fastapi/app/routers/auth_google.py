@@ -3,10 +3,11 @@ import requests
 
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from fastapi.responses import RedirectResponse
-from authlib.integrations.starlette_client import OAuth, OAuthError
+from fastapi import FastAPI
 from starlette.config import Config
 from starlette.middleware.sessions import SessionMiddleware
-from fastapi import FastAPI
+from authlib.integrations.starlette_client import OAuth, OAuthError
+
 from .. import crud  # Assure that 'crud.py' exists in the same package
 from .. import auth  # Assure that 'auth.py' exists and provides token creation functions
 from app.auth import create_access_token, create_refresh_token

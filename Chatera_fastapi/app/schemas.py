@@ -1,8 +1,10 @@
 from pydantic import BaseModel
+from sqlmodel import SQLModel
+
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
-from sqlmodel import SQLModel
+
 
 # ----------------------------- Utilisateur -----------------------------
 class UserLogin(BaseModel):
@@ -17,7 +19,7 @@ class UserCreate(UserBase):
     name: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class User(UserBase):
     id: UUID
@@ -25,7 +27,7 @@ class User(UserBase):
     profile_picture: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class GoogleLogin(BaseModel):
     token: str  # Token ID JWT envoyé par le client Google
@@ -50,7 +52,7 @@ class Message(MessageBase):
     user_id: UUID
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # ----------------------------- IA & Prompts -----------------------------
 class AutoReplyResponse(BaseModel):

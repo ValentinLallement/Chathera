@@ -1,10 +1,13 @@
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel, create_engine, Session
+
 from dotenv import load_dotenv
-import os
+
 
 # Utilisation des variables d'environnement pour la configuration de la base de données
 load_dotenv()  # Charge les variables d'environnement à partir du fichier .env

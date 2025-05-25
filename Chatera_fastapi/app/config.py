@@ -1,9 +1,12 @@
 # app/config.py
 
 import os
+
 from dotenv import load_dotenv
 from mem0 import Memory
+
 load_dotenv()
+
 GROK_API_KEY = os.getenv("GROK_API_KEY")
 GROK_URL = os.getenv("GROK_URL", "https://api.x.ai/v1/chat/completions")
 
@@ -24,20 +27,19 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
+# Configuration mem0 
 config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-3-small"
+            "model": "text-embedding-3-large"
         }
     },
     "vector_store": {
         "provider": "faiss",
         "config": {
             "collection_name": "conversations",
-            "path": "/tmp/faiss_memories"
+            "path": "C:\\Users\\lalle\\projets\\Chathera\\Chatera_fastapi\\faiss_memories"
         }
     }
 }
-
-mem0 = Memory.from_config(config)

@@ -1,18 +1,21 @@
 import os
-from dotenv import load_dotenv
-load_dotenv()
-from sqlalchemy.orm import Session
-from . import models, schemas, auth
-from fastapi import Depends, HTTPException, status,WebSocket
-from fastapi.security import OAuth2PasswordBearer
-from .database import SessionLocal
 
 from jose import jwt, JWTError
+
+from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, status,WebSocket
+from fastapi.security import OAuth2PasswordBearer
+
+
 from app.models import User
 from app.database import get_session
+from . import models, schemas, auth
+from .database import SessionLocal
+
+from dotenv import load_dotenv
+load_dotenv()
 
 session = get_session()
-
 
 SECRET_KEY = (os.getenv("SECRET_KEY"))  # Utilisez os.getenv pour obtenir la valeur de l'environnement
 ALGORITHM = (os.getenv("ALGORITHM"))  # Utilisez os.getenv pour obtenir la valeur de l'environnement
@@ -61,10 +64,11 @@ async def get_user_from_websocket(websocket: WebSocket) -> User:
         print(">> JWT Error:", e)
         raise HTTPException(status_code=403, detail="Could not validate credentials")
 
-    # ➕ MANUAL SESSION HERE
+    # MANUAL SESSION HERE
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.username == username).first()
+        user = db.query(User).filter(User.id == username).first()
+
         print(">> USER en base:", user)
     finally:
         db.close()

@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+
 from typing import List
+from uuid import UUID
+
 from app.models import Message, Conversation, User
 from app.auth import get_user_from_token  # ta fonction d’authentification
 from app.schemas import Message as MessageSchema
 from app.crud import get_messages_by_user
 from app.dependencies import get_db
-from uuid import UUID
 
 router = APIRouter()
 

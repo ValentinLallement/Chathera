@@ -1,17 +1,15 @@
 import requests
 import json
 import re
-from uuid import UUID
-from datetime import datetime
-from app.config import DEEPSEEK_API_KEY, DEEPSEEK_URL,OPENAI_API_KEY,mem0
-from typing import List, Optional,Union
+
 from sqlmodel import Session
 
+from uuid import UUID
+from datetime import datetime
+from typing import List, Optional,Union
 
+from app.config import DEEPSEEK_API_KEY, DEEPSEEK_URL
 from app.models import MemoryEntry, MemoryType, MemoryImportance 
-
-# Instanciation globale de mem0
-
 
 
 def build_prompt(
@@ -463,38 +461,6 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID,dernier_mess
         if not isinstance(parsed, dict):
             return {"error": "La réponse n'est pas un objet JSON valide."}
 
-        # --- GESTION DE LA MEMOIRE ---
-        # --- Gestion de la mémoire avec mem0 ---
-        if "memory" in parsed and isinstance(parsed["memory"], list):
-            for mem_item in parsed["memory"]:
-                mem_type = mem_item.get("type", "other")
-                mem_importance = mem_item.get("importance", "medium")
-                mem_content = mem_item.get("content", "")
-
-                # Ajout dans mem0 (en local, méthode exemple)
-                mem0.add(
-                    content=mem_content,
-                    metadata={
-                        "conversation_id": conversation_id,
-                        "type": mem_type,
-                        "importance": mem_importance,
-                        "created_at": datetime.utcnow().isoformat()
-                    }
-                )
-
-                # Ajout en base PostgreSQL (SQLAlchemy)
-                entry = MemoryEntry(
-                    conversation_id=conversation_id,
-                    type=MemoryType(mem_type) if mem_type in MemoryType._value2member_map_ else MemoryType.OTHER,
-                    importance=MemoryImportance(mem_importance) if mem_importance in MemoryImportance._value2member_map_ else MemoryImportance.MEDIUM,
-                    content=mem_content,
-                    created_at=datetime.utcnow().isoformat()
-                )
-                db.add(entry)
-            db.commit()
-
-        
-        # --- FIN GESTION MEMOIRE ---
 
         # Gestion actions & réponses
         if "actions" in parsed and parsed["actions"] and "message" in parsed["actions"][0]:
@@ -524,47 +490,4 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID,dernier_mess
         print("Erreur inattendue dans get_auto_reply_from_deepseek :", e)
         return {"error": f"Erreur inattendue : {str(e)}"}
     
-
-def search_memory(
-    user_message: str,
-    user_id: str,
-    type_filter: Optional[List[MemoryType]] = None,
-    importance_filter: Optional[List[MemoryImportance]] = None
-) -> list:
-    """
-    Recherche des souvenirs pertinents dans mem0 à partir d'un message utilisateur.
-    
-    Args:
-        user_message (str): message de l'utilisateur servant à l'embedding.
-        user_id (str): identifiant unique (souvent conversation_id ou user_id).
-        top_k (int): nombre de souvenirs à retourner.
-        type_filter (List[MemoryType], optional): filtres sur les types de mémoire.
-        importance_filter (List[MemoryImportance], optional): filtres sur l'importance.
-    
-    Returns:
-        List[str]: liste des contenus mémoriels pertinents.
-    """
-
-    # Préparation des filtres dynamiques
-    filters = {}
-    if type_filter:
-        filters["type"] = {"$in": [t.value for t in type_filter]}
-    if importance_filter:
-        filters["importance"] = {"$in": [i.value for i in importance_filter]}
-
-    results = mem0.search(
-        query=user_message,
-        user_id=user_id,
-        filters=filters if filters else None
-    )
-    print(f"Résultats mem0.search: {results}")  # <--- print ajouté
-
-    # Assure-toi que chaque élément est bien un dict avec "content"
-    contenus = []
-    for r in results:
-        if isinstance(r, dict) and "content" in r:
-            contenus.append(r["content"])
-        else:
-            print(f"Attention: résultat inattendu dans mem0.search : {r}")
-    return contenus
 

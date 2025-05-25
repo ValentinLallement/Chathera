@@ -1,49 +1,66 @@
 import base64
 import io
 import requests
-import json
+import asyncio
 
-from fastapi import FastAPI, Depends, HTTPException, status,APIRouter,Body
+from fastapi import FastAPI, Depends, HTTPException, status,APIRouter,Body,Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse
 
 from sqlmodel import Session
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import List
 from sqlalchemy.exc import SQLAlchemyError
 
 from google.auth.transport import requests
 from starlette.middleware.sessions import SessionMiddleware
 from jose import JWTError, jwt
-from uuid import UUID
-from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
 
 from . import models, crud, schemas, dependencies, auth
-from app.models import MessageRequest, AutoReplyResponse, Memory, Message, Conversation, FutureAction, User,Bot
-from app.schemas import CreateBotRequest, UserLogin, GoogleLogin, PromptRequest, RefreshTokenRequest
+from app.models import Conversation,Bot
+from app.schemas import CreateBotRequest, UserLogin,PromptRequest, RefreshTokenRequest
 from app.auth import verify_token,get_user_from_token
 from app.websocket.router import websocket_router
 from app.database import get_session
 from app.dependencies import get_db
 from app.routers import message
 from app.routers import auth_google
-from app.config import REFRESH_SECRET_KEY, ALGORITHM, GOOGLE_CLIENT_ID
+from app.config import REFRESH_SECRET_KEY, ALGORITHM
+from app.tasks.scheduler import task_scheduler
 
 
 
+# --- lifespan ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler_task = asyncio.create_task(task_scheduler())
+    yield
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
 
+# --- création unique de l'app avec lifespan ---
+app = FastAPI(lifespan=lifespan)
 
+# --- configuration de l'app après sa création ---
+app.add_middleware(SessionMiddleware, secret_key="une_clef_secrete_pour_session")
 
-session = get_session()
-app = FastAPI()
 app.include_router(websocket_router)
 app.include_router(message.router)
 app.include_router(auth_google.router)
-app.add_middleware(SessionMiddleware, secret_key="une_clef_secrete_pour_session")
+
+session = get_session()
+
 router = APIRouter()
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
 WEBUI_API_URL = "http://127.0.0.1:7860"
+
 
 
 @app.get("/")
@@ -138,6 +155,41 @@ async def generate_image(data: PromptRequest, token: str = Depends(verify_token)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur interne : {e}")
     
+
+
+
+from mem0 import Memory
+from app.config import config  
+
+# Initialisation globale mem0 (faire 1 fois au lancement)
+mem0 = Memory.from_config(config)
+
+from pydantic import BaseModel
+from typing import Optional
+class Mem0SearchRequest(BaseModel):
+    query: str
+    user_id: str  # Important : ce champ est obligatoire
+    conversation_id: Optional[str] = None
+
+@app.post("/test_mem0_search_post")
+def test_search_post(payload: Mem0SearchRequest):
+    filters = {}
+    if payload.conversation_id:
+        filters["conversation_id"] = payload.conversation_id
+
+    results = mem0.search(
+        query=payload.query,
+        user_id=payload.user_id,  # passage explicite requis
+        filters=filters if filters else None  # filtre facultatif
+    )
+
+    return {
+        "query": payload.query,
+        "filters": filters,
+        "results": results.get("results", [])
+    }
+
+
 
 @app.post("/create_bot")
 def create_bot_and_conversation(request: CreateBotRequest, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):

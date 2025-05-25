@@ -1,13 +1,19 @@
 import uuid
 import enum
+
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
+from uuid import UUID
+
 from sqlmodel import Field, SQLModel, Relationship
 from pydantic import BaseModel, root_validator
 from sqlalchemy import Column, String, UniqueConstraint, DateTime, Text, Enum, ForeignKey
 from sqlalchemy.orm import relationship
-from uuid import uuid4, UUID
+from sqlalchemy.types import JSON
 from sqlalchemy.dialects.postgresql import UUID as SA_UUID
+
+
+
 from app.db.base import Base
 if TYPE_CHECKING:
     from .models import Conversation, Message
@@ -53,18 +59,34 @@ class Message(SQLModel, table=True):
     conversation: Optional["Conversation"] = Relationship(back_populates="messages")
 
 # -------------------------------
+# Modèle action future
+class FutureAction(SQLModel, table=True):
+    __tablename__ = "future_actions"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    conversation_id: uuid.UUID = Field(foreign_key="conversation.id", nullable=False)
+    action: str = Field(nullable=False)
+    date_action: datetime = Field(nullable=False)
+    future_message: str = Field(nullable=False)
+    condition: Optional[dict] = Field(sa_column=Column(JSON), default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Relation vers Conversation
+    conversation: Optional["Conversation"] = Relationship(back_populates="future_actions")
+
+# -------------------------------
 # Modèle conversation
 class Conversation(SQLModel, table=True):
     __tablename__ = "conversation"
     __table_args__ = (
-        UniqueConstraint("user_id", "bot_id", name="uq_user_bot"),  # Contrainte unique sur user_id et bot_id
-        {"sqlite_autoincrement": True},  # Optionnel selon SGBD
+        UniqueConstraint("user_id", "bot_id", name="uq_user_bot"),
+        {"sqlite_autoincrement": True},
     )
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)  # UUID généré automatiquement
-    user_id: UUID = Field(foreign_key="user.id", nullable=False)  # User lié à la conversation
-    bot_id: UUID = Field(foreign_key="bot.id", nullable=False)    # Bot lié à la conversation
-    created_at: datetime = Field(default_factory=datetime.utcnow)  # Date de création de la conversation
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
+    bot_id: uuid.UUID = Field(foreign_key="bot.id", nullable=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relations
     user: Optional["User"] = Relationship(back_populates="conversations")
@@ -72,20 +94,10 @@ class Conversation(SQLModel, table=True):
     messages: List["Message"] = Relationship(back_populates="conversation")
     memories: List["Memory"] = Relationship(back_populates="conversation")
     memory_entries: List["MemoryEntry"] = Relationship(back_populates="conversation")
-   
+    future_actions: List[FutureAction] = Relationship(back_populates="conversation")  # Ici FutureAction doit être défini avant
 
-    # Assure-toi d'utiliser le type UUID correct pour SQLAlchemy
     class Config:
         arbitrary_types_allowed = True
-# -------------------------------
-# Modèle action future
-class FutureAction(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    conversation_id: uuid.UUID = Field(foreign_key="conversation.id")
-    action: str
-    date_action: datetime
-    future_message: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 # -------------------------------
 # Modèle réponse automatique
@@ -118,7 +130,7 @@ class Bot(SQLModel, table=True):
     __tablename__ = "bot"
     
     # Id généré automatiquement
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    id: UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     
     # Nom du bot
     name: str = Field(nullable=False)
@@ -155,7 +167,7 @@ class MemoryImportance(str, enum.Enum):
 class MemoryEntry(SQLModel, table=True):
     __tablename__ = "memory_entries"
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    id: UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     conversation_id: UUID = Field(foreign_key="conversation.id", nullable=False)
     type: MemoryType = Field(sa_column_kwargs={"default": MemoryType.OTHER})
     importance: MemoryImportance = Field(sa_column_kwargs={"default": MemoryImportance.MEDIUM})
