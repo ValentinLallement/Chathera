@@ -164,32 +164,6 @@ from app.config import config
 # Initialisation globale mem0 (faire 1 fois au lancement)
 mem0 = Memory.from_config(config)
 
-from pydantic import BaseModel
-from typing import Optional
-class Mem0SearchRequest(BaseModel):
-    query: str
-    user_id: str  # Important : ce champ est obligatoire
-    conversation_id: Optional[str] = None
-
-@app.post("/test_mem0_search_post")
-def test_search_post(payload: Mem0SearchRequest):
-    filters = {}
-    if payload.conversation_id:
-        filters["conversation_id"] = payload.conversation_id
-
-    results = mem0.search(
-        query=payload.query,
-        user_id=payload.user_id,  # passage explicite requis
-        filters=filters if filters else None  # filtre facultatif
-    )
-
-    return {
-        "query": payload.query,
-        "filters": filters,
-        "results": results.get("results", [])
-    }
-
-
 
 @app.post("/create_bot")
 def create_bot_and_conversation(request: CreateBotRequest, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
