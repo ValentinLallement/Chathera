@@ -2,6 +2,7 @@ import base64
 import io
 import requests
 import asyncio
+import uuid
 
 from fastapi import FastAPI, Depends, HTTPException, status,APIRouter,Body,Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -26,9 +27,13 @@ from app.database import get_session
 from app.dependencies import get_db
 from app.routers import message
 from app.routers import auth_google
-from app.config import REFRESH_SECRET_KEY, ALGORITHM
+from app.config import REFRESH_SECRET_KEY, ALGORITHM,config
 from app.tasks.scheduler import task_scheduler
+from app.utils.permissions import check_bot_limit, check_message_limit
 
+from mem0 import Memory
+
+mem0 = Memory.from_config(config)
 
 
 # --- lifespan ---
@@ -67,11 +72,15 @@ WEBUI_API_URL = "http://127.0.0.1:7860"
 def read_root():
     return {"message": "Hello, FastAPI is ready!"}
 
+# ----------------- Register -----------------
+
+
 @app.post("/register", response_model=schemas.User)
 def register(user: schemas.UserCreate, db: Session = Depends(dependencies.get_db)):
     return crud.create_user(db=db, user=user)
 
 
+# ----------------- Tokens -----------------
 
 @app.post("/token", response_model=schemas.Token)
 def login_for_access_token(
@@ -119,6 +128,7 @@ def refresh_token(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
+# ----------------- User -----------------
 
 
 @app.get("/users/me", response_model=schemas.User)
@@ -126,6 +136,7 @@ def read_users_me(current_user: schemas.User = Depends(dependencies.get_current_
     return current_user
 
 
+# ----------------- Images -----------------
 
 
 
@@ -156,17 +167,18 @@ async def generate_image(data: PromptRequest, token: str = Depends(verify_token)
         raise HTTPException(status_code=500, detail=f"Erreur interne : {e}")
     
 
+# ----------------- Bots -----------------
 
 
-from mem0 import Memory
-from app.config import config  
-
-# Initialisation globale mem0 (faire 1 fois au lancement)
-mem0 = Memory.from_config(config)
 
 
-@app.post("/create_bot")
-def create_bot_and_conversation(request: CreateBotRequest, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+@router.post("/create_bot")
+def create_bot_and_conversation(
+    request: CreateBotRequest,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    # Authentification
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -176,18 +188,27 @@ def create_bot_and_conversation(request: CreateBotRequest, token: str = Depends(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Créer un bot avec le user_id
-    bot = Bot(name=request.name, user_id=user.id)  # Ajoute user_id ici
+    # Récupération de l'abonnement
+    subscription = user.subscription
+    if not subscription:
+        raise HTTPException(status_code=403, detail="Aucun abonnement trouvé pour l'utilisateur")
+
+    # Vérification de la limite de bots
+    existing_bot_count = db.query(Bot).filter(Bot.user_id == user.id).count()
+    if not check_bot_limit(subscription, existing_bot_count):
+        raise HTTPException(status_code=403, detail="Limite de bots atteinte pour votre abonnement")
+
+    # Création du bot
+    bot = Bot(name=request.name, user_id=user.id)
     db.add(bot)
     db.commit()
-    db.refresh(bot)  # Récupère le bot avec l'ID généré
+    db.refresh(bot)
 
-    # Créer une conversation pour cet utilisateur et ce bot
+    # Création de la conversation
     conversation = Conversation(user_id=user.id, bot_id=bot.id)
     db.add(conversation)
     db.commit()
 
-    # Retourner l'ID de la conversation et du bot
     return {"bot_id": bot.id, "conversation_id": conversation.id}
 
 
@@ -207,3 +228,33 @@ def get_my_bots(token: str = Depends(oauth2_scheme), db: Session = Depends(get_d
     bots = db.query(Bot).filter(Bot.user_id == user.id).all()
 
     return [{"bot_id": bot.id, "name": bot.name} for bot in bots]
+
+
+
+# ----------------- Abonnements -----------------
+
+@app.put("/user/subscription", response_model=schemas.SubscriptionUpdate)
+async def update_my_subscription(
+    subscription_update: schemas.SubscriptionUpdate,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    user = get_user_from_token(token, db, credentials_exception)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        updated_subscription = crud.update_user_subscription(
+            db=db,
+            user_id=user.id,
+            new_plan=subscription_update.plan,
+            message_limit=subscription_update.message_limit
+        )
+        return updated_subscription
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

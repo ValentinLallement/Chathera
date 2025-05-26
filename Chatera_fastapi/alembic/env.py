@@ -3,7 +3,7 @@
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
-from app.models import User, Memory, Message, Conversation, FutureAction
+from app.models import User, Message, Conversation, FutureAction
 from app.models import *
 import os
 import sys

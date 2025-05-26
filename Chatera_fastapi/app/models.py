@@ -1,25 +1,28 @@
 import uuid
 import enum
 
-from datetime import datetime
+from datetime import datetime,date
 from typing import Optional, List, TYPE_CHECKING
 from uuid import UUID
 
 from sqlmodel import Field, SQLModel, Relationship
-from pydantic import BaseModel, root_validator
-from sqlalchemy import Column, String, UniqueConstraint, DateTime, Text, Enum, ForeignKey
+
+from sqlalchemy import Column, String, UniqueConstraint, DateTime, Text, Enum, ForeignKey, Integer, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 from sqlalchemy.dialects.postgresql import UUID as SA_UUID
 
+from pydantic import BaseModel, root_validator
+from pydantic import ConfigDict
 
 
+from app.utils.payg import PlanEnum
 from app.db.base import Base
 if TYPE_CHECKING:
     from .models import Conversation, Message
 
-# -------------------------------
-# Modèle utilisateur
+# --------------  user  -----------------
+
 class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     username: Optional[str] = None
@@ -32,23 +35,11 @@ class User(SQLModel, table=True):
 
     conversations: List["Conversation"] = Relationship(back_populates="user")
     bots: List["Bot"] = Relationship(back_populates="user")
-# -------------------------------
-# Modèle mémoire
-class Memory(SQLModel, table=True):
-    __tablename__ = "memory"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
-    conversation_id: uuid.UUID = Field(foreign_key="conversation.id", nullable=False)
-    type: str  # "court_terme" ou "long_terme"
-    contenu: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    subscription: Optional["Subscription"] = Relationship(back_populates="user")
 
-    # Relations
-    conversation: Optional["Conversation"] = Relationship(back_populates="memories")
+# --------------  message  -----------------
 
-# -------------------------------
-# Modèle message
 class Message(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID
@@ -58,8 +49,8 @@ class Message(SQLModel, table=True):
 
     conversation: Optional["Conversation"] = Relationship(back_populates="messages")
 
-# -------------------------------
-# Modèle action future
+# ----------------  action future  ---------------
+
 class FutureAction(SQLModel, table=True):
     __tablename__ = "future_actions"
 
@@ -74,8 +65,8 @@ class FutureAction(SQLModel, table=True):
     # Relation vers Conversation
     conversation: Optional["Conversation"] = Relationship(back_populates="future_actions")
 
-# -------------------------------
-# Modèle conversation
+# ----------------  conversation  ---------------
+ 
 class Conversation(SQLModel, table=True):
     __tablename__ = "conversation"
     __table_args__ = (
@@ -92,15 +83,14 @@ class Conversation(SQLModel, table=True):
     user: Optional["User"] = Relationship(back_populates="conversations")
     bot: Optional["Bot"] = Relationship(back_populates="conversations")
     messages: List["Message"] = Relationship(back_populates="conversation")
-    memories: List["Memory"] = Relationship(back_populates="conversation")
     memory_entries: List["MemoryEntry"] = Relationship(back_populates="conversation")
     future_actions: List[FutureAction] = Relationship(back_populates="conversation")  # Ici FutureAction doit être défini avant
 
     class Config:
         arbitrary_types_allowed = True
 
-# -------------------------------
-# Modèle réponse automatique
+# ----------------  réponse automatique ---------------
+
 class AutoReplyResponse(BaseModel):
     nouvelle_memoire: Optional[List[dict]] = None
     message: Optional[str] = None
@@ -117,36 +107,47 @@ class AutoReplyResponse(BaseModel):
                 values[key] = None
         return values
 
-# -------------------------------
-# Modèle de requête de message
+# --------------  requête de message  -----------------
+
 class MessageRequest(BaseModel):
     messages_recents: List[dict]
     dernier_message: dict
 
+# ---------------  Bot  ----------------
+
+class PersonalityEnum(str, Enum):
+    sweet = "Sweet"
+    funny = "Funny"
+    romantic = "Romantic"
+    serious = "Serious"
+    sarcastic = "Sarcastic"
+
+class GenderEnum(str, Enum):
+    male = "Male"
+    female = "Female"
 
 
-# -------------------------------
 class Bot(SQLModel, table=True):
     __tablename__ = "bot"
-    
-    # Id généré automatiquement
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     id: UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    
-    # Nom du bot
     name: str = Field(nullable=False)
-    
-    # Id de l'utilisateur lié au bot
-    user_id: UUID = Field(default=None, foreign_key="user.id", nullable=False)  # Assurez-vous que la relation avec l'utilisateur est bien définie
 
-    # Relation avec la table User
-    user: "User" = Relationship(back_populates="bots")  # Définir la relation avec le modèle User
+    user_id: UUID = Field(foreign_key="user.id", nullable=False)
+    user: "User" = Relationship(back_populates="bots")
 
-    # Relation avec la conversation
     conversations: List["Conversation"] = Relationship(back_populates="bot")
 
+    personality: PersonalityEnum = Field(default=PersonalityEnum.sweet, nullable=True)
+    dependency_level: int = Field(default=3, ge=1, le=5, nullable=True)
+    gender: GenderEnum = Field(default=GenderEnum.female, nullable=True)
 
-# -------------------------------
-# New Memory Model
+    avatar_url: Optional[str] = Field(default=None, max_length=300)
+
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=True)
+
+# -----------------  Memory Model  --------------
 
 class MemoryType(str, enum.Enum):
     SHORT = "short"
@@ -179,3 +180,48 @@ class MemoryEntry(SQLModel, table=True):
 
     # Relation inverse
     conversation: Optional[Conversation] = Relationship(back_populates="memory_entries")
+
+# -------- Abonnements -----------
+
+    
+class Subscription(SQLModel, table=True):
+    __tablename__ = "subscription"
+
+    id: UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: UUID = Field(foreign_key="user.id", nullable=False)
+
+    plan: PlanEnum = Field(default=PlanEnum.FREE)    
+    start_date: datetime = Field(default_factory=datetime.utcnow)
+    message_count: int = Field(default=0)
+    last_reset: date = Field(default_factory=lambda: datetime.utcnow().date())
+
+    message_limit: Optional[int] = Field(default=None)
+
+    user: Optional["User"] = Relationship(back_populates="subscription")
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+# -------- Pay-as-you-go -----------
+
+
+class UsageLog(Base):
+    __tablename__ = "usage_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    bot_id = Column(Integer, ForeignKey("bots.id"), nullable=True)
+    type = Column(Enum("message", "bot_creation", name="usage_type"), nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+
+
+class MonthlyUsage(Base):
+    __tablename__ = "monthly_usage"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    year = Column(Integer, nullable=False)
+    month = Column(Integer, nullable=False)
+    total_messages = Column(Integer, default=0)
+    total_bots_created = Column(Integer, default=0)
+    billed = Column(Boolean, default=False)

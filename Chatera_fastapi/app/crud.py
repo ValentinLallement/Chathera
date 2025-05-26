@@ -1,16 +1,17 @@
 import re
 import unicodedata
+import uuid
 
 from sqlalchemy.orm import Session
 
 from passlib.context import CryptContext
 from uuid import UUID
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 from . import models, schemas,auth
-from app.models import Conversation, Message, Memory, FutureAction
-
+from app.models import Conversation, Message, FutureAction, Subscription
+from app.models import PlanEnum
 
 
 
@@ -19,16 +20,33 @@ from app.models import Conversation, Message, Memory, FutureAction
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_user(db: Session, user: schemas.UserCreate):
-    hashed_password = auth.hash_password(user.password)  # Hachez le mot de passe avant de l'enregistrer
+    # Hacher le mot de passe
+    hashed_password = auth.hash_password(user.password)
+
+    # Créer l'utilisateur en base
     db_user = models.User(
         username=user.username,
         email=user.email,
-        password=hashed_password,  # Utilisez le mot de passe haché
-        name=user.name  # Ajoutez ici le champ name
+        password=hashed_password,
+        name=user.name
     )
     db.add(db_user)
+    db.commit()         # Valider pour générer l'ID utilisateur
+    db.refresh(db_user) # Récupérer l'ID généré
+
+    # Créer un abonnement free par défaut lié à cet utilisateur
+    free_subscription = models.Subscription(
+        user_id=db_user.id,
+        plan=models.PlanEnum.FREE,
+        # start_date, message_count, last_reset, etc. prennent leurs valeurs par défaut
+    )
+    db.add(free_subscription)
     db.commit()
-    db.refresh(db_user)
+    db.refresh(free_subscription)
+
+    # Optionnel : lier en mémoire (utile si tu veux accéder à db_user.subscription juste après)
+    db_user.subscription = free_subscription
+
     return db_user
 
 def get_user_by_username(db: Session, username: str):
@@ -108,6 +126,20 @@ def create_or_update_user_google(db: Session, email: str, name: Optional[str], g
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Créer un abonnement free par défaut pour le nouvel utilisateur
+    free_subscription = models.Subscription(
+        user_id=new_user.id,
+        plan=models.PlanEnum.FREE,
+        # start_date, message_count, last_reset, etc. par défaut
+    )
+    db.add(free_subscription)
+    db.commit()
+    db.refresh(free_subscription)
+
+    # Optionnel : liaison en mémoire
+    new_user.subscription = free_subscription
+
     return new_user
 
 
@@ -132,7 +164,7 @@ def get_conversation_by_id(session: Session, conversation_id: UUID) -> Conversat
     return session.get(Conversation, conversation_id)
 
 
-# ✅ Message
+# Message
 def create_message(session: Session, user_id: UUID, conversation_id: UUID, content: str) -> Message:
     message = Message(user_id=user_id, conversation_id=conversation_id, content=content)
     session.add(message)
@@ -141,16 +173,7 @@ def create_message(session: Session, user_id: UUID, conversation_id: UUID, conte
     return message
 
 
-# ✅ Memory
-def create_memory(session: Session, user_id: UUID, type_: str, contenu: str) -> Memory:
-    memory = Memory(user_id=user_id, type=type_, contenu=contenu)
-    session.add(memory)
-    session.commit()
-    session.refresh(memory)
-    return memory
-
-
-# ✅ FutureAction
+# FutureAction
 def create_future_action(
     session: Session,
     conversation_id: UUID,
@@ -171,3 +194,53 @@ def create_future_action(
 
 def get_messages_by_user(db: Session, user_id: UUID) -> list[Message]:
     return db.query(Message).filter(Message.user_id == user_id).all()
+
+
+#-----------------------------  Abonnements  -------------------------------------------
+
+def update_user_subscription(
+    db: Session,
+    user_id: UUID,
+    new_plan: Optional[Union[str, PlanEnum]] = None,
+    message_limit: Optional[int] = None,
+):
+    subscription = db.query(Subscription).filter(Subscription.user_id == user_id).first()
+
+    if not subscription:
+        # Création avec plan FREE par défaut
+        subscription = Subscription(
+            user_id=user_id,
+            plan=PlanEnum.FREE,
+            message_limit=None,  # par défaut None car plan free
+            message_count=0,
+            start_date=datetime.utcnow(),
+            last_reset=datetime.utcnow().date()
+        )
+        db.add(subscription)
+        db.flush()  # flush pour générer l'ID si besoin
+
+    if new_plan:
+        try:
+            if isinstance(new_plan, str):
+                new_plan = PlanEnum(new_plan.lower())
+        except ValueError:
+            raise ValueError(
+                f"Invalid plan value '{new_plan}'. Valid values are: {[e.value for e in PlanEnum]}"
+            )
+        subscription.plan = new_plan
+        subscription.start_date = datetime.utcnow()
+        subscription.message_count = 0
+        subscription.last_reset = datetime.utcnow().date()
+
+    # Gestion message_limit en fonction du plan
+    if subscription.plan in {PlanEnum.FREE, PlanEnum.PREMIUM}:
+        # On force message_limit à None si le plan est free ou premium, peu importe l'entrée
+        subscription.message_limit = None
+    else:
+        # Sinon (payg par exemple), on applique le message_limit donné si existant
+        if message_limit is not None:
+            subscription.message_limit = message_limit
+
+    db.commit()
+    db.refresh(subscription)
+    return subscription

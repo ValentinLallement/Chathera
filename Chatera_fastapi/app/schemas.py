@@ -1,10 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,ConfigDict
 from sqlmodel import SQLModel
+
 
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
-
+from enum import Enum
+from app.utils.payg import PlanEnum
 
 # ----------------------------- Utilisateur -----------------------------
 class UserLogin(BaseModel):
@@ -25,6 +27,7 @@ class User(UserBase):
     id: UUID
     name: Optional[str] = None
     profile_picture: Optional[str] = None
+    subscription: Optional[dict] = None  # Détails de l'abonnement de l'utilisateur
 
     class Config:
         from_attributes = True
@@ -75,3 +78,11 @@ class MessageRequest(BaseModel):
 class CreateBotRequest(BaseModel):
     name: str
     
+# ----------------------------- Abonnements -----------------------------
+
+class SubscriptionUpdate(BaseModel):
+    plan: Optional[PlanEnum] = None
+    message_limit: Optional[int] = None
+
+    class Config:
+        arbitrary_types_allowed = True

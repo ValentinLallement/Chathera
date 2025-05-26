@@ -10,12 +10,13 @@ from sqlalchemy.orm import Session
 from uuid import uuid4, UUID
 from datetime import datetime,timedelta
 
-from app.models import Message, Conversation, Memory, FutureAction, MemoryType, MemoryImportance, MemoryEntry
+from app.models import Message, Conversation, FutureAction, MemoryType, MemoryImportance, MemoryEntry, Subscription
 from app.database import get_session
 from app.dependencies import get_user_from_websocket,get_db
 from app.utils.auto_reply import build_prompt, get_auto_reply_from_deepseek
 from app.utils.websocket_registry import register_websocket, unregister_websocket
 from app.utils.mem0 import mem0_add_memory , search_memory
+from app.utils.permissions import check_message_limit
 
 
 websocket_router = APIRouter()
@@ -30,6 +31,31 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
         await websocket.close()
         unregister_websocket(user.id if user else None)
         return
+
+    subscription = db.query(Subscription).filter_by(user_id=user.id).first()
+    if not subscription:
+        await websocket.send_json({
+            "type": "error",
+            "message": "Aucun abonnement trouvé pour cet utilisateur.",
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        await websocket.close()
+        unregister_websocket(user.id)
+        return
+
+    if not check_message_limit(subscription):
+        await websocket.send_json({
+            "type": "limit_reached",
+            "message": "Je crois qu’on a fait le plein de papotages pour ce mois… "
+               "Mais promis, je serai là dès que tu recharges. Tu vas me manquer ! 💙",
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        await websocket.close()
+        unregister_websocket(user.id)
+        return
+
+    subscription.message_count += 1
+    db.commit()
 
     await websocket.accept()
     register_websocket(user.id, websocket)
