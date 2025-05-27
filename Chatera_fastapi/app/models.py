@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 # --------------  user  -----------------
 
 class User(SQLModel, table=True):
+    __tablename__ = "user"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     username: Optional[str] = None
     email: str
@@ -33,10 +34,19 @@ class User(SQLModel, table=True):
     profile_picture: Optional[str] = None  # URL de la photo de profil Google
     google_sub: Optional[str] = None  # ID Google (subject) unique, pour reconnaitre l’utilisateur Google
 
-    conversations: List["Conversation"] = Relationship(back_populates="user")
-    bots: List["Bot"] = Relationship(back_populates="user")
+    conversations: List["Conversation"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    bots: List["Bot"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
-    subscription: Optional["Subscription"] = Relationship(back_populates="user")
+    subscriptions: List["Subscription"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
 # --------------  message  -----------------
 
@@ -82,36 +92,21 @@ class Conversation(SQLModel, table=True):
     # Relations
     user: Optional["User"] = Relationship(back_populates="conversations")
     bot: Optional["Bot"] = Relationship(back_populates="conversations")
-    messages: List["Message"] = Relationship(back_populates="conversation")
-    memory_entries: List["MemoryEntry"] = Relationship(back_populates="conversation")
-    future_actions: List[FutureAction] = Relationship(back_populates="conversation")  # Ici FutureAction doit être défini avant
+    messages: List["Message"] = Relationship(
+        back_populates="conversation",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    memory_entries: List["MemoryEntry"] = Relationship(
+        back_populates="conversation",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    future_actions: List[FutureAction] = Relationship(
+        back_populates="conversation",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
     class Config:
         arbitrary_types_allowed = True
-
-# ----------------  réponse automatique ---------------
-
-class AutoReplyResponse(BaseModel):
-    nouvelle_memoire: Optional[List[dict]] = None
-    message: Optional[str] = None
-    action: Optional[str] = None
-    date_action: Optional[datetime] = None
-    future_action: Optional[str] = None
-    date_future_action: Optional[datetime] = None
-    future_message: Optional[str] = None
-
-    @root_validator(pre=True)
-    def convert_empty_strings_to_none(cls, values):
-        for key, value in values.items():
-            if value == '':
-                values[key] = None
-        return values
-
-# --------------  requête de message  -----------------
-
-class MessageRequest(BaseModel):
-    messages_recents: List[dict]
-    dernier_message: dict
 
 # ---------------  Bot  ----------------
 
@@ -137,7 +132,10 @@ class Bot(SQLModel, table=True):
     user_id: UUID = Field(foreign_key="user.id", nullable=False)
     user: "User" = Relationship(back_populates="bots")
 
-    conversations: List["Conversation"] = Relationship(back_populates="bot")
+    conversations: List["Conversation"] = Relationship(
+        back_populates="bot",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
     personality: PersonalityEnum = Field(default=PersonalityEnum.sweet, nullable=True)
     dependency_level: int = Field(default=3, ge=1, le=5, nullable=True)
@@ -197,7 +195,7 @@ class Subscription(SQLModel, table=True):
 
     message_limit: Optional[int] = Field(default=None)
 
-    user: Optional["User"] = Relationship(back_populates="subscription")
+    user: Optional["User"] = Relationship(back_populates="subscriptions")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

@@ -1,12 +1,36 @@
-from pydantic import BaseModel,ConfigDict
+from pydantic import BaseModel,ConfigDict, root_validator, EmailStr, Field
 from sqlmodel import SQLModel
 
 
 from typing import Optional, List
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime,date
 from enum import Enum
 from app.utils.payg import PlanEnum
+
+
+
+# ----------------------------- Abonnements -----------------------------
+
+class Subscription(BaseModel):
+    id: UUID
+    user_id: UUID
+    plan: str
+    start_date: datetime
+    message_count: int
+    message_limit: Optional[int]
+    last_reset: date
+
+    class Config:
+        from_attributes = True  
+
+class SubscriptionUpdate(BaseModel):
+    plan: Optional[PlanEnum] = None
+    message_limit: Optional[int] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
 
 # ----------------------------- Utilisateur -----------------------------
 class UserLogin(BaseModel):
@@ -27,7 +51,7 @@ class User(UserBase):
     id: UUID
     name: Optional[str] = None
     profile_picture: Optional[str] = None
-    subscription: Optional[dict] = None  # Détails de l'abonnement de l'utilisateur
+    subscription: Optional[Subscription] = None
 
     class Config:
         from_attributes = True
@@ -35,6 +59,22 @@ class User(UserBase):
 class GoogleLogin(BaseModel):
     token: str  # Token ID JWT envoyé par le client Google
     access_token: str
+
+
+class UserDeleteRequest(BaseModel):
+    password: str
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
 
 # ----------------------------- Authentification -----------------------------
 class Token(BaseModel):
@@ -46,6 +86,7 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 # ----------------------------- Message -----------------------------
+
 class MessageBase(BaseModel):
     content: str
     created_at: datetime  # on utilise `created_at` pour refléter la base de données
@@ -56,17 +97,28 @@ class Message(MessageBase):
 
     class Config:
         from_attributes = True
+    
+class ConversationRequest(BaseModel):
+    conversation_id: UUID
 
 # ----------------------------- IA & Prompts -----------------------------
-class AutoReplyResponse(BaseModel):
-    nouvelle_memoire: List[dict]
-    message: str
-    action: str
-    date_action: Optional[str]
-    future_action: Optional[str]
-    date_future_action: Optional[str]
-    future_message: Optional[str]
 
+class AutoReplyResponse(BaseModel):
+    nouvelle_memoire: Optional[List[dict]] = None
+    message: Optional[str] = None
+    action: Optional[str] = None
+    date_action: Optional[datetime] = None
+    future_action: Optional[str] = None
+    date_future_action: Optional[datetime] = None
+    future_message: Optional[str] = None
+
+    @root_validator(pre=True)
+    def convert_empty_strings_to_none(cls, values):
+        for key, value in values.items():
+            if value == '':
+                values[key] = None
+        return values
+    
 class PromptRequest(BaseModel):
     prompt: str
 
@@ -78,11 +130,3 @@ class MessageRequest(BaseModel):
 class CreateBotRequest(BaseModel):
     name: str
     
-# ----------------------------- Abonnements -----------------------------
-
-class SubscriptionUpdate(BaseModel):
-    plan: Optional[PlanEnum] = None
-    message_limit: Optional[int] = None
-
-    class Config:
-        arbitrary_types_allowed = True

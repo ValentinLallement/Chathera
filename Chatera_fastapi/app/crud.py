@@ -9,6 +9,8 @@ from uuid import UUID
 from datetime import datetime
 from typing import Optional, Union
 
+from fastapi import HTTPException
+
 from . import models, schemas,auth
 from app.models import Conversation, Message, FutureAction, Subscription
 from app.models import PlanEnum
@@ -20,10 +22,20 @@ from app.models import PlanEnum
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_user(db: Session, user: schemas.UserCreate):
-    # Hacher le mot de passe
+    # Vérification unicité email
+    existing_email = db.query(models.User).filter(models.User.email == user.email).first()
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
+
+    # Vérification unicité username
+    existing_username = db.query(models.User).filter(models.User.username == user.username).first()
+    if existing_username:
+        raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris.")
+
+    # Hachage du mot de passe
     hashed_password = auth.hash_password(user.password)
 
-    # Créer l'utilisateur en base
+    # Création de l'utilisateur
     db_user = models.User(
         username=user.username,
         email=user.email,
@@ -31,21 +43,20 @@ def create_user(db: Session, user: schemas.UserCreate):
         name=user.name
     )
     db.add(db_user)
-    db.commit()         # Valider pour générer l'ID utilisateur
-    db.refresh(db_user) # Récupérer l'ID généré
+    db.commit()
+    db.refresh(db_user)
 
-    # Créer un abonnement free par défaut lié à cet utilisateur
+    # Création d'un abonnement gratuit
     free_subscription = models.Subscription(
         user_id=db_user.id,
-        plan=models.PlanEnum.FREE,
-        # start_date, message_count, last_reset, etc. prennent leurs valeurs par défaut
+        plan=models.PlanEnum.FREE
     )
     db.add(free_subscription)
     db.commit()
     db.refresh(free_subscription)
 
-    # Optionnel : lier en mémoire (utile si tu veux accéder à db_user.subscription juste après)
-    db_user.subscription = free_subscription
+    # Lier l’abonnement à l’utilisateur (utile si tu veux y accéder plus tard dans la session)
+    db_user.subscriptions.append(free_subscription)
 
     return db_user
 

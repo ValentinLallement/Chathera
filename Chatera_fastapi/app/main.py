@@ -19,17 +19,18 @@ from jose import JWTError, jwt
 from contextlib import asynccontextmanager
 
 from . import models, crud, schemas, dependencies, auth
-from app.models import Conversation,Bot
-from app.schemas import CreateBotRequest, UserLogin,PromptRequest, RefreshTokenRequest
-from app.auth import verify_token,get_user_from_token
+from app.models import Conversation,Bot, User
+from app.schemas import CreateBotRequest, UserLogin,PromptRequest, RefreshTokenRequest, UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest
+from app.auth import verify_token,get_user_from_token, create_password_reset_token
 from app.websocket.router import websocket_router
 from app.database import get_session
 from app.dependencies import get_db
-from app.routers import message
-from app.routers import auth_google
-from app.config import REFRESH_SECRET_KEY, ALGORITHM,config
+from app.routers import message,auth_google
+from app.config import REFRESH_SECRET_KEY, ALGORITHM,config,SECRET_KEY
 from app.tasks.scheduler import task_scheduler
-from app.utils.permissions import check_bot_limit, check_message_limit
+from app.utils.permissions import check_bot_limit
+from app.utils.email import send_email
+
 
 from mem0 import Memory
 
@@ -66,6 +67,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 WEBUI_API_URL = "http://127.0.0.1:7860"
 
+credentials_exception = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Could not validate credentials",
+    headers={"WWW-Authenticate": "Bearer"},
+)
 
 
 @app.get("/")
@@ -135,6 +141,87 @@ def refresh_token(
 def read_users_me(current_user: schemas.User = Depends(dependencies.get_current_user)):
     return current_user
 
+@app.delete("/user/delete")
+def delete_account(
+    request: UserDeleteRequest,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user = get_user_from_token(token, db,credentials_exception)
+
+    # Vérifie le mot de passe
+    if not auth.verify_password(request.password, user.password):
+        raise HTTPException(status_code=403, detail="Mot de passe incorrect.")
+
+    # Supprime l'utilisateur
+    db.delete(user)
+    db.commit()
+
+    return {"detail": "Compte supprimé avec succès."}
+
+# ----------------- Modify password -----------------
+
+@app.post("/user/change-password")
+def change_password(
+    request: ChangePasswordRequest,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):  
+
+    user = get_user_from_token(token, db,credentials_exception)
+
+    
+
+    # Vérifie l'ancien mot de passe
+    if not auth.verify_password(request.old_password, user.password):
+        raise HTTPException(status_code=403, detail="Ancien mot de passe incorrect.")
+
+    # Met à jour avec le nouveau mot de passe haché
+    user.password = auth.hash_password(request.new_password)
+    db.commit()
+
+    return {"detail": "Mot de passe mis à jour avec succès."}
+
+# ----------------- reset password -----------------
+
+@app.post("/user/request-password-reset")
+def request_password_reset(request: PasswordResetRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user:
+        # Optionnel : ne pas révéler que l’email n'existe pas
+        raise HTTPException(status_code=200, detail="Si cet email existe, un lien de réinitialisation a été envoyé.")
+
+    # Générer un token JWT temporaire spécial "reset password"
+    reset_token = create_password_reset_token(user.id)
+
+    # Créer le lien de reset à envoyer par email
+    reset_link = f"https://Chathera.com/reset-password?token={reset_token}"
+
+    send_email(
+        to=user.email,
+        subject="Réinitialisation de votre mot de passe",
+        body=f"Cliquez ici pour réinitialiser votre mot de passe : {reset_link}"
+    )
+
+    return {"detail": f"Un lien de réinitialisation a été envoyé à l'email : {request.email} ."}
+
+
+@app.post("/user/reset-password")
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(request.token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token invalide ou expiré.")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+
+    user.password = auth.hash_password(request.new_password)
+    db.commit()
+
+    return {"detail": "Mot de passe réinitialisé avec succès."}
 
 # ----------------- Images -----------------
 
@@ -179,11 +266,6 @@ def create_bot_and_conversation(
     db: Session = Depends(get_db)
 ):
     # Authentification
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
     user = get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -215,11 +297,6 @@ def create_bot_and_conversation(
 @app.get("/my_bots")
 def get_my_bots(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     # Vérifie le token
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
     user = get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -239,11 +316,6 @@ async def update_my_subscription(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
     user = get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

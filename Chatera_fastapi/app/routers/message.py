@@ -10,6 +10,7 @@ from uuid import UUID
 from app.models import Message, Conversation, User
 from app.auth import get_user_from_token  # ta fonction d’authentification
 from app.schemas import Message as MessageSchema
+from app.schemas import ConversationRequest
 from app.crud import get_messages_by_user
 from app.dependencies import get_db
 
@@ -25,9 +26,9 @@ def read_user_messages(user_id: UUID, db: Session = Depends(get_db)):
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  # adapte l’URL selon ta config
 
-@router.get("/conversations/{conversation_id}/messages", response_model=List[Message])
+@router.post("/conversations/messages", response_model=List[Message])
 def read_conversation_messages(
-    conversation_id: UUID,
+    request: ConversationRequest,
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
@@ -39,10 +40,10 @@ def read_conversation_messages(
     
     user: User = get_user_from_token(token, db, credentials_exception)
 
-    # ✅ Recherche la conversation appartenant à l'utilisateur
+    # ✅ Vérifie que la conversation appartient à l'utilisateur
     conversation = db.execute(
         select(Conversation).where(
-            Conversation.id == conversation_id,
+            Conversation.id == request.conversation_id,
             Conversation.user_id == user.id
         )
     ).scalars().first()
@@ -50,10 +51,10 @@ def read_conversation_messages(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation introuvable pour cet utilisateur.")
 
-    # ✅ Recherche des messages
+    # ✅ Récupère les messages associés
     messages = db.execute(
         select(Message).where(
-            Message.conversation_id == conversation_id
+            Message.conversation_id == request.conversation_id
         ).order_by(Message.created_at)
     ).scalars().all()
 
