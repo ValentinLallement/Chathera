@@ -1,8 +1,12 @@
+import stripe
+import time
+
 from datetime import datetime,timedelta
-from sqlalchemy.orm import Session
+
 
 from pydantic_core import core_schema
 from sqlalchemy import Enum
+from sqlalchemy.orm import Session
 
 class PlanEnum(str, Enum):
     FREE = "free"
@@ -14,33 +18,16 @@ class PlanEnum(str, Enum):
         return core_schema.literal_schema(["free", "premium", "payg"])
     
     
-# exemple de fonction qui calcule l'utilisation mensuelle des utilisateurs - A modifier pour adapter à Stripe ! 
-def compute_monthly_usage(db: Session):
-    from app.models import User, UsageLog, MonthlyUsage
-    now = datetime.utcnow()
-    first_day_last_month = datetime(now.year, now.month, 1) - timedelta(days=1)
-    start = datetime(first_day_last_month.year, first_day_last_month.month, 1)
-    end = datetime(now.year, now.month, 1)
-
-    users = db.query(User).all()
-    for user in users:
-        logs = db.query(UsageLog).filter(
-            UsageLog.user_id == user.id,
-            UsageLog.timestamp >= start,
-            UsageLog.timestamp < end
-        ).all()
-
-        msg_count = sum(1 for log in logs if log.type == "message")
-        bot_count = sum(1 for log in logs if log.type == "bot_creation")
-
-        usage = MonthlyUsage(
-            user_id=user.id,
-            year=start.year,
-            month=start.month,
-            total_messages=msg_count,
-            total_bots_created=bot_count,
-            billed=False
+def report_usage(subscription_item_id: str, quantity: int, increment=True):
+    action = "increment" if increment else "set"
+    try:
+        usage_record = stripe.SubscriptionItem.create_usage_record(
+            subscription_item=subscription_item_id,
+            quantity=quantity,
+            timestamp=int(time.time()),
+            action=action,
         )
-        db.add(usage)
-
-    db.commit()
+        return usage_record
+    except Exception as e:
+        print(f"Erreur lors du report d'usage Stripe : {e}")
+        return None

@@ -13,7 +13,7 @@ from fastapi import HTTPException
 
 from . import models, schemas,auth
 from app.models import Conversation, Message, FutureAction, Subscription
-from app.models import PlanEnum
+from app.utils.payg import PlanEnum
 
 
 
@@ -49,7 +49,8 @@ def create_user(db: Session, user: schemas.UserCreate):
     # Création d'un abonnement gratuit
     free_subscription = models.Subscription(
         user_id=db_user.id,
-        plan=models.PlanEnum.FREE
+        plan=models.PlanEnum.FREE,
+        status="active"
     )
     db.add(free_subscription)
     db.commit()

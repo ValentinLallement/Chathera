@@ -1,0 +1,16 @@
+{
+  "success_url": "https://example.com/success",
+  "cancel_url": "https://example.com/cancel",
+  "mode": "subscription",
+  "customer": "cus_SOt6ltlMUlr847",
+  "line_items": [
+    {
+      "price": "price_1RTjOMQWDqq7868OjgA0LiDY",
+      "quantity": 1
+    }
+  ],
+  "metadata": {
+    "user_id": "a9a17b10-2fd1-4f45-9e0d-3ea1b5f8e111",
+    "plan": "premium"
+  }
+}

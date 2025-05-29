@@ -17,6 +17,7 @@ from app.utils.auto_reply import build_prompt, get_auto_reply_from_deepseek
 from app.utils.websocket_registry import register_websocket, unregister_websocket
 from app.utils.mem0 import mem0_add_memory , search_memory
 from app.utils.permissions import check_message_limit
+from app.utils.payg import PlanEnum, report_usage
 
 
 websocket_router = APIRouter()
@@ -42,6 +43,16 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
         await websocket.close()
         unregister_websocket(user.id)
         return
+    
+    if hasattr(subscription, "status") and subscription.status != "active":
+        await websocket.send_json({
+            "type": "error",
+            "message": "Votre abonnement n'est pas actif. Merci de le réactiver pour utiliser le service.",
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        await websocket.close()
+        unregister_websocket(user.id)
+        return
 
     if not check_message_limit(subscription):
         await websocket.send_json({
@@ -56,6 +67,18 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
 
     subscription.message_count += 1
     db.commit()
+
+    # --- REPORT USAGE STRIPE ---
+    if subscription.plan == PlanEnum.PAYG and subscription.stripe_subscription_item_messages:
+        try:
+            # Incrémente de 1 l'usage messages sur Stripe
+            report_usage(
+                subscription_item_id=subscription.stripe_subscription_item_messages,
+                quantity=1,
+                increment=True
+            )
+        except Exception as e:
+            print(f"Erreur lors du report d'usage messages à Stripe : {e}")
 
     await websocket.accept()
     register_websocket(user.id, websocket)

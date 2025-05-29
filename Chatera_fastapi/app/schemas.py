@@ -6,6 +6,7 @@ from typing import Optional, List
 from uuid import UUID
 from datetime import datetime,date
 from enum import Enum
+
 from app.utils.payg import PlanEnum
 
 
@@ -31,6 +32,9 @@ class SubscriptionUpdate(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
+
+class CheckoutRequest(BaseModel):
+    plan: str 
 
 # ----------------------------- Utilisateur -----------------------------
 class UserLogin(BaseModel):

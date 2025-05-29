@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 class User(SQLModel, table=True):
     __tablename__ = "user"
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     username: Optional[str] = None
     email: str
@@ -181,21 +182,31 @@ class MemoryEntry(SQLModel, table=True):
 
 # -------- Abonnements -----------
 
+class SubscriptionStatus(str, Enum):
+    active = "active"
+    cancelled = "cancelled"
+    past_due = "past_due"
+    unpaid = "unpaid"
+    trialing = "trialing"
     
 class Subscription(SQLModel, table=True):
     __tablename__ = "subscription"
 
     id: UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user: Optional["User"] = Relationship(back_populates="subscriptions")
     user_id: UUID = Field(foreign_key="user.id", nullable=False)
 
     plan: PlanEnum = Field(default=PlanEnum.FREE)    
     start_date: datetime = Field(default_factory=datetime.utcnow)
     message_count: int = Field(default=0)
     last_reset: date = Field(default_factory=lambda: datetime.utcnow().date())
-
+    status: SubscriptionStatus = Field(default=SubscriptionStatus.active,nullable=True)
     message_limit: Optional[int] = Field(default=None)
 
-    user: Optional["User"] = Relationship(back_populates="subscriptions")
+    stripe_subscription_id: Optional[str] = Field(default=None, nullable=True, index=True)
+
+    stripe_subscription_item_messages: Optional[str] = Field(default=None, nullable=True, index=True)
+    stripe_subscription_item_bots: Optional[str] = Field(default=None, nullable=True, index=True)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
