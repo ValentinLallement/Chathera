@@ -1,3 +1,20 @@
+import warnings
+
+# ignore les avertissements de dépréciation venus de FAISS
+warnings.filterwarnings(
+    "ignore",
+    category=DeprecationWarning,
+    module="faiss.loader"
+)
+
+# ignore les messages du type "builtin type SwigPyPacked has no __module__"
+warnings.filterwarnings(
+    "ignore",
+    category=DeprecationWarning,
+    message=r"builtin type .* has no __module__"
+)
+
+
 import base64
 import io
 import requests
@@ -23,7 +40,7 @@ from app.websocket.router import websocket_router
 from app.database import get_session
 from app.dependencies import get_db
 from app.routers import message,auth_google,stripe_routes,api_routers
-from app.config import REFRESH_SECRET_KEY, ALGORITHM,config,SECRET_KEY
+from app.config import REFRESH_SECRET_KEY, ALGORITHM, SECRET_KEY, MEM0_CONFIG
 from app.tasks.scheduler import task_scheduler
 from app.utils.permissions import check_bot_limit
 from app.utils.email import send_email
@@ -31,7 +48,7 @@ from app.utils.payg import report_usage
 from app.routers.api_routers import api_router
 from mem0 import Memory
 
-mem0 = Memory.from_config(config)
+mem0 = Memory.from_config(MEM0_CONFIG)
 
 
 # --- lifespan ---

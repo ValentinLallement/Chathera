@@ -1,7 +1,6 @@
 import asyncio
 
-from datetime import datetime, timedelta
-
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
@@ -13,7 +12,7 @@ async def task_scheduler():
     while True:
         async with asyncio.Lock():
             db: Session = SessionLocal()
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
 
             actions = db.query(FutureAction).filter(FutureAction.date_action <= now).all()
             for action in actions:

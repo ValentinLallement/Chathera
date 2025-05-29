@@ -1,3 +1,19 @@
+# app/config.py — en tout premier
+import warnings
+
+# Filtre les DeprecationWarning issus de FAISS et SWIG internes
+warnings.filterwarnings(
+    "ignore",
+    category=DeprecationWarning,
+    module=r"faiss\..*"
+)
+warnings.filterwarnings(
+    "ignore",
+    category=DeprecationWarning,
+    message=r"builtin type .* has no __module__"
+)
+
+
 # app/config.py
 
 import os
@@ -6,6 +22,10 @@ from dotenv import load_dotenv
 from mem0 import Memory
 
 load_dotenv()
+
+MEM0_VECTOR_PATH = os.getenv("MEM0_VECTOR_PATH")
+if not MEM0_VECTOR_PATH:
+    raise RuntimeError("Il manque MEM0_VECTOR_PATH dans le .env bordel")
 
 GROK_API_KEY = os.getenv("GROK_API_KEY")
 GROK_URL = os.getenv("GROK_URL", "https://api.x.ai/v1/chat/completions")
@@ -40,7 +60,7 @@ BOT_PRICE_ID = os.getenv("BOT_PRICE_ID")
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 # Configuration mem0 
-config = {
+MEM0_CONFIG = { # note: il faut renomer ta config val. bon la je l'ai fait mais pense y
     "embedder": {
         "provider": "openai",
         "config": {
@@ -51,7 +71,8 @@ config = {
         "provider": "faiss",
         "config": {
             "collection_name": "conversations",
-            "path": "C:\\Users\\lalle\\projets\\Chathera\\Chatera_fastapi\\faiss_memories"
+            "path": MEM0_VECTOR_PATH # Utilise une variable d'env c'est mieux
         }
     }
 }
+

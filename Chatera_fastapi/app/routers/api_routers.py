@@ -29,7 +29,7 @@ from app.auth import verify_token, get_user_from_token, create_password_reset_to
 from app.websocket.router import websocket_router
 from app.database import get_session
 from app.dependencies import get_db
-from app.config import REFRESH_SECRET_KEY, ALGORITHM, config, SECRET_KEY
+from app.config import REFRESH_SECRET_KEY, ALGORITHM, SECRET_KEY, MEM0_CONFIG
 from app.tasks.scheduler import task_scheduler
 from app.utils.permissions import check_bot_limit
 from app.utils.email import send_email
@@ -38,7 +38,7 @@ from app.utils.payg import report_usage
 from mem0 import Memory
 
 WEBUI_API_URL = "http://127.0.0.1:7860"
-mem0 = Memory.from_config(config)
+mem0 = Memory.from_config(MEM0_CONFIG)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Union
 from app.models import MemoryEntry, MemoryImportance, MemoryType  
 from mem0 import Memory
-from app.config import config  
+from app.config import MEM0_CONFIG as config
 
 # Initialisation globale mem0 (faire 1 fois au lancement)
 mem0 = Memory.from_config(config)
