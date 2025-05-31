@@ -1,0 +1,38 @@
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.env
+
+# Development
+.vscode/
+*.swp
+*.swo
+.idea/
+
+# Test
+test.db
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Project specific
+data/
+faiss_memories/
+*.log
+checkout_session.json
+TOKEN
+USER
+USERNAME
+
+# Docker
+Dockerfile
+docker-compose.yml
+.docker/
