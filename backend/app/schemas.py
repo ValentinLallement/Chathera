@@ -134,3 +134,8 @@ class MessageRequest(BaseModel):
 class CreateBotRequest(BaseModel):
     name: str
     
+# ----------------------------- Avatar -----------------------------
+
+class AvatarPayload(BaseModel):
+    bot_id: int
+    glb_url: str

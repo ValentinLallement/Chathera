@@ -11,7 +11,6 @@ from typing import List, Optional,Union
 from app.config import DEEPSEEK_API_KEY, DEEPSEEK_URL
 from app.models import MemoryEntry, MemoryType, MemoryImportance 
 
-
 def build_prompt(
     messages_recents: List[dict],
     souvenirs_pertinents: List[str],
@@ -402,15 +401,35 @@ def get_auto_reply_from_grok(prompt: str) -> dict:
     
 """
 
-def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID,dernier_message: dict, db: Session) -> dict:
+
+def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, dernier_message: dict, db: Session) -> dict:
+    """
+    Envoie un prompt à l'API DeepSeek et récupère une réponse structurée JSON.
+
+    Args:
+        prompt (str): Prompt complet pour DeepSeek.
+        conversation_id (UUID): Identifiant de la conversation (non utilisé ici mais potentiellement pour logs).
+        dernier_message (dict): Dernier message envoyé par l'utilisateur (auteur, contenu, date).
+        db (Session): Session SQLAlchemy (non utilisée ici, possibilité d'évolution).
+
+    Returns:
+        dict: Résultat parsé contenant au minimum les clés "actions" ou "error".
+    """
+    # Préparer les headers avec la clé API (assumer DEEPSEEK_API_KEY et DEEPSEEK_URL définis globalement)
     cleaned_token = DEEPSEEK_API_KEY.strip()
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {cleaned_token}"
     }
+
+    # Fonction utilitaire pour obtenir la date courante au format souhaité
     def get_current_date() -> str:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Construire la chaîne représentant le dernier message à inclure dans le prompt utilisateur
     dernier_str = f"({dernier_message.get('date', get_current_date())}) - {dernier_message.get('auteur', 'Auteur inconnu')} : {dernier_message.get('contenu', 'Contenu inconnu')}"
+
+    # Préparer le payload JSON pour DeepSeek
     payload = {
         "messages": [
             {"role": "system", "content": prompt},
@@ -422,12 +441,14 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID,dernier_mess
     }
 
     try:
+        # Requête POST vers DeepSeek
         response = requests.post(DEEPSEEK_URL, headers=headers, json=payload)
         response.raise_for_status()
         response_data = response.json()
 
         print("Réponse brute de DeepSeek :", response_data)
 
+        # Validation basique de la structure attendue
         if "choices" not in response_data or not response_data["choices"]:
             return {"error": "Aucune réponse valide trouvée dans les choices."}
 
@@ -438,17 +459,22 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID,dernier_mess
 
         content = choice["message"].get("content", "")
 
-        # Vérifier que content est une chaîne (str)
+        # Vérifier que content est bien une chaîne non vide
         if not isinstance(content, str) or not content.strip():
             return {"error": "Le contenu du message est vide ou invalide."}
 
-        # Ensuite extraction avec re.search
+        # Tentative d'extraction du JSON encadré par ```json ... ```
         match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL)
-        if not match:
-            return {"error": "Le bloc JSON n'a pas été trouvé dans le message."}
-        json_str = match.group(1).strip()
+        if match:
+            json_str = match.group(1).strip()
+        else:
+            # Sinon, essayer de parser directement le contenu complet (cas fréquent)
+            json_str = content.strip()
+
         if not json_str:
             return {"error": "Le bloc JSON est vide."}
+
+        # Parsing JSON en Python
         try:
             parsed = json.loads(json_str)
         except json.JSONDecodeError as e:
@@ -458,30 +484,25 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID,dernier_mess
                 "timestamp": datetime.utcnow().isoformat()
             }
 
+        # Validation que parsed est un dict
         if not isinstance(parsed, dict):
             return {"error": "La réponse n'est pas un objet JSON valide."}
 
-
-        # Gestion actions & réponses
-        if "actions" in parsed and parsed["actions"] and "message" in parsed["actions"][0]:
+        # Gestion des actions dans la réponse
+        if "actions" in parsed and isinstance(parsed["actions"], list) and parsed["actions"]:
+            # Ici on pourrait ajouter une validation supplémentaire des champs des actions si besoin
             return parsed
-
         elif "reponse" in parsed:
+            # Cas où la clé 'reponse' existe mais pas 'actions' : on construit une action réponse unique
             parsed["actions"] = [{
                 "type": "repondre",
-                "date": response_data.get("created", ""),
+                "date": datetime.utcfromtimestamp(response_data.get("created", datetime.utcnow().timestamp())).isoformat() + "Z",
                 "message": parsed["reponse"]
             }]
             return parsed
         else:
             return {"error": "Aucune action ou réponse trouvée dans la réponse."}
 
-    except json.JSONDecodeError as e:
-        print("Erreur de parsing JSON :", e)
-        return {"error": f"Erreur de parsing JSON : {str(e)}"}
-    except KeyError as e:
-        print("Clé manquante dans la réponse :", e)
-        return {"error": f"Structure JSON inattendue : clé manquante {str(e)}"}
     except requests.RequestException as e:
         print("Erreur lors de la requête à l'API DeepSeek :", e)
         return {"error": f"Erreur de requête API : {str(e)}"}
@@ -489,5 +510,4 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID,dernier_mess
         # Gestion générale des erreurs inattendues
         print("Erreur inattendue dans get_auto_reply_from_deepseek :", e)
         return {"error": f"Erreur inattendue : {str(e)}"}
-    
 
