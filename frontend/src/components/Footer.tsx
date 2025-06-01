@@ -134,7 +134,7 @@ export default function Footer() {
                     rel="noopener noreferrer"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
-                    Twitter
+                    TikTok
                   </a>
                 </li>
                 <li>
@@ -144,7 +144,7 @@ export default function Footer() {
                     rel="noopener noreferrer"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
-                    Discord
+                    Instagram
                   </a>
                 </li>
                 <li>
@@ -154,17 +154,17 @@ export default function Footer() {
                     rel="noopener noreferrer"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
-                    GitHub
+                    Discord
                   </a>
                 </li>
                 <li>
                   <a
-                    href="https://linkedin.com"
+                    href="#"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
-                    LinkedIn
+                    GitHub
                   </a>
                 </li>
               </ul>

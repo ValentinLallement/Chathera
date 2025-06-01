@@ -5,6 +5,7 @@ import leaHot from "../assets/images/girls/leaHot3.png";
 import leaHot4 from "../assets/images/girls/leaHot4.png";
 import leaUltra from "../assets/images/girls/leaUltra.png";
 import leaSupra from "../assets/images/girls/leaSupra.png";
+import Title from "../components/Title";
 
 const BASE_DELAY = 3000;
 
@@ -73,12 +74,14 @@ function MessagesSection() {
   }, []);
 
   return (
-    <div className="flex-1 overflow-hidden pr-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        {demoMessages.map((message) => (
-          <div
-            key={message.id}
-            className={`
+    <>
+      <Title>Welcome to Chathera</Title>
+      <div className="flex-1 overflow-hidden pr-8">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {demoMessages.map((message) => (
+            <div
+              key={message.id}
+              className={`
               flex items-end gap-3
               transition-all duration-500 ease-out
               ${
@@ -88,20 +91,20 @@ function MessagesSection() {
               }
               ${message.sender === "lea" ? "flex-row" : "flex-row-reverse"}
             `}
-          >
-            {message.sender === "lea" && (
-              <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden p-[2px]">
-                <div className="w-full h-full rounded-full overflow-hidden">
-                  <img
-                    src={leaNormal}
-                    alt="Lea"
-                    className="w-full h-full object-cover object-top"
-                  />
+            >
+              {message.sender === "lea" && (
+                <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden p-[2px]">
+                  <div className="w-full h-full rounded-full overflow-hidden">
+                    <img
+                      src={leaNormal}
+                      alt="Lea"
+                      className="w-full h-full object-cover object-top"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
-            <div
-              className={`
+              )}
+              <div
+                className={`
                 group
                 relative
                 max-w-[80%] w-fit px-4 py-3 rounded-2xl
@@ -115,55 +118,56 @@ function MessagesSection() {
                 }
                 hover:shadow-xl hover:scale-[1.02] hover:border-opacity-50
               `}
-            >
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/[0.02] to-transparent opacity-50 transition-opacity group-hover:opacity-75" />
-              <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 opacity-0 blur transition group-hover:opacity-100 animate-pulse" />
+              >
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/[0.02] to-transparent opacity-50 transition-opacity group-hover:opacity-75" />
+                <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 opacity-0 blur transition group-hover:opacity-100 animate-pulse" />
 
-              <p className="text-white/95 text-base leading-relaxed relative z-10">
-                {message.text}
-              </p>
-              <div
-                className={`
+                <p className="text-white/95 text-base leading-relaxed relative z-10">
+                  {message.text}
+                </p>
+                <div
+                  className={`
                   absolute -bottom-5 ${
                     message.sender === "lea" ? "left-0" : "right-0"
                   }
                   text-xs text-white/40 opacity-0 group-hover:opacity-100 transition-opacity
                 `}
-              >
-                {new Date().toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                >
+                  {new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {/* Typing indicator */}
-        {isTyping && (
-          <div className="flex items-end gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden p-[2px]">
-              <div className="w-full h-full rounded-full overflow-hidden">
-                <img
-                  src={leaNormal}
-                  alt="Lea"
-                  className="w-full h-full object-cover object-top"
-                />
+          {/* Typing indicator */}
+          {isTyping && (
+            <div className="flex items-end gap-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden p-[2px]">
+                <div className="w-full h-full rounded-full overflow-hidden">
+                  <img
+                    src={leaNormal}
+                    alt="Lea"
+                    className="w-full h-full object-cover object-top"
+                  />
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 rounded-2xl rounded-bl-sm px-4 py-3 backdrop-blur-xl shadow-lg animate-slideFromLeft border border-violet-500/10 group">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/[0.02] to-transparent opacity-50" />
+                <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 opacity-0 blur transition group-hover:opacity-100" />
+                <div className="flex gap-1 relative z-10">
+                  <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce-delay-1"></span>
+                  <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce-delay-2"></span>
+                  <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce"></span>
+                </div>
               </div>
             </div>
-            <div className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 rounded-2xl rounded-bl-sm px-4 py-3 backdrop-blur-xl shadow-lg animate-slideFromLeft border border-violet-500/10 group">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/[0.02] to-transparent opacity-50" />
-              <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 opacity-0 blur transition group-hover:opacity-100" />
-              <div className="flex gap-1 relative z-10">
-                <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce-delay-1"></span>
-                <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce-delay-2"></span>
-                <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce"></span>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
