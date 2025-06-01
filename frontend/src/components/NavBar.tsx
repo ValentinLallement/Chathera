@@ -44,7 +44,7 @@ export default function NavBar() {
         </ol>
         <ol className="flex space-x-4 items-center">
           <li>
-            <Link to="/about">
+            <Link to="/auth">
               <button className="flex-shrink-0 whitespace-nowrap text-center rounded-lg border-white bg-white text-black text-sm font-medium py-1.5 px-3.5 cursor-pointer">
                 Sign Up
               </button>

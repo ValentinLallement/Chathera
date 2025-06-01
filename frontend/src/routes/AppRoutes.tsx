@@ -9,7 +9,7 @@ import ErrorBoundary from "../components/ErrorBoundary";
 const LandingPage = lazy(() => import("../pages/LandingPage"));
 const Home = lazy(() => import("../pages/HomePage"));
 const Chat = lazy(() => import("../pages/ChatPage"));
-const Login = lazy(() => import("../pages/AuthentificationPage"));
+const Auth = lazy(() => import("../pages/AuthentificationPage"));
 const Profile = lazy(() => import("../pages/ProfilePage"));
 const Settings = lazy(() => import("../pages/SettingsPage"));
 
@@ -26,7 +26,7 @@ export default function AppRoutes() {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/login" element={withErrorBoundary(Login)} />
+      <Route path="/auth" element={withErrorBoundary(Auth)} />
       <Route path="/settings" element={withErrorBoundary(Settings)} />
 
       {/* A "protected" area wrapped by MainLayout */}

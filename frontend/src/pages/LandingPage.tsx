@@ -146,7 +146,6 @@ function MessagesSection() {
             </div>
           ))}
 
-          {/* Typing indicator */}
           {isTyping && (
             <div className="flex items-end gap-2 lg:gap-3">
               <div className="flex-shrink-0 w-6 h-6 lg:w-8 lg:h-8 rounded-full overflow-hidden p-[2px] transition-transform duration-300 ease-out transform hover:scale-110">

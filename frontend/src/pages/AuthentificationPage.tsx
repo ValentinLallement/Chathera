@@ -1,3 +1,240 @@
+import { FcGoogle } from "react-icons/fc";
+import { FaApple } from "react-icons/fa";
+import { HiChevronLeft } from "react-icons/hi";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import StarLogo from "../assets/images/StarLogo.webp"; // Adjust the path as necessary
+import Title from "../components/Title";
+
 export default function AuthentificationPage() {
-  return <p>AuthentificationPage</p>;
+  const navigate = useNavigate();
+  const [isChecked, setIsChecked] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+
+  const handleGoogleLogin = () => {
+    // Google OAuth logic:
+    console.log("Google login clicked");
+  };
+
+  const handleAppleLogin = () => {
+    // Apple OAuth logic:
+    console.log("Apple login clicked");
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 bg-gradient-to-b from-zinc-900/5 to-black/5 flex items-center justify-center px-4 py-8">
+      <Title>Sign up - Chathera</Title>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[25%] -left-[25%] w-[150%] h-[150%] bg-gradient-conic from-violet-500/10 via-transparent to-transparent opacity-10 animate-slow-spin"></div>
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_800px_at_50%_50%,rgba(147,51,234,0.02),transparent)] animate-pulse"></div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="relative w-full max-w-md"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-zinc-500/5 to-zinc-400/5 rounded-2xl blur-2xl transform scale-105"></div>
+        <div className="relative space-y-8 bg-black/20 backdrop-blur-xl p-8 rounded-2xl border border-white/5 shadow-2xl">
+          <button
+            onClick={() => navigate(-1)}
+            className="absolute top-4 left-4 p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-800/50 transition-colors text-gray-400 hover:text-gray-300"
+            aria-label="Go back"
+          >
+            <HiChevronLeft className="w-5 h-5" />
+          </button>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-center space-y-2"
+          >
+            <div className="flex justify-center mb-4">
+              <img src={StarLogo} alt="StarLogo" className="w-8 h-8" />
+            </div>
+            <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-200 to-white">
+              {isSignUp ? "Create Account" : "Welcome back"}
+            </h2>
+            <p className="text-gray-400">
+              {isSignUp
+                ? "Sign up to get started with Chathera"
+                : "Sign in to continue to Chathera"}
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-4"
+          >
+            <button
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
+            >
+              <FcGoogle className="text-xl transform transition-transform group-hover:scale-110" />
+              <span className="text-white font-medium">
+                Continue with Google
+              </span>
+            </button>
+
+            <button
+              onClick={handleAppleLogin}
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
+            >
+              <FaApple className="text-xl text-white transform transition-transform group-hover:scale-110" />
+              <span className="text-white font-medium">
+                Continue with Apple
+              </span>
+            </button>
+          </motion.div>
+
+          <div className="relative">
+            <div className="relative flex justify-center text-sm items-center">
+              <div className="grow border-t border-white/10"></div>
+              <span className="px-2 bg-gradient-to-b from-transparent  to-transparent text-gray-400">
+                Or continue with
+              </span>
+              <div className="grow border-t border-white/10"></div>
+            </div>
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.form
+              key={isSignUp ? "signup" : "signin"}
+              initial={{ opacity: 0, x: isSignUp ? 20 : -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: isSignUp ? -20 : 20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+              {isSignUp && (
+                <div className="group">
+                  <label htmlFor="name" className="sr-only">
+                    Full name
+                  </label>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required
+                    className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
+                    placeholder="Full name"
+                  />
+                </div>
+              )}
+
+              <div className="group">
+                <label htmlFor="email" className="sr-only">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
+                  placeholder="Email address"
+                />
+              </div>
+
+              <div className="group">
+                <label htmlFor="password" className="sr-only">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
+                  placeholder="Password"
+                />
+              </div>
+
+              {isSignUp && (
+                <div className="group">
+                  <label htmlFor="confirmPassword" className="sr-only">
+                    Confirm Password
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    required
+                    className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
+                    placeholder="Confirm password"
+                  />
+                </div>
+              )}
+
+              {!isSignUp && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="remember-me"
+                        name="remember-me"
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => setIsChecked(e.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <label
+                        htmlFor="remember-me"
+                        className="relative flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border border-white/10 bg-black/20 transition-colors duration-300 
+                        hover:border-violet-500/30"
+                      >
+                        {isChecked && (
+                          <span className="text-white text-base leading-none select-none">
+                            ×
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                    <label
+                      htmlFor="remember-me"
+                      className="ml-2 block text-sm text-gray-400"
+                    >
+                      Remember me
+                    </label>
+                  </div>
+                  <a
+                    href="#"
+                    className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
+                  >
+                    Forgot password?
+                  </a>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="relative w-full px-4 py-3 rounded-lg overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-600/80 to-violet-700/80 transition-transform duration-300 group-hover:scale-[1.02]"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-600/50 to-violet-700/50 opacity-50 blur-xl transition-transform duration-300 group-hover:scale-110"></div>
+                <span className="relative text-white font-medium">
+                  {isSignUp ? "Create Account" : "Sign in"}
+                </span>
+              </button>
+            </motion.form>
+          </AnimatePresence>
+
+          <p className="text-center text-sm text-gray-400">
+            {isSignUp ? "Already have an account? " : "Don't have an account? "}
+            <button
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-violet-400 hover:text-violet-300 transition-colors hover:underline"
+            >
+              {isSignUp ? "Sign in" : "Sign up"}
+            </button>
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
 }
