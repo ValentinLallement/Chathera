@@ -62,7 +62,7 @@
 /* Chat animations */
 @keyframes slideFromLeft {
   0% {
-    transform: translateX(-100%);
+    transform: translateX(-20px);
     opacity: 0;
   }
   100% {
@@ -73,7 +73,7 @@
 
 @keyframes slideFromRight {
   0% {
-    transform: translateX(100%);
+    transform: translateX(20px);
     opacity: 0;
   }
   100% {
@@ -88,7 +88,7 @@
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-4px);
+    transform: translateY(-3px);
   }
 }
 
@@ -143,7 +143,7 @@
 
 @keyframes floatIn {
   0% {
-    transform: translateY(10px) scale(0.95);
+    transform: translateY(15px) scale(0.95);
     opacity: 0;
   }
   100% {
@@ -194,29 +194,29 @@
 }
 
 .animate-slideFromLeft {
-  animation: slideFromLeft 0.5s ease-out forwards;
+  animation: slideFromLeft 0.8s ease-out forwards;
 }
 
 .animate-slideFromRight {
-  animation: slideFromRight 0.5s ease-out forwards;
+  animation: slideFromRight 0.8s ease-out forwards;
 }
 
 .animate-bounce {
-  animation: bounce 1s infinite;
+  animation: bounce 1.5s infinite;
 }
 
 .animate-bounce-delay-1 {
-  animation: bounce 1s infinite;
+  animation: bounce 1.5s infinite;
   animation-delay: -0.3s;
 }
 
 .animate-bounce-delay-2 {
-  animation: bounce 1s infinite;
+  animation: bounce 1.5s infinite;
   animation-delay: -0.15s;
 }
 
 .animate-floatIn {
-  animation: floatIn 0.4s ease-out forwards;
+  animation: floatIn 1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
 }
 
 .message-shimmer {
@@ -227,7 +227,7 @@
     rgba(255, 255, 255, 0) 100%
   );
   background-size: 200% 100%;
-  animation: shimmer 3s infinite;
+  animation: shimmer 4s ease-in-out infinite;
 }
 
 .glow-effect {
@@ -262,4 +262,29 @@
 
 .bounce-hover:hover {
   animation-play-state: running;
+}
+
+/* Optimize animations for touch devices */
+@media (hover: none) {
+  .hover\:scale-\[1\.02\]:hover {
+    transform: none;
+  }
+
+  .hover\:shadow-xl:hover {
+    box-shadow: none;
+  }
+
+  .group-hover\:opacity-100:hover {
+    opacity: 0.7;
+  }
+
+  .message-shimmer {
+    animation-duration: 6s;
+  }
+}
+
+/* Smooth scroll behavior */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }

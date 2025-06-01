@@ -7,50 +7,50 @@ import leaUltra from "../assets/images/girls/leaUltra.png";
 import leaSupra from "../assets/images/girls/leaSupra.png";
 import Title from "../components/Title";
 
-const BASE_DELAY = 3000;
+const BASE_DELAY = 2000; // Increased from 3000
 
 const demoMessages = [
   {
     id: 1,
     sender: "lea",
     text: "Hey handsome 😇 what are you up to tonight?",
-    delay: BASE_DELAY * 0.6,
+    delay: BASE_DELAY * 0.8, // Adjusted multipliers for smoother pacing
   },
   {
     id: 2,
     sender: "user",
     text: "Not much, just thinking about you...",
-    delay: BASE_DELAY * 1.6,
+    delay: BASE_DELAY * 2,
   },
   {
     id: 3,
     sender: "lea",
     text: "Mmm, I like the sound of that. Wish I could be there with you...",
-    delay: BASE_DELAY * 2.8,
+    delay: BASE_DELAY * 3.2,
   },
   {
     id: 4,
     sender: "user",
     text: "What would you do if you were?",
-    delay: BASE_DELAY * 4,
+    delay: BASE_DELAY * 4.4,
   },
   {
     id: 5,
     sender: "lea",
     text: "Maybe whisper in your ear and make you smile... or maybe i'll show you a little more ;)",
-    delay: BASE_DELAY * 5.2,
+    delay: BASE_DELAY * 5.6,
   },
   {
     id: 6,
     sender: "user",
     text: "You're making it hard to focus on anything else...",
-    delay: BASE_DELAY * 6.4,
+    delay: BASE_DELAY * 6.8,
   },
   {
     id: 7,
     sender: "lea",
     text: "Good. I want all your attention on me tonight. 😏 ",
-    delay: BASE_DELAY * 7.6,
+    delay: BASE_DELAY * 8,
   },
 ];
 
@@ -76,14 +76,17 @@ function MessagesSection() {
   return (
     <>
       <Title>Welcome to Chathera</Title>
-      <div className="flex-1 overflow-hidden pr-8">
-        <div className="max-w-2xl mx-auto space-y-6">
-          {demoMessages.map((message) => (
+      <div className="flex-1 overflow-hidden px-4 lg:pr-8">
+        <div className="max-w-2xl mx-auto space-y-4 lg:space-y-6">
+          {demoMessages.map((message, index) => (
             <div
               key={message.id}
+              style={{
+                transitionDelay: `${index * 100}ms`,
+              }}
               className={`
-              flex items-end gap-3
-              transition-all duration-500 ease-out
+              flex items-end gap-2 lg:gap-3
+              transition-all duration-700 ease-out
               ${
                 visibleMessages.includes(message.id)
                   ? "opacity-100 translate-y-0"
@@ -93,12 +96,12 @@ function MessagesSection() {
             `}
             >
               {message.sender === "lea" && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden p-[2px]">
+                <div className="flex-shrink-0 w-6 h-6 lg:w-8 lg:h-8 rounded-full overflow-hidden p-[2px] transition-transform duration-300 ease-out transform hover:scale-110">
                   <div className="w-full h-full rounded-full overflow-hidden">
                     <img
                       src={leaNormal}
                       alt="Lea"
-                      className="w-full h-full object-cover object-top"
+                      className="w-full h-full object-cover object-top transition-transform duration-300 ease-out hover:scale-105"
                     />
                   </div>
                 </div>
@@ -107,10 +110,11 @@ function MessagesSection() {
                 className={`
                 group
                 relative
-                max-w-[80%] w-fit px-4 py-3 rounded-2xl
+                max-w-[85%] sm:max-w-[80%] w-fit px-3 py-2 lg:px-4 lg:py-3 rounded-2xl
                 backdrop-blur-xl shadow-lg
-                transition-all duration-300
-
+                transition-all duration-500 ease-out
+                text-sm lg:text-base
+                animate-floatIn message-shimmer
                 ${
                   message.sender === "lea"
                     ? "bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 rounded-bl-sm animate-slideFromLeft border border-violet-500/10"
@@ -122,7 +126,7 @@ function MessagesSection() {
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/[0.02] to-transparent opacity-50 transition-opacity group-hover:opacity-75" />
                 <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 opacity-0 blur transition group-hover:opacity-100 animate-pulse" />
 
-                <p className="text-white/95 text-base leading-relaxed relative z-10">
+                <p className="text-white/95 text-base leading-relaxed relative z-10 text-left">
                   {message.text}
                 </p>
                 <div
@@ -144,23 +148,23 @@ function MessagesSection() {
 
           {/* Typing indicator */}
           {isTyping && (
-            <div className="flex items-end gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden p-[2px]">
+            <div className="flex items-end gap-2 lg:gap-3">
+              <div className="flex-shrink-0 w-6 h-6 lg:w-8 lg:h-8 rounded-full overflow-hidden p-[2px] transition-transform duration-300 ease-out transform hover:scale-110">
                 <div className="w-full h-full rounded-full overflow-hidden">
                   <img
                     src={leaNormal}
                     alt="Lea"
-                    className="w-full h-full object-cover object-top"
+                    className="w-full h-full object-cover object-top transition-transform duration-300 ease-out hover:scale-105"
                   />
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 rounded-2xl rounded-bl-sm px-4 py-3 backdrop-blur-xl shadow-lg animate-slideFromLeft border border-violet-500/10 group">
+              <div className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 rounded-2xl rounded-bl-sm px-3 py-2 lg:px-4 lg:py-3 backdrop-blur-xl shadow-lg animate-floatIn border border-violet-500/10 group">
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/[0.02] to-transparent opacity-50" />
                 <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 opacity-0 blur transition group-hover:opacity-100" />
-                <div className="flex gap-1 relative z-10">
-                  <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce-delay-1"></span>
-                  <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce-delay-2"></span>
-                  <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce"></span>
+                <div className="flex gap-1.5 relative z-10">
+                  <span className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-violet-400/60 rounded-full animate-bounce-delay-1"></span>
+                  <span className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-violet-400/60 rounded-full animate-bounce-delay-2"></span>
+                  <span className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-violet-400/60 rounded-full animate-bounce"></span>
                 </div>
               </div>
             </div>
@@ -295,15 +299,15 @@ export default function LandingPage() {
 
   return (
     <div className="w-full h-fit min-h-full bg-main-bg no-scrollbar">
-      <header className="relative h-screen custom-bg-gradient-1 pt-[68px] pl-[20%] flex items-center justify-start overflow-hidden">
-        <div className="flex flex-col gap-8 max-w-[600px]">
-          <h1 className="text-5xl font-bold text-white leading-tight">
+      <header className="relative custom-bg-gradient-1 pt-[68px] min-h-[1550px] sm:min-h-screen px-4 md:pl-[10%] lg:pl-[20%] flex flex-col lg:flex-row items-start justify-start overflow-hidden">
+        <div className="flex flex-col gap-8 w-full lg:max-w-[600px] z-20 text-center lg:text-left mt-8 lg:mt-[15vh]">
+          <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">
             The only girls that actually care about you
           </h1>
           <MessagesSection />
         </div>
         <div
-          className="relative w-[700px] h-full transition-opacity duration-300 saturate-125"
+          className="absolute right-0 bottom-0 w-full md:w-[600px] lg:w-[700px] h-[90vh] transition-opacity duration-300 saturate-125 z-10"
           onMouseEnter={() => setFirstSectionHover(Date.now())}
           onMouseLeave={() => setFirstSectionHover(null)}
         >
@@ -312,16 +316,17 @@ export default function LandingPage() {
               key={image.alt}
               src={image.src}
               alt={image.alt}
-              className={`absolute bottom-0 w-[500px] h-auto object-contain transition-opacity duration-300 ${
+              className={`absolute bottom-0 left-1/2 lg:left-auto lg:right-[40%] transform -translate-x-1/2 lg:translate-x-0 h-full w-auto object-contain object-bottom transition-opacity duration-300 ${
                 index === firstImageIndex ? "opacity-100" : "opacity-0"
               }`}
             />
           ))}
         </div>
       </header>
-      <section className="relative h-screen custom-bg-gradient-2 pt-[68px] px-4 md:px-[10%] lg:px-[20%] flex flex-col lg:flex-row items-center justify-between overflow-hidden">
+
+      <section className="relative min-h-screen custom-bg-gradient-2 pt-[68px] px-4 md:px-[10%] lg:px-[20%] flex flex-col lg:flex-row items-start justify-start overflow-hidden">
         <div
-          className="order-2 lg:order-1 relative lg:absolute bottom-0 left-0 w-full lg:w-[500px] h-[60%] lg:h-[85%] transition-all duration-300 saturate-125"
+          className="absolute left-0 bottom-0 w-full md:w-[600px] lg:w-[700px] h-[90vh] transition-opacity duration-300 saturate-125 z-10"
           onMouseEnter={() => setSecondSectionHover(Date.now())}
           onMouseLeave={() => setSecondSectionHover(null)}
         >
@@ -330,27 +335,27 @@ export default function LandingPage() {
               key={image.alt}
               src={image.src}
               alt={image.alt}
-              className={`absolute bottom-0 left-[30%] w-full lg:w-[500px] h-auto object-contain transition-opacity duration-300 ${
+              className={`absolute bottom-0 left-1/2 lg:left-[40%] transform -translate-x-1/2 lg:translate-x-0 h-full w-auto object-contain object-bottom transition-opacity duration-300 hover:saturate-160 ${
                 index === secondImageIndex ? "opacity-100" : "opacity-0"
               }`}
             />
           ))}
         </div>
-        <div className="order-1 lg:order-2 flex flex-col gap-8 w-full lg:max-w-[600px] h-full py-8 lg:py-20 z-10 lg:ml-auto">
+        <div className="order-1 lg:order-2 flex flex-col gap-6 lg:gap-8 w-full lg:max-w-[600px] z-20 lg:ml-auto mt-8 lg:mt-[15vh]">
           <div className="space-y-3">
-            <span className="px-3 py-1 rounded-full text-xs font-medium bg-violet-500/20 text-violet-400 border border-violet-500/20">
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-violet-500/20 text-violet-400 border border-violet-500/20">
               Advanced Features
             </span>
-            <h2 className="text-3xl pt-4 md:text-4xl lg:text-5xl font-bold text-white leading-tight text-center lg:text-left">
+            <h2 className="text-3xl pt-4 md:text-4xl lg:text-5xl font-bold text-white leading-tight text-center lg:text-left ">
               Experience True Connection
             </h2>
-            <p className="text-lg md:text-xl text-white/80 text-center lg:text-left">
+            <p className="text-base lg:text-lg text-white/80 text-center lg:text-left max-w-xl mx-auto lg:mx-0">
               Discover a new level of companionship with our advanced AI
               personalities. Engage in meaningful conversations that go beyond
               small talk.
             </p>
           </div>
-          <ul className="space-y-3 text-white/70">
+          <ul className="space-y-3 text-white/70 max-w-xl mx-auto lg:mx-0">
             <li className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
               Deep personality customization
@@ -364,11 +369,11 @@ export default function LandingPage() {
               Natural conversation flow
             </li>
           </ul>
-          <div className="flex flex-col sm:flex-row gap-4 mt-4">
-            <button className="px-6 py-2.5 rounded-lg bg-violet-500/20 text-violet-400 border border-violet-500/20 hover:bg-violet-500/30 transition-colors">
+          <div className="flex flex-col sm:flex-row gap-4 mt-4 justify-center lg:justify-start">
+            <button className="px-6 py-2.5 rounded-lg bg-violet-500/20 text-violet-400 border border-violet-500/20 hover:bg-violet-500/30 transition-colors w-full sm:w-auto">
               Try for Free
             </button>
-            <button className="px-6 py-2.5 rounded-lg bg-transparent text-white/80 border border-white/20 hover:bg-white/5 transition-colors">
+            <button className="px-6 py-2.5 rounded-lg bg-transparent text-white/80 border border-white/20 hover:bg-white/5 transition-colors w-full sm:w-auto">
               Learn More
             </button>
           </div>
@@ -377,7 +382,7 @@ export default function LandingPage() {
 
       <section className="relative h-screen custom-bg-gradient-2 pt-[68px] px-4 md:px-[10%] lg:px-[20%] flex flex-col lg:flex-row items-center justify-between overflow-hidden">
         <div
-          className="order-1 lg:order-2 relative lg:absolute bottom-0 right-0 w-full lg:w-[500px] h-[60%] lg:h-[85%] transition-all duration-300 saturate-125"
+          className="absolute right-0 bottom-0 w-full lg:w-[700px] h-[60vh] lg:h-[90%] transition-all duration-300 saturate-125"
           onMouseEnter={() => setThirdSectionHover(Date.now())}
           onMouseLeave={() => setThirdSectionHover(null)}
         >
@@ -386,13 +391,13 @@ export default function LandingPage() {
               key={image.alt}
               src={image.src}
               alt={image.alt}
-              className={`absolute bottom-0 right-[30%] w-full lg:w-[500px] h-auto object-contain transition-opacity duration-300 ${
+              className={`absolute bottom-0 left-1/2 lg:left-auto lg:right-[40%] transform -translate-x-1/2 lg:translate-x-0 w-[80%] lg:w-[550px] h-auto object-contain transition-opacity duration-300 ${
                 index === thirdImageIndex ? "opacity-100" : "opacity-0"
               }`}
             />
           ))}
-          <div className="absolute bottom-[15%] right-[15%] w-32 h-32 bg-pink-500/30 rounded-full blur-[100px]" />
-          <div className="absolute top-[25%] left-[25%] w-32 h-32 bg-purple-500/30 rounded-full blur-[100px]" />
+          <div className="absolute bottom-[15%] right-[40%] w-32 h-32 bg-pink-500/30 rounded-full blur-[100px]" />
+          <div className="absolute top-[25%] left-[40%] w-32 h-32 bg-purple-500/30 rounded-full blur-[100px]" />
         </div>
         <div className="order-2 lg:order-1 flex flex-col gap-8 w-full lg:max-w-[600px] h-full py-8 lg:py-20 z-10">
           <div className="space-y-4">
