@@ -3,6 +3,8 @@ import io
 import requests as external_requests  
 import asyncio
 import uuid
+import random
+import string
 
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Body, Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -12,10 +14,11 @@ from sqlmodel import Session
 from sqlalchemy.orm import Session as SQLAlchemySession
 from sqlalchemy.exc import SQLAlchemyError
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 from starlette.middleware.sessions import SessionMiddleware
 from jose import JWTError, jwt
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from google.auth.transport import requests as google_requests
 
@@ -23,7 +26,7 @@ from app import models, crud, schemas, dependencies, auth
 from app.models import Conversation, Bot, User, Subscription, PlanEnum, SubscriptionStatus
 from app.schemas import (
     CreateBotRequest, UserLogin, PromptRequest, RefreshTokenRequest,
-    UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest
+    UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest
 )
 from app.auth import verify_token, get_user_from_token, create_password_reset_token
 from app.websocket.router import websocket_router
@@ -32,7 +35,7 @@ from app.dependencies import get_db
 from app.config import REFRESH_SECRET_KEY, ALGORITHM, SECRET_KEY, MEM0_CONFIG
 from app.tasks.scheduler import task_scheduler
 from app.utils.permissions import check_bot_limit
-from app.utils.email import send_email
+from app.utils.email import send_email, send_email_verification_code
 from app.utils.payg import report_usage
 
 from mem0 import Memory
@@ -69,6 +72,63 @@ def register(user: schemas.UserCreate, db: Session = Depends(dependencies.get_db
     return crud.create_user(db=db, user=user)
 
 
+@api_router.post("/request-email-verification")
+def request_email_verification(payload: EmailRequest, db: Session = Depends(dependencies.get_db)):
+    email = payload.email
+
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user and user.is_verified:
+        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
+
+    # Invalider les anciens codes non utilisés
+    db.query(models.EmailVerificationCode).filter(
+        models.EmailVerificationCode.email == email,
+        models.EmailVerificationCode.is_used == False
+    ).update({models.EmailVerificationCode.is_used: True})
+    db.commit()
+
+    # Générer un nouveau code à 6 chiffres
+    code = ''.join(random.choices(string.digits, k=6))
+
+    # Enregistrer le code en base
+    db_code = models.EmailVerificationCode(email=email, code=code)
+    db.add(db_code)
+    db.commit()
+
+    # Envoyer le code par email
+    send_email_verification_code(email, code)
+
+    return {"message": "Un nouveau code de vérification a été envoyé."}
+
+@api_router.post("/verify-email-code")
+def verify_email_code(payload: schemas.EmailCodeVerification, db: Session = Depends(dependencies.get_db)):
+    verification = (
+        db.query(models.EmailVerificationCode)
+        .filter(
+            models.EmailVerificationCode.email == payload.email,
+            models.EmailVerificationCode.code == payload.code,
+            models.EmailVerificationCode.is_used == False,
+            models.EmailVerificationCode.expires_at > datetime.utcnow()
+        )
+        .order_by(models.EmailVerificationCode.created_at.desc())
+        .first()
+    )
+
+    if not verification:
+        raise HTTPException(status_code=400, detail="Code invalide ou expiré.")
+
+    verification.is_used = True
+
+    # On valide aussi le user
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if user:
+        user.is_verified = True
+    else:
+        raise HTTPException(status_code=400, detail="Utilisateur non trouvé.")
+
+    db.commit()
+
+    return {"message": "Email vérifié avec succès."}
 # ----------------- Tokens -----------------
 
 @api_router.post("/token", response_model=schemas.Token)

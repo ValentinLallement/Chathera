@@ -1,8 +1,10 @@
 import re
 import unicodedata
 import uuid
+import random
+import string
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session      
 
 from passlib.context import CryptContext
 from uuid import UUID
@@ -14,7 +16,7 @@ from fastapi import HTTPException
 from . import models, schemas,auth
 from app.models import Conversation, Message, FutureAction, Subscription
 from app.utils.payg import PlanEnum
-
+from app.utils.email import send_email_verification_code
 
 
 #----------------------  User  --------------------------------------------------
@@ -22,31 +24,25 @@ from app.utils.payg import PlanEnum
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_user(db: Session, user: schemas.UserCreate):
-    # Vérification unicité email
-    existing_email = db.query(models.User).filter(models.User.email == user.email).first()
-    if existing_email:
+    # Vérifications unicité
+    if db.query(models.User).filter(models.User.email == user.email).first():
         raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
-
-    # Vérification unicité username
-    existing_username = db.query(models.User).filter(models.User.username == user.username).first()
-    if existing_username:
+    if db.query(models.User).filter(models.User.username == user.username).first():
         raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris.")
 
-    # Hachage du mot de passe
     hashed_password = auth.hash_password(user.password)
-
-    # Création de l'utilisateur
     db_user = models.User(
         username=user.username,
         email=user.email,
         password=hashed_password,
-        name=user.name
+        name=user.name,
+        is_verified=False
     )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
 
-    # Création d'un abonnement gratuit
+    # Abonnement gratuit
     free_subscription = models.Subscription(
         user_id=db_user.id,
         plan=models.PlanEnum.FREE,
@@ -55,9 +51,16 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.add(free_subscription)
     db.commit()
     db.refresh(free_subscription)
-
-    # Lier l’abonnement à l’utilisateur (utile si tu veux y accéder plus tard dans la session)
     db_user.subscriptions.append(free_subscription)
+
+    # Générer et stocker le code de vérification
+    code = ''.join(random.choices(string.digits, k=6))
+    db_code = models.EmailVerificationCode(email=db_user.email, code=code)
+    db.add(db_code)
+    db.commit()
+
+    # Envoyer l'email avec le code
+    send_email_verification_code(db_user.email, code)
 
     return db_user
 

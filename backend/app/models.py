@@ -1,7 +1,7 @@
 import uuid
 import enum
 
-from datetime import datetime,date
+from datetime import datetime,date, timedelta
 from typing import Optional, List, TYPE_CHECKING
 from uuid import UUID
 
@@ -29,6 +29,7 @@ class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     username: Optional[str] = None
     email: str
+    is_verified: bool = Field(default=False)
     password: Optional[str] = None  
     name: Optional[str] = None 
 
@@ -48,6 +49,17 @@ class User(SQLModel, table=True):
         back_populates="user",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
+
+
+class EmailVerificationCode(Base):
+    __tablename__ = "email_verification_codes"
+
+    id = Column(SA_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)    
+    email = Column(String, index=True, nullable=False)
+    code = Column(String, nullable=False)
+    is_used = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(minutes=10))
 
 # --------------  message  -----------------
 

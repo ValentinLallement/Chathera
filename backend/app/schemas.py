@@ -80,6 +80,14 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(min_length=8)
 
+class EmailCodeVerification(BaseModel):
+    email: EmailStr
+    code: str
+
+class EmailRequest(BaseModel):
+    email: EmailStr
+
+
 # ----------------------------- Authentification -----------------------------
 class Token(BaseModel):
     access_token: str
