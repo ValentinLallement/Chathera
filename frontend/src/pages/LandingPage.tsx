@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import leaNormal from "../assets/images/girls/leaNormal.png";
 import leaSexy from "../assets/images/girls/leaSexy2.png";
-import leaHot from "../assets/images/girls/leaHot5.png";
+import leaHot from "../assets/images/girls/leaHot3.png";
 import leaHot4 from "../assets/images/girls/leaHot4.png";
+import leaUltra from "../assets/images/girls/leaUltra.png";
+import leaSupra from "../assets/images/girls/leaSupra.png";
 
-// Base delay in milliseconds - adjust this to make the entire conversation faster or slower
 const BASE_DELAY = 3000;
 
 const demoMessages = [
@@ -58,7 +59,6 @@ function MessagesSection() {
 
   useEffect(() => {
     demoMessages.forEach((msg) => {
-      // Show typing indicator before Lea's messages
       if (msg.sender === "lea") {
         setTimeout(() => {
           setIsTyping(true);
@@ -73,7 +73,7 @@ function MessagesSection() {
   }, []);
 
   return (
-    <div className="flex-1 overflow-hidden pl-4 pr-8">
+    <div className="flex-1 overflow-hidden pr-8">
       <div className="max-w-2xl mx-auto space-y-6">
         {demoMessages.map((message) => (
           <div
@@ -105,17 +105,21 @@ function MessagesSection() {
                 group
                 relative
                 max-w-[80%] w-fit px-4 py-3 rounded-2xl
-                backdrop-blur-md shadow-lg
+                backdrop-blur-xl shadow-lg
                 transition-all duration-300
+
                 ${
                   message.sender === "lea"
-                    ? "bg-violet-500/8 rounded-bl-sm animate-slideFromLeft"
-                    : "bg-blue-500/8 rounded-br-sm animate-slideFromRight"
+                    ? "bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 rounded-bl-sm animate-slideFromLeft border border-violet-500/10"
+                    : "bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-br-sm animate-slideFromRight border border-blue-500/10"
                 }
-                hover:bg-opacity-30
+                hover:shadow-xl hover:scale-[1.02] hover:border-opacity-50
               `}
             >
-              <p className="text-white/95 text-base leading-relaxed">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/[0.02] to-transparent opacity-50 transition-opacity group-hover:opacity-75" />
+              <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 opacity-0 blur transition group-hover:opacity-100 animate-pulse" />
+
+              <p className="text-white/95 text-base leading-relaxed relative z-10">
                 {message.text}
               </p>
               <div
@@ -147,11 +151,13 @@ function MessagesSection() {
                 />
               </div>
             </div>
-            <div className="bg-white/10 rounded-2xl rounded-bl-sm px-4 py-3 backdrop-blur-md shadow-lg animate-slideFromLeft">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-white/60 rounded-full animate-bounce-delay-1"></span>
-                <span className="w-2 h-2 bg-white/60 rounded-full animate-bounce-delay-2"></span>
-                <span className="w-2 h-2 bg-white/60 rounded-full animate-bounce"></span>
+            <div className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 rounded-2xl rounded-bl-sm px-4 py-3 backdrop-blur-xl shadow-lg animate-slideFromLeft border border-violet-500/10 group">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/[0.02] to-transparent opacity-50" />
+              <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 opacity-0 blur transition group-hover:opacity-100" />
+              <div className="flex gap-1 relative z-10">
+                <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce-delay-1"></span>
+                <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce-delay-2"></span>
+                <span className="w-2 h-2 bg-violet-400/60 rounded-full animate-bounce"></span>
               </div>
             </div>
           </div>
@@ -168,8 +174,12 @@ export default function LandingPage() {
   const [secondSectionHover, setSecondSectionHover] = useState<number | null>(
     null
   );
+  const [thirdSectionHover, setThirdSectionHover] = useState<number | null>(
+    null
+  );
   const [firstImageIndex, setFirstImageIndex] = useState(0);
   const [secondImageIndex, setSecondImageIndex] = useState(0);
+  const [thirdImageIndex, setThirdImageIndex] = useState(0);
 
   const firstSectionImages = [
     { src: leaNormal, alt: "Lea Normal", delay: 0 },
@@ -181,7 +191,11 @@ export default function LandingPage() {
     { src: leaHot4, alt: "Lea Hot Alternative", delay: 50 },
   ];
 
-  // Effect for first section images
+  const thirdSectionImages = [
+    { src: leaUltra, alt: "Lea Ultra", delay: 0 },
+    { src: leaSupra, alt: "Lea Supra", delay: 50 },
+  ];
+
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
@@ -213,7 +227,6 @@ export default function LandingPage() {
     };
   }, [firstSectionHover, firstImageIndex]);
 
-  // Effect for second section images
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
@@ -245,6 +258,37 @@ export default function LandingPage() {
     };
   }, [secondSectionHover, secondImageIndex]);
 
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (thirdSectionHover !== null) {
+      const checkTransition = () => {
+        const hoverDuration = Date.now() - thirdSectionHover;
+        const nextIndex = thirdSectionImages.findIndex(
+          (img) => hoverDuration < img.delay
+        );
+        const newIndex =
+          nextIndex === -1 ? thirdSectionImages.length - 1 : nextIndex - 1;
+
+        if (newIndex !== thirdImageIndex) {
+          setThirdImageIndex(newIndex);
+        }
+
+        if (newIndex < thirdSectionImages.length - 1) {
+          timeoutId = setTimeout(checkTransition, 50);
+        }
+      };
+
+      checkTransition();
+    } else {
+      setThirdImageIndex(0);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [thirdSectionHover, thirdImageIndex]);
+
   return (
     <div className="w-full h-fit min-h-full bg-main-bg no-scrollbar">
       <header className="relative h-screen custom-bg-gradient-1 pt-[68px] pl-[20%] flex items-center justify-start overflow-hidden">
@@ -255,7 +299,7 @@ export default function LandingPage() {
           <MessagesSection />
         </div>
         <div
-          className="relative w-[1000px] h-full transition-opacity duration-300 saturate-125"
+          className="relative w-[700px] h-full transition-opacity duration-300 saturate-125"
           onMouseEnter={() => setFirstSectionHover(Date.now())}
           onMouseLeave={() => setFirstSectionHover(null)}
         >
@@ -282,19 +326,153 @@ export default function LandingPage() {
               key={image.alt}
               src={image.src}
               alt={image.alt}
-              className={`absolute bottom-0 left-[40%] w-full lg:w-[500px] h-auto object-contain transition-opacity duration-300 ${
+              className={`absolute bottom-0 left-[50%] w-full lg:w-[500px] h-auto object-contain transition-opacity duration-300 ${
                 index === secondImageIndex ? "opacity-100" : "opacity-0"
               }`}
             />
           ))}
         </div>
         <div className="order-1 lg:order-2 flex flex-col gap-8 w-full lg:max-w-[600px] h-full py-8 lg:py-20 z-10 lg:ml-auto">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight text-center lg:text-left">
-            Experience true connection
-          </h2>
-          <p className="text-lg md:text-xl text-white/80 text-center lg:text-left">
-            Join our community and discover meaningful relationships
-          </p>
+          <div className="space-y-3">
+            <span className="px-3 py-1 rounded-full text-xs font-medium bg-violet-500/20 text-violet-400 border border-violet-500/20">
+              Advanced Features
+            </span>
+            <h2 className="text-3xl pt-4 md:text-4xl lg:text-5xl font-bold text-white leading-tight text-center lg:text-left">
+              Experience True Connection
+            </h2>
+            <p className="text-lg md:text-xl text-white/80 text-center lg:text-left">
+              Discover a new level of companionship with our advanced AI
+              personalities. Engage in meaningful conversations that go beyond
+              small talk.
+            </p>
+          </div>
+          <ul className="space-y-3 text-white/70">
+            <li className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+              Deep personality customization
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+              Memory retention & context awareness
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+              Natural conversation flow
+            </li>
+          </ul>
+          <div className="flex flex-col sm:flex-row gap-4 mt-4">
+            <button className="px-6 py-2.5 rounded-lg bg-violet-500/20 text-violet-400 border border-violet-500/20 hover:bg-violet-500/30 transition-colors">
+              Try for Free
+            </button>
+            <button className="px-6 py-2.5 rounded-lg bg-transparent text-white/80 border border-white/20 hover:bg-white/5 transition-colors">
+              Learn More
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative h-screen custom-bg-gradient-2 pt-[68px] px-4 md:px-[10%] lg:px-[20%] flex flex-col lg:flex-row items-center justify-between overflow-hidden">
+        <div
+          className="order-1 lg:order-2 relative lg:absolute bottom-0 right-0 w-full lg:w-[500px] h-[60%] lg:h-[85%] transition-all duration-300 saturate-125"
+          onMouseEnter={() => setThirdSectionHover(Date.now())}
+          onMouseLeave={() => setThirdSectionHover(null)}
+        >
+          {thirdSectionImages.map((image, index) => (
+            <img
+              key={image.alt}
+              src={image.src}
+              alt={image.alt}
+              className={`absolute bottom-0 right-[50%] w-full lg:w-[500px] h-auto object-contain transition-opacity duration-300 ${
+                index === thirdImageIndex ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          ))}
+          <div className="absolute bottom-[15%] right-[15%] w-32 h-32 bg-pink-500/30 rounded-full blur-[100px]" />
+          <div className="absolute top-[25%] left-[25%] w-32 h-32 bg-purple-500/30 rounded-full blur-[100px]" />
+        </div>
+        <div className="order-2 lg:order-1 flex flex-col gap-8 w-full lg:max-w-[600px] h-full py-8 lg:py-20 z-10">
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-pink-500/20 text-pink-400 border border-pink-500/20">
+                Premium Access
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400 border border-purple-500/20">
+                NSFW Enabled
+              </span>
+            </div>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight text-center lg:text-left bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
+              Unlock Intimate Experiences
+            </h2>
+            <p className="text-lg md:text-xl text-white/80 text-center lg:text-left">
+              Experience deeper connections with exclusive NSFW content and
+              unrestricted conversations. Your desires, explored safely and
+              privately.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            {[
+              {
+                title: "Unrestricted Access",
+                description:
+                  "Full access to NSFW content and intimate conversations",
+              },
+              {
+                title: "Enhanced Privacy",
+                description: "End-to-end encryption for complete discretion",
+              },
+              {
+                title: "Custom Scenarios",
+                description:
+                  "Create and explore personalized intimate scenarios",
+              },
+              {
+                title: "Priority Support",
+                description: "24/7 dedicated support for premium members",
+              },
+            ].map((feature) => (
+              <div
+                key={feature.title}
+                className="feature-card p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 group"
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  const y = e.clientY - rect.top;
+                  e.currentTarget.style.setProperty("--x", `${x}px`);
+                  e.currentTarget.style.setProperty("--y", `${y}px`);
+                }}
+              >
+                <h3 className="text-white/90 font-semibold mb-2 relative z-10">
+                  {feature.title}
+                </h3>
+                <p className="text-white/70 text-sm relative z-10">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4 mt-6">
+            <button className="group relative px-6 py-3 rounded-lg overflow-hidden transition-all duration-300 glow-effect">
+              <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-violet-500/20 backdrop-blur-md" />
+              <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-violet-500 opacity-0 group-hover:opacity-20 transition-opacity duration-700" />
+              <div className="absolute inset-[1px] rounded-lg bg-black/40 backdrop-blur-xl" />
+
+              <div
+                className="absolute inset-0 bg-gradient-to-r from-pink-500 to-violet-500 opacity-30"
+                style={{
+                  backgroundSize: "200% 200%",
+                  animation: "shine 8s linear infinite",
+                }}
+              />
+              <div className="absolute inset-[1px] rounded-lg bg-black/50" />
+
+              <span className="cursor-pointer relative z-10 font-medium bg-gradient-to-r from-pink-400 to-violet-400 bg-clip-text text-transparent">
+                Upgrade Now
+              </span>
+            </button>
+            <button className="cursor-pointer px-6 py-3 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10 text-white/90 hover:bg-white/10 transition-colors">
+              View Plans
+            </button>
+          </div>
         </div>
       </section>
     </div>

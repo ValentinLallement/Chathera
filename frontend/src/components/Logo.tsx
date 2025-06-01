@@ -2,7 +2,7 @@ import ChatHeraLogo from "../assets/images/StarLogo.webp";
 
 export default function Logo() {
   return (
-    <div className="flex items-center gap-2 justify-center">
+    <div className="flex items-center gap-2 ">
       <img
         src={ChatHeraLogo}
         alt="ChatHera Logo"
