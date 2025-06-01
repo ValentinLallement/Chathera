@@ -22,7 +22,7 @@ import asyncio
 import uuid
 import os
 
-from fastapi import FastAPI, Depends, HTTPException, status,APIRouter,Body,Query
+from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Body, Query, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -70,33 +70,28 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(SessionMiddleware, secret_key="une_clef_secrete_pour_session")
 
-
-
-
-
-
-# frontend
-# --- configuration de l'app après sa création ---
+# CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust this to your domain in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# API routes
 app.include_router(websocket_router)
 app.include_router(message.router)
 app.include_router(auth_google.router)
 app.include_router(stripe_routes.router)
 app.include_router(api_router, prefix="/api")
 
+# Serve static files from frontend build
 app.mount("/static", StaticFiles(directory="../frontend/dist/static"), name="static")
 
-
-@app.get("/")
-async def serve_frontend():
-    return FileResponse(os.path.join("../frontend", "dist", "index.html"))
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    return FileResponse("../frontend/dist/index.html")
 
 
 
