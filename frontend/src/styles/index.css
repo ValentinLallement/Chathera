@@ -34,3 +34,111 @@
     ),
     linear-gradient(0deg, #0a0a0a 1%, #0a0a0a 100%);
 }
+
+.custom-bg-gradient-2 {
+  background-size: 100% 100%;
+  background-position: 0px 0px, 0px 0px;
+  background-image: radial-gradient(
+      75% 75% at 52% 86%,
+      #1a1a1aff 0%,
+      #0a0a0aff 100%
+    ),
+    linear-gradient(0deg, #0a0a0aff 1%, #0a0a0aff 100%);
+}
+
+/* Hardware acceleration utilities */
+.hardware-accelerated {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000;
+  will-change: transform;
+}
+
+.smooth-scale {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Chat animations */
+@keyframes slideFromLeft {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideFromRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes bounceScale {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes bounceScaleOnce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-slideFromLeft {
+  animation: slideFromLeft 0.5s ease-out forwards;
+}
+
+.animate-slideFromRight {
+  animation: slideFromRight 0.5s ease-out forwards;
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+.animate-bounce-delay-1 {
+  animation: bounce 1s infinite;
+  animation-delay: -0.3s;
+}
+
+.animate-bounce-delay-2 {
+  animation: bounce 1s infinite;
+  animation-delay: -0.15s;
+}
+
+.bounce-hover {
+  animation: bounceScaleOnce 0.6s cubic-bezier(0.36, 0, 0.66, -0.56);
+}
+
+.bounce-hover:hover {
+  animation-play-state: running;
+}
