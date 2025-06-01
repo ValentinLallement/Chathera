@@ -4,9 +4,7 @@ export default function Footer() {
   return (
     <footer className="relative bg-[#0A0A0A] text-white py-16 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-x-8 gap-y-12">
-          {/* Brand Section */}
           <div className="lg:col-span-3 space-y-6">
             <Logo />
             <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
@@ -26,9 +24,7 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Navigation Links */}
           <div className="lg:col-span-9 grid grid-cols-2 md:grid-cols-4 gap-16 lg:justify-items-end lg:ml-auto">
-            {/* Product */}
             <div className="space-y-4 w-full">
               <h3 className="text-sm font-semibold text-white/90">Product</h3>
               <ul className="space-y-3">
@@ -67,7 +63,6 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* Resources */}
             <div className="space-y-4 w-full">
               <h3 className="text-sm font-semibold text-white/90">Resources</h3>
               <ul className="space-y-3">
@@ -106,7 +101,6 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* Company */}
             <div className="space-y-4 w-full">
               <h3 className="text-sm font-semibold text-white/90">Company</h3>
               <ul className="space-y-3">
@@ -130,7 +124,6 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* Connect */}
             <div className="space-y-4 w-full">
               <h3 className="text-sm font-semibold text-white/90">Connect</h3>
               <ul className="space-y-3">
@@ -179,7 +172,6 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Bottom Bar */}
         <div className="mt-16 pt-8 border-t border-white/10">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-gray-400">
