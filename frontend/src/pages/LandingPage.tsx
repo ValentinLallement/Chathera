@@ -330,7 +330,7 @@ export default function LandingPage() {
               key={image.alt}
               src={image.src}
               alt={image.alt}
-              className={`absolute bottom-0 left-[50%] w-full lg:w-[500px] h-auto object-contain transition-opacity duration-300 ${
+              className={`absolute bottom-0 left-[30%] w-full lg:w-[500px] h-auto object-contain transition-opacity duration-300 ${
                 index === secondImageIndex ? "opacity-100" : "opacity-0"
               }`}
             />
@@ -386,7 +386,7 @@ export default function LandingPage() {
               key={image.alt}
               src={image.src}
               alt={image.alt}
-              className={`absolute bottom-0 right-[50%] w-full lg:w-[500px] h-auto object-contain transition-opacity duration-300 ${
+              className={`absolute bottom-0 right-[30%] w-full lg:w-[500px] h-auto object-contain transition-opacity duration-300 ${
                 index === thirdImageIndex ? "opacity-100" : "opacity-0"
               }`}
             />
