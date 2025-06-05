@@ -4,6 +4,7 @@ import uuid
 import random
 import string
 
+from .db.models import models
 from sqlalchemy.orm import Session      
 
 from passlib.context import CryptContext
@@ -13,8 +14,8 @@ from typing import Optional, Union
 
 from fastapi import HTTPException
 
-from . import models, schemas,auth
-from app.models import Conversation, Message, FutureAction, Subscription
+from . import schemas,auth
+from app.db.models.models import Conversation, Message, FutureAction, Subscription
 from app.utils.payg import PlanEnum
 from app.utils.email import send_email_verification_code
 

@@ -15,7 +15,6 @@ from sqlalchemy.dialects.postgresql import UUID as SA_UUID
 from pydantic import BaseModel, root_validator
 from pydantic import ConfigDict
 
-
 from app.utils.payg import PlanEnum
 from app.db.base import Base
 if TYPE_CHECKING:
@@ -225,24 +224,44 @@ class Subscription(SQLModel, table=True):
 # -------- Pay-as-you-go -----------
 
 
-class UsageLog(Base):
+class UsageTypeEnum(str, enum.Enum):
+    message = "message"
+    bot_creation = "bot_creation"
+
+
+class UsageLog(SQLModel, table=True):
     __tablename__ = "usage_logs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    bot_id = Column(Integer, ForeignKey("bots.id"), nullable=True)
-    type = Column(Enum("message", "bot_creation", name="usage_type"), nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    
+    user_id: UUID = Field(foreign_key="user.id", nullable=False)
+    bot_id: Optional[UUID] = Field(foreign_key="bot.id", default=None)
+
+    type: UsageTypeEnum = Field(sa_column=Column(
+        Enum(UsageTypeEnum, name="usage_type"), nullable=False
+    ))
+
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    # Relations optionnelles (utile si tu veux accéder aux objets depuis les logs)
+    user: Optional["User"] = Relationship(back_populates=None)
+    bot: Optional["Bot"] = Relationship(back_populates=None)
 
 
 
-class MonthlyUsage(Base):
+class MonthlyUsage(SQLModel, table=True):
     __tablename__ = "monthly_usage"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    year = Column(Integer, nullable=False)
-    month = Column(Integer, nullable=False)
-    total_messages = Column(Integer, default=0)
-    total_bots_created = Column(Integer, default=0)
-    billed = Column(Boolean, default=False)
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    user_id: UUID = Field(foreign_key="user.id", nullable=False)
+    
+    year: int
+    month: int
+
+    total_messages: int = Field(default=0)
+    total_bots_created: int = Field(default=0)
+    billed: bool = Field(default=False)
+
+    # Relation utile pour accès depuis l'utilisateur si besoin
+    user: Optional["User"] = Relationship(back_populates=None)

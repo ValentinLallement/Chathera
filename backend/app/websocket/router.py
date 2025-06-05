@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from uuid import uuid4, UUID
 from datetime import datetime,timedelta
 
-from app.models import Message, Conversation, FutureAction, MemoryType, MemoryImportance, MemoryEntry, Subscription
+from app.db.models.models import Message, Conversation, FutureAction, MemoryType, MemoryImportance, MemoryEntry, Subscription
 from app.database import get_session
 from app.dependencies import get_user_from_websocket,get_db
 from app.utils.auto_reply import build_prompt, get_auto_reply_from_deepseek
