@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from sqlalchemy.orm import Session
@@ -16,12 +16,6 @@ from app.dependencies import get_db
 
 router = APIRouter()
 
-credentials_exception = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Could not validate credentials",
-    headers={"WWW-Authenticate": "Bearer"},
-)
-
 @router.get("/users/{user_id}/messages", response_model=List[MessageSchema])
 def read_user_messages(user_id: UUID, db: Session = Depends(get_db)):
     messages = get_messages_by_user(db, user_id)
@@ -34,21 +28,22 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  # adapte l’URL selon t
 
 @router.post("/conversations/messages", response_model=List[Message])
 def read_conversation_messages(
-    request: Request,
-    body: ConversationRequest,
+    request: ConversationRequest,
+    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    # 🔐 Lecture du token depuis les cookies
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Token manquant dans les cookies")
-
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
     user: User = get_user_from_token(token, db, credentials_exception)
 
     # ✅ Vérifie que la conversation appartient à l'utilisateur
     conversation = db.execute(
         select(Conversation).where(
-            Conversation.id == body.conversation_id,
+            Conversation.id == request.conversation_id,
             Conversation.user_id == user.id
         )
     ).scalars().first()
@@ -59,7 +54,7 @@ def read_conversation_messages(
     # ✅ Récupère les messages associés
     messages = db.execute(
         select(Message).where(
-            Message.conversation_id == body.conversation_id
+            Message.conversation_id == request.conversation_id
         ).order_by(Message.created_at)
     ).scalars().all()
 
@@ -71,14 +66,15 @@ def read_conversation_messages(
 
 @router.get("/conversations", response_model=List[Conversation])
 def read_user_conversations(
-    request: Request,
+    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    # 🔐 Lecture du token depuis les cookies
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Token manquant dans les cookies")
-
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
     user = get_user_from_token(token, db, credentials_exception)
 
     conversations = db.execute(

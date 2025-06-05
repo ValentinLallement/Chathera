@@ -143,25 +143,22 @@ def login_for_access_token(
     access_token = auth.create_access_token(data={"sub": str(user_from_db.id)})
     refresh_token = auth.create_refresh_token(data={"sub": str(user_from_db.id)})
 
-    response = JSONResponse(content={"message": "Connexion réussie"})
-    
-    # Cookies sécurisés
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=True,
-        samesite="Strict",
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    )
+    response = JSONResponse(content={
+        "message": "Connexion réussie",
+        "access_token": access_token,  # 👉 retourné dans la réponse JSON
+        "token_type": "bearer"
+    })
+
+    # 🔐 Seul le refresh_token est mis en cookie sécurisé
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
         secure=True,
         samesite="Strict",
-        max_age=7 * 24 * 60 * 60
+        max_age=7 * 24 * 60 * 60  # 7 jours
     )
+
     return response
     
 
@@ -186,47 +183,40 @@ def refresh_token_from_cookie(
 
         new_access_token = auth.create_access_token(data={"sub": str(user.id)})
 
-        response = JSONResponse(content={"message": "Token rafraîchi avec succès"})
-        response.set_cookie(
-            key="access_token",
-            value=new_access_token,
-            httponly=True,
-            secure=True,
-            samesite="Strict",
-            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-        )
-        return response
+        # ✅ Retourne l'access_token dans la réponse JSON (PAS en cookie)
+        return JSONResponse(content={
+            "message": "Token rafraîchi avec succès",
+            "access_token": new_access_token,
+            "token_type": "bearer"
+        })
+
     except JWTError:
         raise HTTPException(status_code=401, detail="Token de rafraîchissement invalide")
     
 @api_router.post("/logout")
 def logout():
     response = JSONResponse(content={"message": "Déconnecté"})
-    response.delete_cookie(key="access_token")
     response.delete_cookie(key="refresh_token")
     return response
 
 # ----------------- User -----------------
 
 
-@api_router.get("/users/me", response_model=schemas.User)
+@api_router.get("/user/me", response_model=schemas.User)
 def read_users_me(current_user: schemas.User = Depends(dependencies.get_current_user)):
     return current_user
 
+
 @api_router.delete("/user/delete")
 def delete_account(
-    request: Request,
-    body: UserDeleteRequest,
+    request: UserDeleteRequest,
+    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Token manquant dans les cookies")
-
-    user = get_user_from_token(token, db, credentials_exception)
+    user = get_user_from_token(token, db,credentials_exception)
 
     # Vérifie le mot de passe
-    if not auth.verify_password(body.password, user.password):
+    if not auth.verify_password(request.password, user.password):
         raise HTTPException(status_code=403, detail="Mot de passe incorrect.")
 
     # Supprime l'utilisateur
@@ -239,22 +229,21 @@ def delete_account(
 
 @api_router.post("/user/change-password")
 def change_password(
-    request: Request,
-    body: ChangePasswordRequest,
+    request: ChangePasswordRequest,
+    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):  
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Token manquant dans les cookies")
 
-    user = get_user_from_token(token, db, credentials_exception)
+    user = get_user_from_token(token, db,credentials_exception)
+
+    
 
     # Vérifie l'ancien mot de passe
-    if not auth.verify_password(body.old_password, user.password):
+    if not auth.verify_password(request.old_password, user.password):
         raise HTTPException(status_code=403, detail="Ancien mot de passe incorrect.")
 
     # Met à jour avec le nouveau mot de passe haché
-    user.password = auth.hash_password(body.new_password)
+    user.password = auth.hash_password(request.new_password)
     db.commit()
 
     return {"detail": "Mot de passe mis à jour avec succès."}
@@ -335,14 +324,11 @@ async def generate_image(data: PromptRequest, token: str = Depends(verify_token)
 
 @api_router.post("/create_bot")
 def create_bot_and_conversation(
-    request: Request,
-    body: CreateBotRequest,
+    request: CreateBotRequest,
+    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Token manquant dans les cookies")
-
+    # Authentification
     user = get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -368,7 +354,7 @@ def create_bot_and_conversation(
 
     try:
         # Création du bot
-        bot = Bot(name=body.name, user_id=user.id)
+        bot = Bot(name=request.name, user_id=user.id)
         db.add(bot)
         db.commit()
         db.refresh(bot)
@@ -387,6 +373,7 @@ def create_bot_and_conversation(
                     increment=True
                 )
             except Exception as e:
+                # Remplacer print par logger dans un vrai projet
                 print(f"Erreur lors du report d'usage bots à Stripe : {e}")
 
         return {"bot_id": bot.id, "conversation_id": conversation.id}
@@ -398,8 +385,7 @@ def create_bot_and_conversation(
 
 
 @api_router.get("/my_bots")
-def get_my_bots(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token")
+def get_my_bots(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     # Vérifie le token
     user = get_user_from_token(token, db, credentials_exception)
     if not user:
@@ -416,21 +402,14 @@ def get_my_bots(request: Request, db: Session = Depends(get_db)):
 
 @api_router.put("/user/subscription", response_model=schemas.SubscriptionUpdate)
 async def update_my_subscription(
-    request: Request,
     subscription_update: schemas.SubscriptionUpdate,
+    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    # Lecture du token depuis les cookies
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Token manquant dans les cookies")
-
-    # Récupération de l'utilisateur à partir du token
     user = get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Mise à jour de l’abonnement
     try:
         updated_subscription = crud.update_user_subscription(
             db=db,

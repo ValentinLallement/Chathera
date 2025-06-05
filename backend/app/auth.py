@@ -62,28 +62,29 @@ def get_user_from_token(token: str, db: Session, credentials_exception):
         raise credentials_exception
     return user
 
-# Fonction pour vérifier le token
 def verify_token(request: Request, db: Session = Depends(get_db)):
-    # Récupère le token depuis le cookie "access_token"
-    token = request.cookies.get("access_token")
-    
-    if not token:
-        raise HTTPException(status_code=401, detail="Token manquant dans les cookies")
+    # 🔎 Récupération du header Authorization
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="En-tête Authorization manquant ou mal formé")
+
+    token = auth_header.split(" ")[1]
 
     try:
+        # 🔐 Décodage du token JWT
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=401, detail="Token invalide")
 
+        # 🔍 Chargement de l'utilisateur
         user = db.query(models.User).filter(models.User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=401, detail="Utilisateur non trouvé")
         
-        return user  # ✅ l'utilisateur est authentifié
+        return user  # ✅ Utilisateur authentifié
     except JWTError:
         raise HTTPException(status_code=401, detail="Token expiré ou invalide")
-    
 # ----------------- reset password -----------------
 
 def create_password_reset_token(user_id: int, expires_delta: timedelta = timedelta(minutes=30)) -> str:

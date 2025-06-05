@@ -4,7 +4,7 @@ from uuid import UUID
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi import Depends,status, Request
+from fastapi import Depends,status
 from fastapi.security import OAuth2PasswordBearer
 
 from sqlmodel import Session
@@ -34,8 +34,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 router = APIRouter(prefix="/stripe", tags=["Stripe"])
 
 @router.post("/create-checkout-session")
-def create_session(data: CheckoutRequest, request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token")
+def create_session(data: CheckoutRequest, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     user = get_user_from_token(token, db, credentials_exception)
     user_id = user.id if user else None
 
@@ -145,12 +144,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     return {"status": "success"}
 
 @router.delete("/subscription")
-def cancel_subscription(request:Request, db: Session = Depends(get_db)):
-
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Token manquant dans les cookies")
-
+def cancel_subscription(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     user = get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
