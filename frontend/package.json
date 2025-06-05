@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.8",
+    "@tanstack/react-query": "^5.80.6",
+    "@tanstack/react-query-devtools": "^5.80.6",
     "framer-motion": "^12.15.0",
     "install": "^0.13.0",
     "nprogress": "^0.2.0",
@@ -23,6 +25,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@tanstack/eslint-plugin-query": "^5.78.0",
     "@types/node": "^22.15.29",
     "@types/nprogress": "^0.2.3",
     "@types/react": "^19.1.2",

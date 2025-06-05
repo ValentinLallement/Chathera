@@ -1,7 +1,7 @@
 import stripe
 
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi import Depends,status
@@ -116,7 +116,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             print(f"[Webhook] Nouvelle souscription créée en base pour l'utilisateur {user_id}")
 
         subscription.plan = plan
-        subscription.start_date = datetime.utcnow()
+        subscription.start_date = datetime.now(timezone.utc) # fix: Lib depricated i had to use timezone.utc
         subscription.status = SubscriptionStatus.active
         subscription.stripe_subscription_id = new_stripe_subscription_id
         subscription.stripe_subscription_item_messages = item_messages_id

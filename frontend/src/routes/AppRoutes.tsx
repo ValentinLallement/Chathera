@@ -11,6 +11,7 @@ const Home = lazy(() => import("../pages/HomePage"));
 const Chat = lazy(() => import("../pages/ChatPage"));
 const Auth = lazy(() => import("../pages/AuthentificationPage"));
 const Profile = lazy(() => import("../pages/ProfilePage"));
+const Demo = lazy(() => import("../pages/DemoPage"));
 const Settings = lazy(() => import("../pages/SettingsPage"));
 
 // Wrap lazy components with error boundary
@@ -41,6 +42,7 @@ export default function AppRoutes() {
         <Route path="chat/:conversationId" element={withErrorBoundary(Chat)} />
 
         <Route path="profile" element={withErrorBoundary(Profile)} />
+        <Route path="demo" element={withErrorBoundary(Demo)} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

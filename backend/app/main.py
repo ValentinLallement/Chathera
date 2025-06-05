@@ -14,6 +14,9 @@ warnings.filterwarnings(
     message=r"builtin type .* has no __module__"
 )
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 
 import base64
 import io
@@ -86,12 +89,12 @@ app.include_router(auth_google.router)
 app.include_router(stripe_routes.router)
 app.include_router(api_router, prefix="/api")
 
-# Serve static files from frontend build
+"""# Serve static files from frontend build 
 app.mount("/static", StaticFiles(directory="../frontend/dist/static"), name="static")
 
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
-    return FileResponse("../frontend/dist/index.html")
+    return FileResponse("../frontend/dist/index.html")"""
 
 
 
