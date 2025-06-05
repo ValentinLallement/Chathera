@@ -76,10 +76,11 @@ export interface LogInResponse {
 export async function logIn({login, password}: LogInParams): Promise<LogInResponse> {
   const res = await fetch(urls.logIn, {
     method: "POST",
+    credentials: "include", 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ login, password }),
   });
-  
+
   if (!res.ok) {
     let payload: { detail?: string; [key: string]: any } = { detail: "" };
     try {

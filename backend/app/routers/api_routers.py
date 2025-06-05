@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 import requests as external_requests  
 import asyncio
 import uuid
@@ -151,14 +152,25 @@ def login_for_access_token(
     })
 
     # 🔐 Seul le refresh_token est mis en cookie sécurisé
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=True,
-        samesite="Strict",
-        max_age=7 * 24 * 60 * 60  # 7 jours
-    )
+    if not os.getenv("DEBUG"):
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="Strict",
+            max_age=7 * 24 * 60 * 60  # 7 jours
+        )
+    else:
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,            # << must be False in dev if you're on http://localhost
+            samesite="None",          # or "None" if you need truly cross-port/subdomain
+            max_age=7 * 24 * 60 * 60,  # 7 days
+            path="/",   
+        )
 
     return response
     
