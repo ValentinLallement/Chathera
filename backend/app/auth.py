@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status, Request
 
 from app.config import REFRESH_SECRET_KEY, SECRET_KEY, ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES
-from . import models
+from app.db.models import models
 from .database import SessionLocal
 
 def get_db():

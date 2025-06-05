@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.models import PlanEnum, Subscription
+from app.db.models.models import PlanEnum, Subscription
 
 BOT_LIMITS = {
     PlanEnum.FREE: 1,

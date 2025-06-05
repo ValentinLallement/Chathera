@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import List, Optional,Union
 
 from app.config import DEEPSEEK_API_KEY, DEEPSEEK_URL
-from app.models import MemoryEntry, MemoryType, MemoryImportance 
+from app.db.models.models import MemoryEntry, MemoryType, MemoryImportance 
 
 def build_prompt(
     messages_recents: List[dict],

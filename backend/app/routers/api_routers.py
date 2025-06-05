@@ -6,6 +6,7 @@ import uuid
 import random
 import string
 
+from app.db.models import models
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Body, Query, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -22,8 +23,8 @@ from datetime import datetime
 
 from google.auth.transport import requests as google_requests
 
-from app import models, crud, schemas, dependencies, auth
-from app.models import Conversation, Bot, User, Subscription, PlanEnum, SubscriptionStatus
+from app import crud, schemas, dependencies, auth
+from app.db.models.models import Conversation, Bot, User, Subscription, PlanEnum, SubscriptionStatus
 from app.schemas import (
     CreateBotRequest, UserLogin, PromptRequest, RefreshTokenRequest,
     UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest

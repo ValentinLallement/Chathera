@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlmodel import Field, SQLModel, Relationship
 
 from sqlalchemy import Column, String, UniqueConstraint, DateTime, Text, Enum, ForeignKey, Integer, Boolean
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 from sqlalchemy.dialects.postgresql import UUID as SA_UUID
@@ -16,10 +17,11 @@ from pydantic import BaseModel, root_validator
 from pydantic import ConfigDict
 
 from app.utils.payg import PlanEnum
-from app.db.base import Base
+
 if TYPE_CHECKING:
     from .models import Conversation, Message
 
+Base = declarative_base()
 # --------------  user  -----------------
 
 class User(SQLModel, table=True):
@@ -50,19 +52,20 @@ class User(SQLModel, table=True):
     )
 
 
-class EmailVerificationCode(Base):
+class EmailVerificationCode(SQLModel, table=True):
     __tablename__ = "email_verification_codes"
 
-    id = Column(SA_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)    
-    email = Column(String, index=True, nullable=False)
-    code = Column(String, nullable=False)
-    is_used = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(minutes=10))
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    email: str = Field(index=True, nullable=False)
+    code: str = Field(nullable=False)
+    is_used: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(minutes=10))
 
 # --------------  message  -----------------
 
 class Message(SQLModel, table=True):
+    __tablename__ = "messages"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID
     content: str

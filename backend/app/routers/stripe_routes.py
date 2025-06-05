@@ -15,7 +15,7 @@ from app.schemas import CheckoutRequest
 from app.dependencies import get_db
 from app.auth import get_user_from_token
 from app.crud import update_user_subscription
-from app.models import Subscription,SubscriptionStatus
+from app.db.models.models import Subscription,SubscriptionStatus
 from app.config import MESSAGE_PRICE_ID, BOT_PRICE_ID
 from app.utils.payg import report_usage
 
@@ -41,7 +41,7 @@ def create_session(data: CheckoutRequest, token: str = Depends(oauth2_scheme), d
     try:
         initial_bots_usage = 0
         if data.plan == "payg":
-            from app.models import Bot  # ajuste le chemin selon ton arborescence
+            from app.db.models.models import Bot  # ajuste le chemin selon ton arborescence
             initial_bots_usage = db.query(Bot).filter(Bot.user_id == user_id).count()
             print(f"Initial bots usage for user {user_id}: {initial_bots_usage}")
 
@@ -116,7 +116,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             print(f"[Webhook] Nouvelle souscription créée en base pour l'utilisateur {user_id}")
 
         subscription.plan = plan
-        subscription.start_date = datetime.now(timezone.utc) # fix: Lib depricated i had to use timezone.utc
+        subscription.start_date = datetime.utcnow()
         subscription.status = SubscriptionStatus.active
         subscription.stripe_subscription_id = new_stripe_subscription_id
         subscription.stripe_subscription_item_messages = item_messages_id
@@ -132,7 +132,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         # Gérer usage initial si plan = PAYG
         if plan == "payg" and item_bots_id:
             try:
-                from app.models import Bot  # ajuste si nécessaire
+                from app.db.models.models import Bot  # ajuste si nécessaire
                 initial_bots_usage = db.query(Bot).filter(Bot.user_id == user_id).count()
                 print(f"[Webhook] Bots existants pour utilisateur {user_id} : {initial_bots_usage}")
 

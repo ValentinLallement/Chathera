@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import FutureAction, Message, Conversation
+from app.db.models.models import FutureAction, Message, Conversation
 from app.utils.websocket_registry import get_active_websockets
 
 

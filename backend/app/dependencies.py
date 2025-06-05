@@ -7,9 +7,9 @@ from fastapi import Depends, HTTPException, status,WebSocket, Request
 from fastapi.security import OAuth2PasswordBearer
 
 
-from app.models import User
+from app.db.models.models import User
 from app.database import get_session
-from . import models, schemas, auth
+from . import schemas, auth
 from .database import SessionLocal
 
 from dotenv import load_dotenv
