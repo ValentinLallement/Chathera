@@ -24,6 +24,7 @@ import requests
 import asyncio
 import uuid
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Body, Query, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -95,6 +96,13 @@ app.include_router(api_router, prefix="/api")
 
 # Serve static files from frontend build 
 app.mount("/static", StaticFiles(directory="../frontend/dist/static"), name="static")
+
+BASE_DIR = Path(__file__).parent
+favicon_path = BASE_DIR / 'favicon.webp'
+
+@app.get('/favicon.webp', include_in_schema=False)
+async def favicon():
+    return FileResponse(str(favicon_path))
 
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
