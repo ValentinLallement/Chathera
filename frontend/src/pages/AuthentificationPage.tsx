@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import StarLogo from "../assets/images/StarLogo.webp";
 import Title from "../components/Title";
-import { useSignUp, useLogIn } from "../hooks/useApi"; // ← on importe les deux hooks
+import { useSignUp, useLogIn } from "../hooks/useApi";
 import { toast } from "react-hot-toast";
 
 interface FieldErrors {
@@ -30,7 +30,6 @@ export default function AuthentificationPage() {
 
   const [errors, setErrors] = useState<FieldErrors>({});
 
-  // ---  Sign‐Up mutation  ---
   const {
     mutate: mutateSignUp,
     isError: signupError,
@@ -39,7 +38,6 @@ export default function AuthentificationPage() {
     data: signUpResult,
   } = useSignUp();
 
-  // ---  Log‐In mutation  ---
   const {
     mutate: mutateLogIn,
     isError: loginError,
@@ -48,7 +46,6 @@ export default function AuthentificationPage() {
     data: loginResult,
   } = useLogIn();
 
-  // ─── On affiche une toast si le serveur de signup renvoie une erreur ───
   useEffect(() => {
     if (signupError && signupErrorObj instanceof Error) {
       toast.error(signupErrorObj.message, {
@@ -65,7 +62,6 @@ export default function AuthentificationPage() {
     }
   }, [signupError, signupErrorObj]);
 
-  // ─── Après un signup réussi, on affiche un toast, puis on repasse en mode “login” ───
   useEffect(() => {
     if (signupSuccess && signUpResult) {
       toast.success("Account created successfully!", {
@@ -92,7 +88,7 @@ export default function AuthentificationPage() {
       });
 
       setTimeout(() => {
-        setIsSignUp(false); // repasser en “login mode”
+        setIsSignUp(false);
         setPassword("");
         setConfirmationPassword("");
         setErrors({});
@@ -100,7 +96,6 @@ export default function AuthentificationPage() {
     }
   }, [signupSuccess, signUpResult]);
 
-  // ─── On affiche une toast si le serveur de login renvoie une erreur ───
   useEffect(() => {
     if (loginError && loginErrorObj instanceof Error) {
       toast.error(loginErrorObj.message, {
@@ -117,7 +112,6 @@ export default function AuthentificationPage() {
     }
   }, [loginError, loginErrorObj]);
 
-  // ─── Après un login réussi, on affiche un toast puis on redirige ───
   useEffect(() => {
     if (loginSuccess && loginResult) {
       toast.success("Logged in successfully!", {
@@ -132,7 +126,7 @@ export default function AuthentificationPage() {
         },
       });
       setTimeout(() => {
-        navigate("/dashboard"); // ← la route où vous voulez rediriger
+        navigate("/dashboard");
       }, 1000);
     }
   }, [loginSuccess, loginResult, navigate]);
@@ -141,7 +135,6 @@ export default function AuthentificationPage() {
     const newErrors: FieldErrors = {};
 
     if (isSignUp) {
-      // ─── Validation pour le signup ───
       if (!username.trim()) {
         newErrors.username = "Username is required.";
       }
@@ -164,7 +157,6 @@ export default function AuthentificationPage() {
         newErrors.confirmationPassword = "Passwords do not match.";
       }
     } else {
-      // ─── Validation pour le login ───
       if (!email.trim()) {
         newErrors.email = "Email or username is required.";
       }
@@ -175,7 +167,6 @@ export default function AuthentificationPage() {
 
     setErrors(newErrors);
 
-    // Si une erreur, afficher un toast pour la première
     const firstErrorKey = Object.keys(newErrors)[0] as
       | keyof FieldErrors
       | undefined;
@@ -201,7 +192,6 @@ export default function AuthentificationPage() {
     setErrors({});
 
     if (isSignUp) {
-      // ─── Sign‐Up branch ───
       if (!validateFields()) return;
 
       mutateSignUp({
@@ -211,11 +201,10 @@ export default function AuthentificationPage() {
         password,
       });
     } else {
-      // ─── Log‐In branch ───
       if (!validateFields()) return;
 
       mutateLogIn({
-        login: email.trim(), // on envoie “username” au lieu de “login”
+        login: email.trim(),
         password,
       });
     }
@@ -310,7 +299,6 @@ export default function AuthentificationPage() {
             >
               {isSignUp && (
                 <>
-                  {/* Username field */}
                   <div className="group">
                     <label htmlFor="username" className="sr-only">
                       Username
@@ -333,7 +321,6 @@ export default function AuthentificationPage() {
                     )}
                   </div>
 
-                  {/* Full Name field */}
                   <div className="group">
                     <label htmlFor="name" className="sr-only">
                       Full Name
@@ -356,7 +343,6 @@ export default function AuthentificationPage() {
                 </>
               )}
 
-              {/* Email / login field */}
               <div className="group">
                 <label htmlFor="email" className="sr-only">
                   Email address
@@ -398,7 +384,6 @@ export default function AuthentificationPage() {
                 )}
               </div>
 
-              {/* Confirm Password field (sign-up only) */}
               {isSignUp && (
                 <div className="group">
                   <label htmlFor="confirmPassword" className="sr-only">
@@ -425,7 +410,6 @@ export default function AuthentificationPage() {
                 </div>
               )}
 
-              {/* “Remember me” et “Forgot password?” (login only) */}
               {!isSignUp && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -465,7 +449,6 @@ export default function AuthentificationPage() {
                 </div>
               )}
 
-              {/* Bouton Submit */}
               <button
                 type="submit"
                 className="relative w-full px-4 py-3 rounded-lg overflow-hidden group"
@@ -479,7 +462,6 @@ export default function AuthentificationPage() {
             </motion.form>
           </AnimatePresence>
 
-          {/* Basculer Sign‐in / Sign‐up */}
           <p className="text-center text-sm text-gray-400 mt-4">
             {isSignUp ? "Already have an account? " : "Don't have an account? "}
             <button
