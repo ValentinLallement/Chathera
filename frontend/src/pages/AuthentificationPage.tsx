@@ -12,6 +12,12 @@ export default function AuthentificationPage() {
   const [isChecked, setIsChecked] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
+  // state
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmationPassword, setConfirmationPassword] = useState("");
+
   const handleGoogleLogin = () => {
     // Google OAuth logic:
     console.log("Google login clicked");
@@ -20,6 +26,11 @@ export default function AuthentificationPage() {
   const handleAppleLogin = () => {
     // Apple OAuth logic:
     console.log("Apple login clicked");
+  };
+
+  const handleSubmit = () => {
+    if (isSignUp) {
+    }
   };
 
   return (
@@ -73,7 +84,7 @@ export default function AuthentificationPage() {
           >
             <button
               onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
+              className="cursor-pointer w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
             >
               <FcGoogle className="text-xl transform transition-transform group-hover:scale-110" />
               <span className="text-white font-medium">
@@ -83,7 +94,7 @@ export default function AuthentificationPage() {
 
             <button
               onClick={handleAppleLogin}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
+              className="cursor-pointer w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
             >
               <FaApple className="text-xl text-white transform transition-transform group-hover:scale-110" />
               <span className="text-white font-medium">
@@ -114,32 +125,51 @@ export default function AuthentificationPage() {
               {isSignUp && (
                 <div className="group">
                   <label htmlFor="name" className="sr-only">
-                    Full name
+                    Username
                   </label>
                   <input
                     id="name"
                     name="name"
                     type="text"
+                    onChange={(e) => setUsername(e.target.value)}
                     required
                     className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
-                    placeholder="Full name"
+                    placeholder="Username"
                   />
                 </div>
               )}
 
-              <div className="group">
-                <label htmlFor="email" className="sr-only">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
-                  placeholder="Email address"
-                />
-              </div>
+              {isSignUp ? (
+                <div className="group">
+                  <label htmlFor="email" className="sr-only">
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
+                    placeholder="Email"
+                  />
+                </div>
+              ) : (
+                <div className="group">
+                  <label htmlFor="email" className="sr-only">
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
+                    placeholder="Email or Username"
+                  />
+                </div>
+              )}
 
               <div className="group">
                 <label htmlFor="password" className="sr-only">
@@ -149,6 +179,7 @@ export default function AuthentificationPage() {
                   id="password"
                   name="password"
                   type="password"
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                   className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
                   placeholder="Password"
@@ -165,6 +196,7 @@ export default function AuthentificationPage() {
                     name="confirmPassword"
                     type="password"
                     required
+                    onChange={(e) => setConfirmationPassword(e.target.value)}
                     className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
                     placeholder="Confirm password"
                   />
@@ -217,7 +249,7 @@ export default function AuthentificationPage() {
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-violet-600/80 to-violet-700/80 transition-transform duration-300 group-hover:scale-[1.02]"></div>
                 <div className="absolute inset-0 bg-gradient-to-r from-violet-600/50 to-violet-700/50 opacity-50 blur-xl transition-transform duration-300 group-hover:scale-110"></div>
-                <span className="relative text-white font-medium">
+                <span className="relative text-white font-medium cursor-pointer">
                   {isSignUp ? "Create Account" : "Sign in"}
                 </span>
               </button>
@@ -228,7 +260,7 @@ export default function AuthentificationPage() {
             {isSignUp ? "Already have an account? " : "Don't have an account? "}
             <button
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-violet-400 hover:text-violet-300 transition-colors hover:underline"
+              className="text-violet-400 hover:text-violet-300 transition-colors hover:underline cursor-pointer"
             >
               {isSignUp ? "Sign in" : "Sign up"}
             </button>
