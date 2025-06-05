@@ -323,7 +323,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <section className="relative min-h-screen custom-bg-gradient-2 pt-[68px] px-4 md:px-[10%] lg:px-[20%] flex flex-col lg:flex-row items-start justify-start overflow-hidden">
+      <section className="relative min-h-[1452px] lg:min-h-screen custom-bg-gradient-2 pt-[68px] px-4 md:px-[10%] lg:px-[20%] flex flex-col lg:flex-row items-start justify-start overflow-hidden">
         <div
           className="absolute left-0 bottom-0 w-full md:w-[600px] lg:w-[700px] h-[90vh] transition-opacity duration-300 saturate-125 z-10"
           onMouseEnter={() => setSecondSectionHover(Date.now())}
@@ -342,9 +342,11 @@ export default function LandingPage() {
         </div>
         <div className="order-1 lg:order-2 flex flex-col gap-6 lg:gap-8 w-full lg:max-w-[600px] z-20 lg:ml-auto mt-8 lg:mt-[15vh]">
           <div className="space-y-3">
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-violet-500/20 text-violet-400 border border-violet-500/20">
-              Advanced Features
-            </span>
+            <div className="w-full flex justify-center lg:justify-start">
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-violet-500/20 text-violet-400 border border-violet-500/20">
+                Advanced Features
+              </span>
+            </div>
             <h2 className="text-3xl pt-4 md:text-4xl lg:text-5xl font-bold text-white leading-tight text-center lg:text-left ">
               Experience True Connection
             </h2>
@@ -379,7 +381,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="relative h-screen custom-bg-gradient-2 pt-[68px] px-4 md:px-[10%] lg:px-[20%] flex flex-col lg:flex-row items-center justify-between overflow-hidden">
+      <section className="relative min-h-[1460px] lg:min-h-screen custom-bg-gradient-2 pt-[68px] px-4 md:px-[10%] lg:px-[20%] flex flex-col lg:flex-row items-center justify-between overflow-hidden">
         <div
           className="absolute right-0 bottom-0 w-full lg:w-[700px] h-[60vh] lg:h-[90%] transition-all duration-300 saturate-125"
           onMouseEnter={() => setThirdSectionHover(Date.now())}
@@ -400,7 +402,7 @@ export default function LandingPage() {
         </div>
         <div className="order-2 lg:order-1 flex flex-col gap-8 w-full lg:max-w-[600px] h-full py-8 lg:py-20 z-10">
           <div className="space-y-4">
-            <div className="flex gap-2">
+            <div className="gap-2 w-full flex justify-center lg:justify-start">
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-pink-500/20 text-pink-400 border border-pink-500/20">
                 Premium Access
               </span>
@@ -458,7 +460,7 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          <div className="flex flex-col sm:flex-row gap-4 mt-6">
+          <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full justify-center ">
             <button className="group relative px-6 py-3 rounded-lg overflow-hidden transition-all duration-300 glow-effect">
               <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-violet-500/20 backdrop-blur-md" />
               <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-violet-500 opacity-0 group-hover:opacity-20 transition-opacity duration-700" />
