@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import StarLogo from "../assets/images/StarLogo.webp";
 import Title from "../components/Title";
-import { useSignUp } from "../hooks/useApi";
+import { useSignUp, useLogIn } from "../hooks/useApi"; // ← on importe les deux hooks
 import { toast } from "react-hot-toast";
 
 interface FieldErrors {
@@ -30,14 +30,7 @@ export default function AuthentificationPage() {
 
   const [errors, setErrors] = useState<FieldErrors>({});
 
-  const handleGoogleLogin = () => {
-    console.log("Google login clicked");
-  };
-
-  const handleAppleLogin = () => {
-    console.log("Apple login clicked");
-  };
-
+  // ---  Sign‐Up mutation  ---
   const {
     mutate: mutateSignUp,
     isError: signupError,
@@ -46,6 +39,16 @@ export default function AuthentificationPage() {
     data: signUpResult,
   } = useSignUp();
 
+  // ---  Log‐In mutation  ---
+  const {
+    mutate: mutateLogIn,
+    isError: loginError,
+    error: loginErrorObj,
+    isSuccess: loginSuccess,
+    data: loginResult,
+  } = useLogIn();
+
+  // ─── On affiche une toast si le serveur de signup renvoie une erreur ───
   useEffect(() => {
     if (signupError && signupErrorObj instanceof Error) {
       toast.error(signupErrorObj.message, {
@@ -62,6 +65,7 @@ export default function AuthentificationPage() {
     }
   }, [signupError, signupErrorObj]);
 
+  // ─── Après un signup réussi, on affiche un toast, puis on repasse en mode “login” ───
   useEffect(() => {
     if (signupSuccess && signUpResult) {
       toast.success("Account created successfully!", {
@@ -75,7 +79,7 @@ export default function AuthentificationPage() {
           fontSize: "0.95rem",
         },
       });
-      toast.success("You can now Log In, redirecting...", {
+      toast.success("You can now log in. Redirecting...", {
         style: {
           borderRadius: "10px",
           background: "#1f1f1f",
@@ -87,14 +91,57 @@ export default function AuthentificationPage() {
         },
       });
 
-      setTimeout(() => setIsSignUp(!isSignUp), 1500);
+      setTimeout(() => {
+        setIsSignUp(false); // repasser en “login mode”
+        setPassword("");
+        setConfirmationPassword("");
+        setErrors({});
+      }, 1500);
     }
-  }, [signupSuccess, signUpResult, navigate]);
+  }, [signupSuccess, signUpResult]);
+
+  // ─── On affiche une toast si le serveur de login renvoie une erreur ───
+  useEffect(() => {
+    if (loginError && loginErrorObj instanceof Error) {
+      toast.error(loginErrorObj.message, {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #e53e3e",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+    }
+  }, [loginError, loginErrorObj]);
+
+  // ─── Après un login réussi, on affiche un toast puis on redirige ───
+  useEffect(() => {
+    if (loginSuccess && loginResult) {
+      toast.success("Logged in successfully!", {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #6b46C1",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+      setTimeout(() => {
+        navigate("/dashboard"); // ← la route où vous voulez rediriger
+      }, 1000);
+    }
+  }, [loginSuccess, loginResult, navigate]);
 
   const validateFields = (): boolean => {
     const newErrors: FieldErrors = {};
 
     if (isSignUp) {
+      // ─── Validation pour le signup ───
       if (!username.trim()) {
         newErrors.username = "Username is required.";
       }
@@ -116,10 +163,19 @@ export default function AuthentificationPage() {
       } else if (password !== confirmationPassword) {
         newErrors.confirmationPassword = "Passwords do not match.";
       }
+    } else {
+      // ─── Validation pour le login ───
+      if (!email.trim()) {
+        newErrors.email = "Email or username is required.";
+      }
+      if (!password) {
+        newErrors.password = "Password is required.";
+      }
     }
 
     setErrors(newErrors);
 
+    // Si une erreur, afficher un toast pour la première
     const firstErrorKey = Object.keys(newErrors)[0] as
       | keyof FieldErrors
       | undefined;
@@ -142,13 +198,11 @@ export default function AuthentificationPage() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     setErrors({});
 
     if (isSignUp) {
-      if (!validateFields()) {
-        return;
-      }
+      // ─── Sign‐Up branch ───
+      if (!validateFields()) return;
 
       mutateSignUp({
         name: name.trim(),
@@ -157,23 +211,19 @@ export default function AuthentificationPage() {
         password,
       });
     } else {
-      toast.error("Sign‐in not implemented yet.", {
-        style: {
-          borderRadius: "10px",
-          background: "#1f1f1f",
-          border: "1px solid #e53e3e",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-          color: "#fff",
-          padding: "12px 16px",
-          fontSize: "0.95rem",
-        },
+      // ─── Log‐In branch ───
+      if (!validateFields()) return;
+
+      mutateLogIn({
+        login: email.trim(), // on envoie “username” au lieu de “login”
+        password,
       });
     }
   };
 
   return (
     <div className="min-h-screen bg-zinc-950 bg-gradient-to-b from-zinc-900/5 to-black/5 flex items-center justify-center px-4 py-8">
-      <Title>Sign up - Chathera</Title>
+      <Title>Sign {isSignUp ? "Up" : "In"} - Chathera</Title>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[25%] -left-[25%] w-[150%] h-[150%] bg-gradient-conic from-violet-500/10 via-transparent to-transparent opacity-10 animate-slow-spin"></div>
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_800px_at_50%_50%,rgba(147,51,234,0.02),transparent)] animate-pulse"></div>
@@ -205,7 +255,7 @@ export default function AuthentificationPage() {
               <img src={StarLogo} alt="StarLogo" className="w-8 h-8" />
             </div>
             <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-200 to-white">
-              {isSignUp ? "Create Account" : "Welcome back"}
+              {isSignUp ? "Create Account" : "Welcome Back"}
             </h2>
             <p className="text-gray-400">
               {isSignUp
@@ -221,7 +271,7 @@ export default function AuthentificationPage() {
             className="space-y-4"
           >
             <button
-              onClick={handleGoogleLogin}
+              onClick={() => console.log("Google login clicked")}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
             >
               <FcGoogle className="text-xl transform transition-transform group-hover:scale-110" />
@@ -229,9 +279,8 @@ export default function AuthentificationPage() {
                 Continue with Google
               </span>
             </button>
-
             <button
-              onClick={handleAppleLogin}
+              onClick={() => console.log("Apple login clicked")}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
             >
               <FaApple className="text-xl text-white transform transition-transform group-hover:scale-110" />
@@ -272,7 +321,6 @@ export default function AuthentificationPage() {
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      required
                       className={`w-full px-4 py-3 rounded-lg bg-black/20 border ${
                         errors.username ? "border-red-500" : "border-white/10"
                       } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300`}
@@ -296,7 +344,6 @@ export default function AuthentificationPage() {
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      required
                       className={`w-full px-4 py-3 rounded-lg bg-black/20 border ${
                         errors.name ? "border-red-500" : "border-white/10"
                       } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300`}
@@ -309,7 +356,7 @@ export default function AuthentificationPage() {
                 </>
               )}
 
-              {/* Email field */}
+              {/* Email / login field */}
               <div className="group">
                 <label htmlFor="email" className="sr-only">
                   Email address
@@ -320,7 +367,6 @@ export default function AuthentificationPage() {
                   type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
                   className={`w-full px-4 py-3 rounded-lg bg-black/20 border ${
                     errors.email ? "border-red-500" : "border-white/10"
                   } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300`}
@@ -342,7 +388,6 @@ export default function AuthentificationPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
                   className={`w-full px-4 py-3 rounded-lg bg-black/20 border ${
                     errors.password ? "border-red-500" : "border-white/10"
                   } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300`}
@@ -353,7 +398,7 @@ export default function AuthentificationPage() {
                 )}
               </div>
 
-              {/* Confirm Password field */}
+              {/* Confirm Password field (sign-up only) */}
               {isSignUp && (
                 <div className="group">
                   <label htmlFor="confirmPassword" className="sr-only">
@@ -365,7 +410,6 @@ export default function AuthentificationPage() {
                     type="password"
                     value={confirmationPassword}
                     onChange={(e) => setConfirmationPassword(e.target.value)}
-                    required
                     className={`w-full px-4 py-3 rounded-lg bg-black/20 border ${
                       errors.confirmationPassword
                         ? "border-red-500"
@@ -381,7 +425,7 @@ export default function AuthentificationPage() {
                 </div>
               )}
 
-              {/* "Remember me" & "Forgot password" only on sign‐in */}
+              {/* “Remember me” et “Forgot password?” (login only) */}
               {!isSignUp && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -421,7 +465,7 @@ export default function AuthentificationPage() {
                 </div>
               )}
 
-              {/* Submit button */}
+              {/* Bouton Submit */}
               <button
                 type="submit"
                 className="relative w-full px-4 py-3 rounded-lg overflow-hidden group"
@@ -435,13 +479,15 @@ export default function AuthentificationPage() {
             </motion.form>
           </AnimatePresence>
 
-          {/* Toggle between Sign in / Sign up */}
-          <p className="text-center text-sm text-gray-400">
+          {/* Basculer Sign‐in / Sign‐up */}
+          <p className="text-center text-sm text-gray-400 mt-4">
             {isSignUp ? "Already have an account? " : "Don't have an account? "}
             <button
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setErrors({});
+                setPassword("");
+                setConfirmationPassword("");
               }}
               className="text-violet-400 hover:text-violet-300 transition-colors hover:underline cursor-pointer"
               type="button"

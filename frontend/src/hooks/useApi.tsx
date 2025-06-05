@@ -1,7 +1,12 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { UseMutationResult } from "@tanstack/react-query";
-import { getHealth, signUp } from "../api/api";
-import type { SignUpParams, SignUpResponse } from "../api/api";
+import { getHealth, logIn, signUp } from "../api/api";
+import type {
+  LogInParams,
+  LogInResponse,
+  SignUpParams,
+  SignUpResponse,
+} from "../api/api";
 
 export function useSignUp(): UseMutationResult<
   SignUpResponse,
@@ -15,6 +20,22 @@ export function useSignUp(): UseMutationResult<
     },
     onError(err) {
       console.error("Échec de l’inscription :", err.message);
+    },
+  });
+}
+
+export function useLogIn(): UseMutationResult<
+  LogInResponse,
+  Error,
+  LogInParams
+> {
+  return useMutation<LogInResponse, Error, LogInParams>({
+    mutationFn: (params: LogInParams) => logIn(params),
+    onSuccess(data) {
+      console.log(data);
+    },
+    onError(err) {
+      console.error("Échec de la connexion :", err.message);
     },
   });
 }
