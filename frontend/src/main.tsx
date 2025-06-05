@@ -6,6 +6,7 @@ import "./styles/tailwind.css";
 import "./styles/index.css";
 import App from "./App.tsx";
 import "nprogress/nprogress.css";
+import { Toaster } from "react-hot-toast";
 
 const router = createBrowserRouter([
   {
@@ -17,6 +18,7 @@ const router = createBrowserRouter([
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
+      <Toaster />
       <RouterProvider router={router} />
     </ErrorBoundary>
   </StrictMode>

@@ -16,34 +16,49 @@ export const urls = {
 
 /****************************** Auth *****************************/
 
-export interface SignUpParams {
-    fullName: string;
+export interface SignUpParams { 
+    name: string;    
     username: string;
     email: string;
     password: string;
 }
 
 export interface SignUpResponse {
-
+ username: string;
+ email: string;
+ id: string;
+ name: string;
+ profile_picture: any;
+ subscription: string;
 }
 
-export async function signUp({fullName, username, email, password}: SignUpParams) {
-    const res = await fetch(urls.signUp, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fullName, username, email, password }),
-      });
+export async function signUp({
+  name,
+  username,
+  email,
+  password,
+}: SignUpParams): Promise<SignUpResponse> {
+  const res = await fetch(`${BASE_URL}/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, username, email, password }),
+  });
 
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => res.statusText);
-        throw new Error(`signUp failed (status ${res.status}): ${errorText}`);
-      }
-    
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
 
-      const data: SignUpResponse = await res.json();
-      return data;
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
+  return res.json();
 }
 
 

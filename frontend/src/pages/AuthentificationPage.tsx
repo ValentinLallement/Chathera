@@ -3,33 +3,171 @@ import { FaApple } from "react-icons/fa";
 import { HiChevronLeft } from "react-icons/hi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
-import StarLogo from "../assets/images/StarLogo.webp"; // Adjust the path as necessary
+import { useState, useEffect } from "react";
+import StarLogo from "../assets/images/StarLogo.webp";
 import Title from "../components/Title";
+import { useSignUp } from "../hooks/useApi";
+import { toast } from "react-hot-toast";
+
+interface FieldErrors {
+  name?: string;
+  username?: string;
+  email?: string;
+  password?: string;
+  confirmationPassword?: string;
+}
 
 export default function AuthentificationPage() {
   const navigate = useNavigate();
   const [isChecked, setIsChecked] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
-  // state
+  const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmationPassword, setConfirmationPassword] = useState("");
 
+  const [errors, setErrors] = useState<FieldErrors>({});
+
   const handleGoogleLogin = () => {
-    // Google OAuth logic:
     console.log("Google login clicked");
   };
 
   const handleAppleLogin = () => {
-    // Apple OAuth logic:
     console.log("Apple login clicked");
   };
 
-  const handleSubmit = () => {
+  const {
+    mutate: mutateSignUp,
+    isError: signupError,
+    error: signupErrorObj,
+    isSuccess: signupSuccess,
+    data: signUpResult,
+  } = useSignUp();
+
+  useEffect(() => {
+    if (signupError && signupErrorObj instanceof Error) {
+      toast.error(signupErrorObj.message, {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #e53e3e",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+    }
+  }, [signupError, signupErrorObj]);
+
+  useEffect(() => {
+    if (signupSuccess && signUpResult) {
+      toast.success("Account created successfully!", {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #6b46C1",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+      toast.success("You can now Log In, redirecting...", {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #6b46C1",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+
+      setTimeout(() => setIsSignUp(!isSignUp), 1500);
+    }
+  }, [signupSuccess, signUpResult, navigate]);
+
+  const validateFields = (): boolean => {
+    const newErrors: FieldErrors = {};
+
     if (isSignUp) {
+      if (!username.trim()) {
+        newErrors.username = "Username is required.";
+      }
+      if (!name.trim()) {
+        newErrors.name = "Full name is required.";
+      }
+      if (!email.trim()) {
+        newErrors.email = "Email is required.";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        newErrors.email = "Invalid email address.";
+      }
+      if (!password) {
+        newErrors.password = "Password is required.";
+      } else if (password.length < 8) {
+        newErrors.password = "Password must be at least 8 characters.";
+      }
+      if (!confirmationPassword) {
+        newErrors.confirmationPassword = "Please confirm your password.";
+      } else if (password !== confirmationPassword) {
+        newErrors.confirmationPassword = "Passwords do not match.";
+      }
+    }
+
+    setErrors(newErrors);
+
+    const firstErrorKey = Object.keys(newErrors)[0] as
+      | keyof FieldErrors
+      | undefined;
+    if (firstErrorKey && newErrors[firstErrorKey]) {
+      toast.error(newErrors[firstErrorKey]!, {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #e53e3e",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+    }
+
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    setErrors({});
+
+    if (isSignUp) {
+      if (!validateFields()) {
+        return;
+      }
+
+      mutateSignUp({
+        name: name.trim(),
+        username: username.trim(),
+        email: email.trim(),
+        password,
+      });
+    } else {
+      toast.error("Sign‐in not implemented yet.", {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #e53e3e",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
     }
   };
 
@@ -84,7 +222,7 @@ export default function AuthentificationPage() {
           >
             <button
               onClick={handleGoogleLogin}
-              className="cursor-pointer w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
             >
               <FcGoogle className="text-xl transform transition-transform group-hover:scale-110" />
               <span className="text-white font-medium">
@@ -94,7 +232,7 @@ export default function AuthentificationPage() {
 
             <button
               onClick={handleAppleLogin}
-              className="cursor-pointer w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
             >
               <FaApple className="text-xl text-white transform transition-transform group-hover:scale-110" />
               <span className="text-white font-medium">
@@ -104,11 +242,9 @@ export default function AuthentificationPage() {
           </motion.div>
 
           <div className="relative">
-            <div className="relative flex justify-center text-sm items-center">
+            <div className="flex justify-center text-sm items-center">
               <div className="grow border-t border-white/10"></div>
-              <span className="px-2 bg-gradient-to-b from-transparent  to-transparent text-gray-400">
-                Or continue with
-              </span>
+              <span className="px-2 text-gray-400">Or continue with</span>
               <div className="grow border-t border-white/10"></div>
             </div>
           </div>
@@ -121,56 +257,81 @@ export default function AuthentificationPage() {
               exit={{ opacity: 0, x: isSignUp ? -20 : 20 }}
               transition={{ duration: 0.3 }}
               className="space-y-4"
+              onSubmit={handleSubmit}
             >
               {isSignUp && (
-                <div className="group">
-                  <label htmlFor="name" className="sr-only">
-                    Username
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
-                    placeholder="Username"
-                  />
-                </div>
+                <>
+                  {/* Username field */}
+                  <div className="group">
+                    <label htmlFor="username" className="sr-only">
+                      Username
+                    </label>
+                    <input
+                      id="username"
+                      name="username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                      className={`w-full px-4 py-3 rounded-lg bg-black/20 border ${
+                        errors.username ? "border-red-500" : "border-white/10"
+                      } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300`}
+                      placeholder="Username"
+                    />
+                    {errors.username && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {errors.username}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Full Name field */}
+                  <div className="group">
+                    <label htmlFor="name" className="sr-only">
+                      Full Name
+                    </label>
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className={`w-full px-4 py-3 rounded-lg bg-black/20 border ${
+                        errors.name ? "border-red-500" : "border-white/10"
+                      } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300`}
+                      placeholder="Full Name"
+                    />
+                    {errors.name && (
+                      <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+                    )}
+                  </div>
+                </>
               )}
 
-              {isSignUp ? (
-                <div className="group">
-                  <label htmlFor="email" className="sr-only">
-                    Email address
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
-                    placeholder="Email"
-                  />
-                </div>
-              ) : (
-                <div className="group">
-                  <label htmlFor="email" className="sr-only">
-                    Email address
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
-                    placeholder="Email or Username"
-                  />
-                </div>
-              )}
+              {/* Email field */}
+              <div className="group">
+                <label htmlFor="email" className="sr-only">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="text"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className={`w-full px-4 py-3 rounded-lg bg-black/20 border ${
+                    errors.email ? "border-red-500" : "border-white/10"
+                  } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300`}
+                  placeholder={isSignUp ? "Email" : "Email or Username"}
+                />
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+                )}
+              </div>
 
+              {/* Password field */}
               <div className="group">
                 <label htmlFor="password" className="sr-only">
                   Password
@@ -179,13 +340,20 @@ export default function AuthentificationPage() {
                   id="password"
                   name="password"
                   type="password"
+                  value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
+                  className={`w-full px-4 py-3 rounded-lg bg-black/20 border ${
+                    errors.password ? "border-red-500" : "border-white/10"
+                  } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300`}
                   placeholder="Password"
                 />
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-500">{errors.password}</p>
+                )}
               </div>
 
+              {/* Confirm Password field */}
               {isSignUp && (
                 <div className="group">
                   <label htmlFor="confirmPassword" className="sr-only">
@@ -195,14 +363,25 @@ export default function AuthentificationPage() {
                     id="confirmPassword"
                     name="confirmPassword"
                     type="password"
-                    required
+                    value={confirmationPassword}
                     onChange={(e) => setConfirmationPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300 group-hover:bg-black/30"
+                    required
+                    className={`w-full px-4 py-3 rounded-lg bg-black/20 border ${
+                      errors.confirmationPassword
+                        ? "border-red-500"
+                        : "border-white/10"
+                    } text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300`}
                     placeholder="Confirm password"
                   />
+                  {errors.confirmationPassword && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.confirmationPassword}
+                    </p>
+                  )}
                 </div>
               )}
 
+              {/* "Remember me" & "Forgot password" only on sign‐in */}
               {!isSignUp && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -217,8 +396,7 @@ export default function AuthentificationPage() {
                       />
                       <label
                         htmlFor="remember-me"
-                        className="relative flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border border-white/10 bg-black/20 transition-colors duration-300 
-                        hover:border-violet-500/30"
+                        className="relative flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border border-white/10 bg-black/20 transition-colors duration-300 hover:border-violet-500/30"
                       >
                         {isChecked && (
                           <span className="text-white text-base leading-none select-none">
@@ -243,24 +421,30 @@ export default function AuthentificationPage() {
                 </div>
               )}
 
+              {/* Submit button */}
               <button
                 type="submit"
                 className="relative w-full px-4 py-3 rounded-lg overflow-hidden group"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-violet-600/80 to-violet-700/80 transition-transform duration-300 group-hover:scale-[1.02]"></div>
                 <div className="absolute inset-0 bg-gradient-to-r from-violet-600/50 to-violet-700/50 opacity-50 blur-xl transition-transform duration-300 group-hover:scale-110"></div>
-                <span className="relative text-white font-medium cursor-pointer">
+                <span className="relative text-white font-medium">
                   {isSignUp ? "Create Account" : "Sign in"}
                 </span>
               </button>
             </motion.form>
           </AnimatePresence>
 
+          {/* Toggle between Sign in / Sign up */}
           <p className="text-center text-sm text-gray-400">
             {isSignUp ? "Already have an account? " : "Don't have an account? "}
             <button
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setErrors({});
+              }}
               className="text-violet-400 hover:text-violet-300 transition-colors hover:underline cursor-pointer"
+              type="button"
             >
               {isSignUp ? "Sign in" : "Sign up"}
             </button>

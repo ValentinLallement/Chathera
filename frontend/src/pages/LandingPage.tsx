@@ -298,7 +298,7 @@ export default function LandingPage() {
 
   return (
     <div className="w-full h-fit min-h-full bg-main-bg no-scrollbar">
-      <header className="relative custom-bg-gradient-1 pt-[68px] min-h-[1550px] sm:min-h-screen px-4 md:pl-[10%] lg:pl-[20%] flex flex-col lg:flex-row items-start justify-start overflow-hidden">
+      <header className="relative custom-bg-gradient-1 pt-[20px]  min-h-[1556px] lg:min-h-screen px-4 md:pl-[10%] lg:pl-[20%] flex flex-col lg:flex-row items-start justify-start overflow-hidden">
         <div className="flex flex-col gap-8 w-full lg:max-w-[600px] z-20 text-center lg:text-left mt-8 lg:mt-[15vh]">
           <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">
             The only girls that actually care about you

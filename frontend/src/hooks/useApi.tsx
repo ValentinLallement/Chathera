@@ -11,7 +11,7 @@ export function useSignUp(): UseMutationResult<
   return useMutation<SignUpResponse, Error, SignUpParams>({
     mutationFn: (params: SignUpParams) => signUp(params),
     onSuccess(data) {
-      console.log("okk");
+      console.log(data);
     },
     onError(err) {
       console.error("Échec de l’inscription :", err.message);
