@@ -1,11 +1,5 @@
 /***************************** Imports *****************************/
 
-import { useAuthStore } from "../stores/authStore";
-
-
-
-
-
 /**************************** Settings ****************************/
 
 const BASE_URL = import.meta.env.VITE_API_URL
@@ -15,6 +9,7 @@ export const urls = {
     "logIn": `${BASE_URL}/token`,
     "health": `${BASE_URL}/health`,
     "me": `${BASE_URL}/user/me`,
+    "logout": `${BASE_URL}/logout`,
 }
 
 
@@ -28,12 +23,12 @@ export interface SignUpParams {
 }
 
 export interface SignUpResponse {
- username: string;
- email: string;
- id: string;
- name: string;
- profile_picture: any;
- subscription: string;
+    id: string;
+    email: string;
+    name: string;
+    username: string;
+    profile_picture: string | null;
+    subscription: string | null;
 }
 
 export async function signUp({
@@ -102,15 +97,27 @@ export async function logIn({login, password}: LogInParams): Promise<LogInRespon
   return res.json();
 }
 
+export async function logout(): Promise<void> {
+  const res = await fetch(urls.logout, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    throw new Error("Logout failed");
+  }
+}
+
 /***************************** Users *****************************/
 
 export interface MeResponse {
-  username: string;
-  email: string;
-  id: string;
-  name: string;
-  profile_picture: any;
-  subscription: string;
+    id: string;
+    email: string;
+    name: string;
+    username: string;
+    profile_picture: string | null;
+    subscription: string | null;
 }
 
 export async function getMe(token: string): Promise<MeResponse> {

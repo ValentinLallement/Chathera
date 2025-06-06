@@ -1,11 +1,7 @@
 export default function HomePage() {
   return (
-    <div>
-      <h1>HomePage</h1>
-      <p>This is a test page to check scrolling functionality.</p>
-      {Array.from({ length: 100 }, (_, i) => (
-        <p key={i}>This is line number {i + 1}</p>
-      ))}
+    <div className="h-full w-full flex flex-col bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5">
+      <div className="flex-1 flex flex-col"></div>
     </div>
   );
 }

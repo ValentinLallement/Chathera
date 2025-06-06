@@ -68,7 +68,7 @@ export default function AuthentificationPage() {
         style: {
           borderRadius: "10px",
           background: "#1f1f1f",
-          border: "1px solid #6b46C1",
+          border: "1px solid #333333",
           boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
           color: "#fff",
           padding: "12px 16px",
@@ -79,7 +79,7 @@ export default function AuthentificationPage() {
         style: {
           borderRadius: "10px",
           background: "#1f1f1f",
-          border: "1px solid #6b46C1",
+          border: "1px solid #333333",
           boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
           color: "#fff",
           padding: "12px 16px",
@@ -118,7 +118,7 @@ export default function AuthentificationPage() {
         style: {
           borderRadius: "10px",
           background: "#1f1f1f",
-          border: "1px solid #6b46C1",
+          border: "1px solid #333333",
           boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
           color: "#fff",
           padding: "12px 16px",

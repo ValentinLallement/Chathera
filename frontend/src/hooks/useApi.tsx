@@ -9,6 +9,7 @@ import type {
   MeResponse,
 } from "../api/api";
 import { useAuthStore } from "../stores/authStore";
+import toast from "react-hot-toast";
 
 export function useSignUp(): UseMutationResult<
   SignUpResponse,
@@ -41,6 +42,7 @@ export function useLogIn(): UseMutationResult<
       try {
         const userData = await getMe(loginResponse.access_token);
         setUser(userData);
+        toast;
       } catch (error) {
         console.error("Failed to fetch user data:", error);
       }
