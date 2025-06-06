@@ -1,5 +1,6 @@
 import os
 
+from uuid import UUID
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -46,7 +47,7 @@ def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_user_from_token(token: str, db: Session, credentials_exception):
+def get_user_from_token(token: str, db: Session, credentials_exception: HTTPException):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
@@ -55,8 +56,14 @@ def get_user_from_token(token: str, db: Session, credentials_exception):
     except JWTError:
         raise credentials_exception
 
-    # Suppression de int() car user_id est un UUID string
-    user = db.query(models.User).filter(models.User.id == user_id).first()
+    # Convert string user_id to UUID object
+    try:
+        user_id_uuid = UUID(user_id)  # Convert string to UUID
+    except ValueError:
+        raise credentials_exception  # Handle invalid UUID format
+
+    # Use Session.get() instead of Query.get()
+    user = db.get(models.User, user_id_uuid)
 
     if user is None:
         raise credentials_exception

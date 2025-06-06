@@ -1,6 +1,11 @@
-# app/config.py — en tout premier
-import warnings
 
+import warnings
+import os
+
+from dotenv import load_dotenv
+from mem0 import Memory
+
+load_dotenv()
 # Filtre les DeprecationWarning issus de FAISS et SWIG internes
 warnings.filterwarnings(
     "ignore",
@@ -14,14 +19,6 @@ warnings.filterwarnings(
 )
 
 
-# app/config.py
-
-import os
-
-from dotenv import load_dotenv
-from mem0 import Memory
-
-load_dotenv()
 
 MEM0_VECTOR_PATH = os.getenv("MEM0_VECTOR_PATH")
 if not MEM0_VECTOR_PATH:
@@ -55,6 +52,10 @@ PAYG_PRICE_ID = os.getenv("PAYG_PRICE_ID")
 
 MESSAGE_PRICE_ID= os.getenv("MESSAGE_PRICE_ID") 
 BOT_PRICE_ID = os.getenv("BOT_PRICE_ID")  
+
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY")
+
 
 
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY

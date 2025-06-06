@@ -12,6 +12,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 from sqlalchemy.dialects.postgresql import UUID as SA_UUID
+from sqlalchemy.dialects.postgresql import JSONB
 
 from pydantic import BaseModel, root_validator
 from pydantic import ConfigDict
@@ -268,3 +269,13 @@ class MonthlyUsage(SQLModel, table=True):
 
     # Relation utile pour accès depuis l'utilisateur si besoin
     user: Optional["User"] = Relationship(back_populates=None)
+
+    # --------- Notification Push ---------------
+
+class PushSubscription(SQLModel, table=True):
+    __tablename__ = "push_subscriptions"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    endpoint: str = Field(index=True, unique=True, nullable=False)
+    keys: dict = Field(sa_column=Column(JSON, nullable=False))

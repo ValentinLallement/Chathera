@@ -147,3 +147,9 @@ class CreateBotRequest(BaseModel):
 class AvatarPayload(BaseModel):
     bot_id: int
     glb_url: str
+
+# ----------------------------- Notification Push -----------------------------
+
+class SubscriptionData(BaseModel):
+    endpoint: str
+    keys: dict

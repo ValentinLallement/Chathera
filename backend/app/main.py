@@ -108,6 +108,3 @@ async def favicon():
 async def serve_frontend(full_path: str):
     return FileResponse("../frontend/dist/index.html")
 
-
-
-

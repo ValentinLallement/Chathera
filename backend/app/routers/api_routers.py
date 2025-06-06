@@ -25,10 +25,12 @@ from datetime import datetime
 from google.auth.transport import requests as google_requests
 
 from app import crud, schemas, dependencies, auth
-from app.db.models.models import Conversation, Bot, User, Subscription, PlanEnum, SubscriptionStatus
+from app.db.models.models import Conversation, Bot, User, Subscription, PlanEnum, SubscriptionStatus, PushSubscription
 from app.schemas import (
     CreateBotRequest, UserLogin, PromptRequest, RefreshTokenRequest,
-    UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest
+    UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest,
+    SubscriptionData
+
 )
 from app.auth import verify_token, get_user_from_token, create_password_reset_token
 from app.websocket.router import websocket_router
@@ -190,13 +192,14 @@ def refresh_token_from_cookie(
         if user_id is None:
             raise HTTPException(status_code=401, detail="Token invalide")
 
-        user = db.query(models.User).get(user_id)
+        # Convertir user_id (chaîne) en uuid.UUID
+        user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        user = db.get(models.User, user_uuid)
         if not user:
             raise HTTPException(status_code=401, detail="Utilisateur non trouvé")
 
         new_access_token = auth.create_access_token(data={"sub": str(user.id)})
 
-        # ✅ Retourne l'access_token dans la réponse JSON (PAS en cookie)
         return JSONResponse(content={
             "message": "Token rafraîchi avec succès",
             "access_token": new_access_token,
@@ -433,3 +436,16 @@ async def update_my_subscription(
         return updated_subscription
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    
+# ----------------- Notification Push -----------------
+
+@api_router.post("/subscribe_push")
+async def subscribe_push(subscription: SubscriptionData, user_id: int, db: Session = Depends(get_db)):
+    # Vérifier si l'abonnement existe déjà
+    existing = db.query(PushSubscription).filter(PushSubscription.endpoint == subscription.endpoint).first()
+    if existing:
+        return {"message": "Subscription already exists."}
+    new_sub = PushSubscription(user_id=user_id, endpoint=subscription.endpoint, keys=subscription.keys)
+    db.add(new_sub)
+    db.commit()
+    return {"message": "Subscription saved."}
