@@ -41,6 +41,7 @@ export async function signUp({
 }: SignUpParams): Promise<SignUpResponse> {
   const res = await fetch(urls.signUp, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, username, email, password }),
   });
@@ -68,15 +69,15 @@ export interface LogInParams {
 }
 
 export interface LogInResponse {
-    message: string;
-    access_token: string;
-    token_type: string;
+  message: string;
+  access_token: string;
+  token_type: string;
 }
 
 export async function logIn({login, password}: LogInParams): Promise<LogInResponse> {
   const res = await fetch(urls.logIn, {
     method: "POST",
-    credentials: "include", 
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ login, password }),
   });
