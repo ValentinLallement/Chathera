@@ -81,7 +81,7 @@ origins = [
 # CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Use the specific origins instead of "*"
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

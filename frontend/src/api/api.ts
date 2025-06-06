@@ -1,5 +1,7 @@
 /***************************** Imports *****************************/
 
+import { useAuthStore } from "../stores/authStore";
+
 
 
 
@@ -12,6 +14,7 @@ export const urls = {
     "signUp": `${BASE_URL}/register`,
     "logIn": `${BASE_URL}/token`,
     "health": `${BASE_URL}/health`,
+    "me": `${BASE_URL}/user/me`,
 }
 
 
@@ -80,6 +83,44 @@ export async function logIn({login, password}: LogInParams): Promise<LogInRespon
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ login, password }),
+  });
+
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
+  return res.json();
+}
+
+/***************************** Users *****************************/
+
+export interface MeResponse {
+  username: string;
+  email: string;
+  id: string;
+  name: string;
+  profile_picture: any;
+  subscription: string;
+}
+
+export async function getMe(token: string): Promise<MeResponse> {
+  const res = await fetch(urls.me, {
+    method: "GET",
+    credentials: "include",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
   });
 
   if (!res.ok) {

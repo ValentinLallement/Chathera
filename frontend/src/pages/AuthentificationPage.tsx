@@ -212,7 +212,7 @@ export default function AuthentificationPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 bg-gradient-to-b from-zinc-900/5 to-black/5 flex items-center justify-center px-4 py-8">
-      <Title>Sign {isSignUp ? "Up" : "In"} - Chathera</Title>
+      <Title>{`Sign ${isSignUp ? "Up" : "In"} - Chathera`}</Title>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[25%] -left-[25%] w-[150%] h-[150%] bg-gradient-conic from-violet-500/10 via-transparent to-transparent opacity-10 animate-slow-spin"></div>
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_800px_at_50%_50%,rgba(147,51,234,0.02),transparent)] animate-pulse"></div>
