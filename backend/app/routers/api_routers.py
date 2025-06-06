@@ -147,30 +147,20 @@ def login_for_access_token(
 
     response = JSONResponse(content={
         "message": "Connexion réussie",
-        "access_token": access_token,  # 👉 retourné dans la réponse JSON
+        "access_token": access_token,
         "token_type": "bearer"
     })
 
-    # 🔐 Seul le refresh_token est mis en cookie sécurisé
-    if not os.getenv("DEBUG"):
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=True,
-            samesite="Strict",
-            max_age=7 * 24 * 60 * 60  # 7 jours
-        )
-    else:
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=True,            # << must be False in dev if you're on http://localhost
-            samesite="None",          # or "None" if you need truly cross-port/subdomain
-            max_age=7 * 24 * 60 * 60,  # 7 days
-            path="/",   
-        )
+    # Set refresh token cookie
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60,  # 7 days
+        path="/"  # Match the proxy path
+    )
 
     return response
     
