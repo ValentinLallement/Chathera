@@ -558,29 +558,3 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, dernier_mes
         print("Erreur inattendue dans get_auto_reply_from_deepseek :", e)
         return {"error": f"Erreur inattendue : {str(e)}"}
 
-def generate_new_emotion():
-    moods = ["joyful", "melancholic", "playful", "tired", "curious", "thoughtful"]
-    energy = ["high", "low", "neutral"]
-    style = ["talkative", "quiet", "affectionate"]
-
-    return {
-        "mood": random.choice(moods),
-        "energy": random.choice(energy),
-        "style": random.choice(style),
-        "since": datetime.utcnow(),
-        "duration": timedelta(days=random.randint(1, 3)) 
-    }
-
-def get_current_emotion(session, bot_id):
-    emotion = session.query(CompanionEmotion).filter_by(bot_id=bot_id).first()
-
-    if not emotion or datetime.utcnow() > emotion.since + emotion.duration:
-        new_emotion = generate_new_emotion()
-        if not emotion:
-            emotion = CompanionEmotion(bot_id=bot_id, **new_emotion)
-            session.add(emotion)
-        else:
-            for k, v in new_emotion.items():
-                setattr(emotion, k, v)
-        session.commit()
-    return emotion
