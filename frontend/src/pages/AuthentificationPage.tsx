@@ -8,6 +8,7 @@ import StarLogo from "../assets/images/StarLogo.webp";
 import Title from "../components/Title";
 import { useSignUp, useLogIn } from "../hooks/useApi";
 import { toast } from "react-hot-toast";
+import { GoogleLoginButton } from "../components/GoogleLoginButton";
 
 interface FieldErrors {
   name?: string;
@@ -68,7 +69,7 @@ export default function AuthentificationPage() {
         style: {
           borderRadius: "10px",
           background: "#1f1f1f",
-          border: "1px solid #333333",
+          border: "1px solid #6b46C1",
           boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
           color: "#fff",
           padding: "12px 16px",
@@ -79,7 +80,7 @@ export default function AuthentificationPage() {
         style: {
           borderRadius: "10px",
           background: "#1f1f1f",
-          border: "1px solid #333333",
+          border: "1px solid #6b46C1",
           boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
           color: "#fff",
           padding: "12px 16px",
@@ -118,7 +119,7 @@ export default function AuthentificationPage() {
         style: {
           borderRadius: "10px",
           background: "#1f1f1f",
-          border: "1px solid #333333",
+          border: "1px solid #6b46C1",
           boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
           color: "#fff",
           padding: "12px 16px",
@@ -259,15 +260,14 @@ export default function AuthentificationPage() {
             transition={{ delay: 0.3 }}
             className="space-y-4"
           >
-            <button
-              onClick={() => console.log("Google login clicked")}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
-            >
-              <FcGoogle className="text-xl transform transition-transform group-hover:scale-110" />
-              <span className="text-white font-medium">
-                Continue with Google
-              </span>
-            </button>
+            <GoogleLoginButton>
+              <button className="cursor-pointer w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group">
+                <FcGoogle className="text-xl transform transition-transform group-hover:scale-110" />
+                <span className="text-white font-medium">
+                  Continue with Google
+                </span>
+              </button>
+            </GoogleLoginButton>
             <button
               onClick={() => console.log("Apple login clicked")}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-black/40 hover:bg-black/50 border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"

@@ -1,3 +1,5 @@
+
+// nah im too lazy to do best practices
 export const PATHS = {
     home: '/',
     chat: '/chat',

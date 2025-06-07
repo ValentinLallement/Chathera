@@ -6,7 +6,6 @@ import type {
   LogInResponse,
   SignUpParams,
   SignUpResponse,
-  MeResponse,
 } from "../api/api";
 import { useAuthStore } from "../stores/authStore";
 import toast from "react-hot-toast";

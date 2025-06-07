@@ -13,8 +13,10 @@ const DashBoard = lazy(() => import("../pages/DashBoardPage"));
 const Chat = lazy(() => import("../pages/ChatPage"));
 const Girls = lazy(() => import("../pages/GirlsPage"));
 const Auth = lazy(() => import("../pages/AuthentificationPage"));
+const GoogleCallback = lazy(() => import("../pages/GoogleCallback"));
 const Profile = lazy(() => import("../pages/ProfilePage"));
 const Demo = lazy(() => import("../pages/DemoPage"));
+const Pricing = lazy(() => import("../pages/PricingPage"));
 const Settings = lazy(() => import("../pages/SettingsPage"));
 
 // Wrap lazy components with error boundary
@@ -31,7 +33,10 @@ export default function AppRoutes() {
     <Routes>
       {/* Public routes */}
       <Route path="/auth" element={withErrorBoundary(Auth)} />
-      <Route path="/settings" element={withErrorBoundary(Settings)} />
+      <Route
+        path="/auth/google/callback"
+        element={withErrorBoundary(GoogleCallback)}
+      />
 
       {/* A "protected" area wrapped by MainLayout */}
       <Route path="/" element={<MainLayout />}>
@@ -43,6 +48,7 @@ export default function AppRoutes() {
 
         <Route path="profile" element={withErrorBoundary(Profile)} />
         <Route path="demo" element={withErrorBoundary(Demo)} />
+        <Route path="pricing" element={withErrorBoundary(Pricing)} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
