@@ -213,7 +213,9 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
                     souvenirs,
                     directives_text,
                     personal_info,
-                    event_summary
+                    event_summary,
+                    bot_id,
+                    session
                 )
                 print(f"Prompt construit : {prompt[:100]}...")
                 json.dumps(prompt)  # Test de sérialisation
@@ -299,7 +301,7 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
                 action_type = action_data.get("type", "")
                 if action_type == "repondre":
                     actions_immediates.append(action_data)
-                elif action_type == "repondre_apres":
+                elif action_type == "repondre_delay":
                     try:
                         date_str = action_data.get("date", "")
                         if date_str.endswith("Z"):

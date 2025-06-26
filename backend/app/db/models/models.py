@@ -152,7 +152,11 @@ class Bot(SQLModel, table=True):
         back_populates="bot",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
-
+    emotion: Optional["CompanionEmotion"] = Relationship(
+        back_populates="bot",
+        sa_relationship_kwargs={"uselist": False, "cascade": "all, delete-orphan"}
+    )
+    
     personality: PersonalityEnum = Field(default=PersonalityEnum.sweet, nullable=True)
     dependency_level: int = Field(default=3, ge=1, le=5, nullable=True)
     gender: GenderEnum = Field(default=GenderEnum.female, nullable=True)
@@ -161,6 +165,20 @@ class Bot(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=True)
 
+class CompanionEmotion(SQLModel, table=True):
+    __tablename__ = "companion_emotions"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    bot_id: UUID = Field(foreign_key="bot.id", index=True, unique=True)
+    bot: "Bot" = Relationship(back_populates="emotion")
+
+    mood: str
+    energy: str
+    style: str
+
+    since: datetime = Field(default_factory=datetime.utcnow)
+    duration: timedelta = Field(default_factory=lambda: timedelta(days=3))
 # -----------------  Memory Model  --------------
 
 class MemoryType(str, enum.Enum):
