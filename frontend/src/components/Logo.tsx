@@ -1,8 +1,19 @@
 import ChatHeraLogo from "../assets/images/StarLogo.webp";
+import { useNavigate } from "react-router-dom";
 
-export default function Logo() {
+interface LogoProps {
+  isClickable?: boolean;
+}
+
+export default function Logo({ isClickable = true }: LogoProps) {
+  const navigate = useNavigate();
   return (
-    <div className="flex items-center gap-2 ">
+    <div
+      className={`flex items-center gap-2 ${
+        isClickable ? "cursor-pointer" : ""
+      }`}
+      onClick={() => isClickable && navigate("/")}
+    >
       <img
         src={ChatHeraLogo}
         alt="ChatHera Logo"
