@@ -13,7 +13,7 @@ from datetime import datetime,timedelta
 from app.db.models.models import Message, Conversation, FutureAction, MemoryType, MemoryImportance, MemoryEntry, Subscription
 from app.database import get_session
 from app.dependencies import get_user_from_websocket,get_db
-from app.utils.auto_reply import build_prompt, get_auto_reply_from_deepseek
+from app.utils.auto_reply import build_prompt, get_auto_reply_from_deepseek,get_auto_reply_from_openrouter
 from app.utils.websocket_registry import register_websocket, unregister_websocket
 from app.utils.mem0 import mem0_add_memory , search_memory
 from app.utils.permissions import check_message_limit
@@ -22,16 +22,19 @@ from app.utils.payg import PlanEnum, report_usage
 
 websocket_router = APIRouter()
 
-session = get_session()  # Ne pas oublier d'utiliser la session dans le bon contexte
+
 
 
 @websocket_router.websocket("/ws/chat")
 async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
     user = await get_user_from_websocket(websocket)
+    
     if not user:
         await websocket.close()
         unregister_websocket(user.id if user else None)
         return
+    await websocket.accept()
+    register_websocket(user.id, websocket)
 
     subscription = db.query(Subscription).filter_by(user_id=user.id).first()
     if not subscription:
@@ -80,8 +83,7 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
         except Exception as e:
             print(f"Erreur lors du report d'usage messages à Stripe : {e}")
 
-    await websocket.accept()
-    register_websocket(user.id, websocket)
+    
 
     try:
         while True:
@@ -215,7 +217,7 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
                     personal_info,
                     event_summary,
                     bot_id,
-                    session
+                    get_session()
                 )
                 print(f"Prompt construit : {prompt[:100]}...")
                 json.dumps(prompt)  # Test de sérialisation
@@ -239,7 +241,7 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
 
             # --- Appel DeepSeek pour réponse automatique ---
             try:
-                auto_reply = get_auto_reply_from_deepseek(prompt, conversation.id, dernier_message, db)
+                auto_reply = get_auto_reply_from_openrouter(prompt, conversation.id, dernier_message, db)
                 print(f"Réponse DeepSeek : {auto_reply}")
                 json.dumps(auto_reply)  # Test de sérialisation
             except Exception as e:

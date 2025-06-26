@@ -89,9 +89,9 @@ app.add_middleware(
 
 # API routes
 app.include_router(websocket_router)
-app.include_router(message.router)
+app.include_router(message.router,prefix="/api")
 app.include_router(auth_google.router)
-app.include_router(stripe_routes.router)
+app.include_router(stripe_routes.router, prefix="/api")
 app.include_router(api_router, prefix="/api")
 
 

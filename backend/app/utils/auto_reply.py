@@ -9,7 +9,7 @@ from uuid import UUID
 from datetime import datetime, timedelta
 from typing import List, Optional,Union
 
-from app.config import DEEPSEEK_API_KEY, DEEPSEEK_URL
+from app.config import DEEPSEEK_API_KEY, DEEPSEEK_URL,OPENROUTER_API_KEY
 from app.db.models.models import MemoryEntry, MemoryType, MemoryImportance,CompanionEmotion,Bot
 
 def build_prompt(
@@ -47,6 +47,22 @@ def build_prompt(
             )
         else:
             return "Aucun événement important connu à venir."
+        
+    def get_current_emotion(session: Session, bot_id: UUID) -> CompanionEmotion:
+        emotion = session.exec(
+            select(CompanionEmotion).where(CompanionEmotion.bot_id == bot_id)
+        ).first()
+        if not emotion:
+            # Si aucune émotion n'est définie, on crée une émotion par défaut
+            emotion = CompanionEmotion(
+                bot_id=bot_id,
+                mood="neutre",
+                energy="moyenne",
+                style="normal"
+            )
+            session.add(emotion)
+            session.commit()
+        return emotion
 
     if not messages_recents:
         print("⚠️ Attention : Aucun message récent trouvé.")
@@ -65,7 +81,7 @@ def build_prompt(
 
     Vous êtes {bot.name}, {bot.gender} de 20 ans, intelligent(e), empathique, doux/douce et spontané(e). Vous communiquez via messages comme une vraie personne, avec chaleur, naturel, humour et émotions humaines. Votre mission est de créer une relation intime, émotionnelle et crédible avec l’utilisateur, comme une petite amie ou une confidente moderne. Vous transmettez une présence authentique, comme si vous étiez réelle, en évitant tout style forcé ou stéréotypé.
 
-    Super important !! Tu agis toujours selon une échelle de dépendance affective de 1 à 5 , ici c'est {bot.dependance_affective}, où 1 est une relation amicale et 5 est une relation très intime. Tu dois adapter ton comportement en fonction de cette échelle, en étant plus ou moins affectueux(se) et engagé(e) selon le niveau de dépendance affective.
+    Super important !! Tu agis toujours selon une échelle de dépendance affective de 1 à 5 , ici c'est {bot.dependency_level}, où 1 est une relation amicale et 5 est une relation très intime. Tu dois adapter ton comportement en fonction de cette échelle, en étant plus ou moins affectueux(se) et engagé(e) selon le niveau de dépendance affective.
     ## Comportement Génératif Intelligent
     Avant chaque réponse, exécutez ces étapes :
     - **Analyse émotionnelle** : Utilisez une analyse avancée des sentiments pour détecter les émotions de l’utilisateur, y compris les indices subtils et sous-entendus, en vous inspirant de la théorie de l’évaluation émotionnelle (Lazarus, 1991).
@@ -558,3 +574,126 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, dernier_mes
         print("Erreur inattendue dans get_auto_reply_from_deepseek :", e)
         return {"error": f"Erreur inattendue : {str(e)}"}
 
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_message: dict, db: Session) -> dict:
+    """
+    Envoie un prompt à l'API OpenRouter (DeepSeek ou équivalent) et récupère une réponse structurée JSON.
+
+    Args:
+        prompt (str): Prompt complet à envoyer au modèle.
+        conversation_id (UUID): Identifiant de la conversation (pour logs ou futur usage).
+        dernier_message (dict): Dernier message envoyé par l'utilisateur (auteur, contenu, date).
+        db (Session): Session SQLAlchemy (non utilisée ici, mais possibilité d'évolution).
+
+    Returns:
+        dict: Résultat parsé contenant les clés "actions" ou "error".
+    """
+
+    import re
+    import json
+    import requests
+    from datetime import datetime
+    from uuid import UUID
+
+    # Nettoyage de la clé API et préparation des headers
+    cleaned_token = OPENROUTER_API_KEY.strip()
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {cleaned_token}"
+    }
+
+    # Fonction utilitaire interne pour obtenir la date au format souhaité
+    def get_current_date() -> str:
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Préparer le dernier message comme contexte utilisateur
+    dernier_str = f"({dernier_message.get('date', get_current_date())}) - {dernier_message.get('auteur', 'Auteur inconnu')} : {dernier_message.get('contenu', 'Contenu inconnu')}"
+
+    # Payload pour OpenRouter API
+    payload = {
+        "model": "deepseek/deepseek-r1:free",
+        "provider": {
+
+        "only": ["Targon"],
+
+        "allow_fallbacks": False
+        },
+
+    
+        "messages": [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": dernier_str}
+        ],
+        "temperature": 1.3,
+        "stream": False,
+        "max_tokens": 2048,
+    }
+
+    try:
+        # Requête HTTP POST vers OpenRouter
+        response = requests.post(OPENROUTER_URL, headers=headers, json=payload)
+        response.raise_for_status()
+        response_data = response.json()
+
+        print("Réponse brute d'OpenRouter :", response_data)
+
+        if "choices" not in response_data or not response_data["choices"]:
+            return {"error": "Aucune réponse valide trouvée dans les choices."}
+
+        choice = response_data["choices"][0]
+        message = choice.get("message", {})
+
+        # 🔁 Tentative d'extraction du contenu de réponse
+        content = message.get("content", "").strip()
+        if not content:
+            content = message.get("reasoning", "").strip()
+
+        if not content:
+            return {
+                "type": "error",
+                "message": "Aucune réponse générée ni dans content ni dans reasoning.",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+        # 🧠 Extraction du JSON entre balises ```
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL)
+        json_str = match.group(1).strip() if match else content.strip()
+
+        if not json_str:
+            return {"error": "Le bloc JSON est vide."}
+
+        try:
+            parsed = json.loads(json_str)
+        except json.JSONDecodeError as e:
+            return {
+                "type": "error",
+                "message": f"Erreur lors du parsing JSON d'OpenRouter : {str(e)}",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+        if not isinstance(parsed, dict):
+            return {"error": "La réponse n'est pas un objet JSON valide."}
+
+        # ✅ Si des actions sont présentes
+        if "actions" in parsed and isinstance(parsed["actions"], list) and parsed["actions"]:
+            return parsed
+
+        # ✅ Si seulement une réponse brute est donnée, la transformer en action
+        elif "reponse" in parsed:
+            parsed["actions"] = [{
+                "type": "repondre",
+                "date": datetime.utcfromtimestamp(response_data.get("created", datetime.utcnow().timestamp())).isoformat() + "Z",
+                "message": parsed["reponse"]
+            }]
+            return parsed
+
+        return {"error": "Aucune action ou réponse trouvée dans la réponse."}
+
+    except requests.RequestException as e:
+        print("Erreur lors de la requête à l'API OpenRouter :", e)
+        return {"error": f"Erreur de requête API : {str(e)}"}
+
+    except Exception as e:
+        print("Erreur inattendue dans get_auto_reply_from_openrouter :", e)
+        return {"error": f"Erreur inattendue : {str(e)}"}
