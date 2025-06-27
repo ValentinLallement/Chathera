@@ -9,6 +9,7 @@ export const urls = {
     "logIn": `${BASE_URL}/token`,
     "health": `${BASE_URL}/health`,
     "me": `${BASE_URL}/user/me`,
+    "bots": `${BASE_URL}/my_bots`,
     "logout": `${BASE_URL}/logout`,
 }
 
@@ -109,6 +110,20 @@ export async function logout(): Promise<void> {
   }
 }
 
+export async function refreshToken(): Promise<LogInResponse> {
+  const res = await fetch(urls.logIn, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_token: "", message: "" }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Token refresh failed");
+  }
+  return res.json();
+}
+
 /***************************** Users *****************************/
 
 export interface MeResponse {
@@ -122,6 +137,33 @@ export interface MeResponse {
 
 export async function getMe(token: string): Promise<MeResponse> {
   const res = await fetch(urls.me, {
+    method: "GET",
+    credentials: "include",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+  });
+
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
+  return res.json();
+}
+
+export async function getBots(token: string): Promise<MeResponse[]> {
+  const res = await fetch(`${urls.bots}`, {
     method: "GET",
     credentials: "include",
     headers: { 

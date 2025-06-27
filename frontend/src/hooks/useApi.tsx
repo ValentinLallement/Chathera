@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { UseMutationResult } from "@tanstack/react-query";
-import { getHealth, logIn, signUp, getMe } from "../api/api";
+import { getHealth, logIn, signUp, getMe, getBots } from "../api/api";
 import type {
   LogInParams,
   LogInResponse,
@@ -75,5 +75,33 @@ export function useHealth() {
     queryFn: getHealth,
     staleTime: 1000 * 60 * 2,
     retry: 1,
+  });
+}
+
+export function useGetBots() {
+  const { accessToken } = useAuthStore();
+
+  return useQuery({
+    queryKey: ["useGetBots"],
+    queryFn: () => {
+      if (!accessToken) {
+        toast.error("Not authenticated", {
+          style: {
+            borderRadius: "10px",
+            background: "#1f1f1f",
+            border: "1px solid #e53e3e",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: "0.95rem",
+          },
+        });
+        throw new Error("Not authenticated");
+      }
+      return getBots(accessToken);
+    },
+    staleTime: 1000 * 60 * 2,
+    retry: 1,
+    enabled: !!accessToken, // only run query if we have a token
   });
 }

@@ -11,7 +11,7 @@ const LandingPage = lazy(() => import("../pages/LandingPage"));
 const Home = lazy(() => import("../pages/HomePage"));
 const DashBoard = lazy(() => import("../pages/DashBoardPage"));
 const Chat = lazy(() => import("../pages/ChatPage"));
-const Girls = lazy(() => import("../pages/GirlsPage"));
+const Partners = lazy(() => import("../pages/PartnersPage"));
 const Auth = lazy(() => import("../pages/AuthentificationPage"));
 const GoogleCallback = lazy(() => import("../pages/GoogleCallback"));
 const Profile = lazy(() => import("../pages/ProfilePage"));
@@ -58,7 +58,7 @@ export default function AppRoutes() {
         <Route path="dashboard" element={<DashBoard />}>
           <Route index element={withErrorBoundary(Home)} />
           <Route path="chat" element={withErrorBoundary(Chat)} />
-          <Route path="girls" element={withErrorBoundary(Girls)} />
+          <Route path="partners" element={withErrorBoundary(Partners)} />
           <Route path="settings" element={withErrorBoundary(Settings)} />
         </Route>
         <Route path="*" element={<NotFound />} />

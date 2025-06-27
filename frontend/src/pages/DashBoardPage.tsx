@@ -135,10 +135,10 @@ export default function HomePage() {
               isActive={location.pathname.includes("/chat")}
             />
             <MenuItem
-              to="/dashboard/girls"
+              to="/dashboard/partners"
               icon={GirlIcon}
-              text="Girls"
-              isActive={location.pathname.includes("/girls")}
+              text="Partners"
+              isActive={location.pathname.includes("/partners")}
             />
             <MenuItem
               to="/dashboard/settings"
