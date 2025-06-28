@@ -400,7 +400,7 @@ def get_my_bots(token: str = Depends(oauth2_scheme), db: Session = Depends(get_d
     # Récupère les bots créés par l’utilisateur
     bots = db.query(Bot).filter(Bot.user_id == user.id).all()
 
-    return [{"bot_id": bot.id, "name": bot.name} for bot in bots]
+    return [{"bot_id": bot.id, "name": bot.name ,"gender": bot.gender , "avatar_url": bot.avatar_url } for bot in bots]
 
 
 
