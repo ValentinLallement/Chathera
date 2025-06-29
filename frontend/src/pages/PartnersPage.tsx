@@ -502,7 +502,7 @@ export default function PartnersPage() {
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5">
+    <div className="h-full w-full flex flex-col bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5 scroll-auto">
       <div className="flex-1 flex flex-col p-8">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -520,7 +520,7 @@ export default function PartnersPage() {
           </p>
         </motion.div>
 
-        <div className="relative flex-1">
+        <div className="relative flex-1 h-fit scroll-smooth overflow-y-auto no-scrollbar">
           <AnimatePresence initial={false} custom={direction}>
             {!isCreating && (
               <motion.div
@@ -585,7 +585,7 @@ export default function PartnersPage() {
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
-                    className="grid gap-4"
+                    className="grid gap-4 scroll-smooth"
                   >
                     {bots.data.map((bot) => (
                       <motion.div

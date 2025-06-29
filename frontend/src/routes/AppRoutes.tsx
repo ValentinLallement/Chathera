@@ -5,6 +5,7 @@ import NotFound from "../pages/NotFound";
 import LoadingIndicator from "../components/LoadingIndicator";
 import ErrorBoundary from "../components/ErrorBoundary";
 import DashBoardLayout from "../layouts/DashBoardLayout";
+import { ProtectedRoute } from "../components/ProtectedRoute";
 
 // Lazy-load comme ca ya du code splitting bg :)
 const LandingPage = lazy(() => import("../pages/LandingPage"));
@@ -37,34 +38,41 @@ export default function AppRoutes() {
         path="/auth/google/callback"
         element={withErrorBoundary(GoogleCallback)}
       />
+      <Route path="/demo" element={withErrorBoundary(Demo)} />
+      <Route path="/pricing" element={withErrorBoundary(Pricing)} />
 
-      {/* A "protected" area wrapped by MainLayout */}
-      <Route path="/" element={<MainLayout />}>
-        {/* Index route, i.e. "/" */}
+      {/* Protected routes wrapped in MainLayout */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={withErrorBoundary(LandingPage)} />
-
-        {/* ex: /chat/1234 en tant que props*/}
         <Route path="chat/:conversationId" element={withErrorBoundary(Chat)} />
-
         <Route path="profile" element={withErrorBoundary(Profile)} />
-        <Route path="demo" element={withErrorBoundary(Demo)} />
-        <Route path="pricing" element={withErrorBoundary(Pricing)} />
-
-        {/* 404 */}
-        <Route path="*" element={<NotFound />} />
       </Route>
 
-      <Route path="/" element={<DashBoardLayout />}>
+      {/* Protected dashboard routes */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <DashBoardLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route path="dashboard" element={<DashBoard />}>
           <Route index element={withErrorBoundary(Home)} />
           <Route path="chat" element={withErrorBoundary(Chat)} />
           <Route path="partners" element={withErrorBoundary(Partners)} />
           <Route path="settings" element={withErrorBoundary(Settings)} />
         </Route>
-        <Route path="*" element={<NotFound />} />
       </Route>
 
-      {/* Redirect any unknown route (that didn't match "/" subtree) to "/" or 404 */}
+      {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

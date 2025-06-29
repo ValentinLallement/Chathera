@@ -2,7 +2,7 @@ import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
 import { HiChevronLeft } from "react-icons/hi";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import StarLogo from "../assets/images/StarLogo.webp";
 import Title from "../components/Title";
@@ -20,6 +20,7 @@ interface FieldErrors {
 
 export default function AuthentificationPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isChecked, setIsChecked] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
@@ -126,11 +127,15 @@ export default function AuthentificationPage() {
           fontSize: "0.95rem",
         },
       });
+      // Get the redirect path from location state, default to dashboard
+      const from =
+        (location.state as { from?: { pathname: string } })?.from?.pathname ||
+        "/dashboard";
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate(from);
       }, 1000);
     }
-  }, [loginSuccess, loginResult, navigate]);
+  }, [loginSuccess, loginResult, navigate, location]);
 
   const validateFields = (): boolean => {
     const newErrors: FieldErrors = {};
