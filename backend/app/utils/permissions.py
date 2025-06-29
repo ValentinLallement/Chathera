@@ -3,7 +3,7 @@ from app.db.models.models import PlanEnum, Subscription
 
 BOT_LIMITS = {
     PlanEnum.FREE: 1,
-    PlanEnum.PREMIUM: 1,
+    PlanEnum.PREMIUM: 2,
     PlanEnum.PAYG: None, 
 }
 
