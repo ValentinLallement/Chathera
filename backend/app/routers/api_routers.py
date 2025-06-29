@@ -360,7 +360,7 @@ def create_bot_and_conversation(
 
     try:
         # Création du bot
-        bot = Bot(name=request.name, user_id=user.id)
+        bot = Bot(name=request.name, user_id=user.id,gender=request.gender, personality=request.personality)
         db.add(bot)
         db.commit()
         db.refresh(bot)

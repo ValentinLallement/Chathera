@@ -3,6 +3,7 @@ import asyncio
 import re
 import json
 import traceback
+from typing import List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect,Depends
 from sqlalchemy.orm import Session
@@ -153,24 +154,11 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
                 })
 
             # --- Construction du prompt avec souvenirs etc. ---
-            try:
-                souvenirs = search_memory(
-                    user_message=user_message.content,
-                    conversation_id=str(conversation.id),
-                    type_filter=[
-                        MemoryType.SHORT,
-                        MemoryType.LONG,
-                        MemoryType.BEHAVIOR,
-                        MemoryType.FACT,
-                        MemoryType.EVENT,
-                        MemoryType.OTHER
-                    ],
-                    importance_filter=[MemoryImportance.HIGH, MemoryImportance.CRITICAL, MemoryImportance.MEDIUM]
-                )
-                print(f"Souvenirs récupérés : {souvenirs}")
-            except Exception as e:
-                print(f"Erreur search_memory : {e}\n{traceback.format_exc()}")
-                souvenirs = []
+            souvenirs = retrieve_contextual_memories(
+                user_message=user_message.content,
+                conversation_id=str(conversation.id),
+                db=db,
+            )
 
             messages_db = (
                 db.query(Message)
@@ -406,3 +394,87 @@ def extract_json_block(content: str):
         raise ValueError("Aucun bloc JSON valide trouvé.")
     json_str = match.group(1)
     return json.loads(json_str)
+
+def get_all_memories(conversation_id: UUID, db: Session) -> List[MemoryEntry]:
+    """
+    Récupère toutes les entrées mémoire liées à une conversation donnée, triées par importance (desc) puis par date (desc).
+    
+    Args:
+        conversation_id (UUID): ID de la conversation.
+        db (Session): Session SQLAlchemy.
+
+    Returns:
+        List[MemoryEntry]: Liste des souvenirs associés.
+    """
+    try:
+        memories = db.query(MemoryEntry).filter(
+            MemoryEntry.conversation_id == conversation_id
+        ).order_by(
+            MemoryEntry.importance.desc(),  # d'abord les plus importantes
+            MemoryEntry.created_at.desc()   # puis les plus récentes
+        ).all()
+
+        return memories
+
+    except Exception as e:
+        print(f"[get_all_memories] Erreur lors de la récupération des souvenirs : {e}")
+        return []
+    
+
+
+def retrieve_contextual_memories(user_message: str, conversation_id: str, db: Session) -> List[MemoryEntry]:
+    """
+    Combine recherche vectorielle Mem0 et fallback lexical.
+    Retourne des objets MemoryEntry SQLModel.
+    """
+    souvenirs_vector = []
+    souvenirs_lexical = []
+
+    try:
+        memories_content = search_memory(
+            user_message=user_message,
+            conversation_id=conversation_id,
+            type_filter=[
+                MemoryType.SHORT,
+                MemoryType.LONG,
+                MemoryType.BEHAVIOR,
+                MemoryType.FACT,
+                MemoryType.EVENT,
+                MemoryType.OTHER,
+            ],
+            importance_filter=[
+                MemoryImportance.HIGH,
+                MemoryImportance.CRITICAL,
+                MemoryImportance.MEDIUM,
+            ],
+            keyword_search=True,
+            rerank=True,
+            filter_memories=True
+        )
+
+        # Convertit les contenus texte en objets MemoryEntry de la base si présents
+        all_db_memories = get_all_memories(UUID(conversation_id), db)
+        souvenirs_vector = [
+            m for m in all_db_memories
+            if m.content in memories_content
+        ]
+        print(f"[Mem0 search] {len(souvenirs_vector)} souvenirs vectoriels : {[m.content for m in souvenirs_vector]}")
+
+    except Exception as e:
+        import traceback
+        print(f"[Mem0 search] Erreur : {e}\n{traceback.format_exc()}")
+
+    try:
+        mots_cles = ["anniversaire", "rendez-vous", "souvenir", "date", "lieu", "préférence"]
+        souvenirs_lexical = [
+            m for m in all_db_memories
+            if any(k in m.content.lower() for k in mots_cles)
+            and m.id not in {s.id for s in souvenirs_vector}
+        ]
+        if souvenirs_lexical:
+            print(f"[Fallback lexical] {len(souvenirs_lexical)} souvenirs : {[m.content for m in souvenirs_lexical]}")
+    except Exception as e:
+        import traceback
+        print(f"[Fallback lexical] Erreur : {e}\n{traceback.format_exc()}")
+
+    return souvenirs_vector + souvenirs_lexical

@@ -2,7 +2,7 @@ from pydantic import BaseModel,ConfigDict, root_validator, EmailStr, Field
 from sqlmodel import SQLModel
 
 
-from typing import Optional, List
+from typing import Optional, List, Literal
 from uuid import UUID
 from datetime import datetime,date
 from enum import Enum
@@ -141,6 +141,8 @@ class MessageRequest(BaseModel):
 
 class CreateBotRequest(BaseModel):
     name: str
+    gender: Literal["Male", "Female"]  # ou str si tu veux laisser plus libre
+    personality: Literal["Friendly", "Professional", "Casual", "Serious","Sweet"]  # ou str si tu veux laisser plus libre
     
 # ----------------------------- Avatar -----------------------------
 

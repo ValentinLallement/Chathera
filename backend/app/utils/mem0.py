@@ -99,17 +99,17 @@ def search_memory(
     user_message: str,
     conversation_id: Optional[str] = None,
     type_filter: Optional[List[MemoryType]] = None,
-    importance_filter: Optional[List[MemoryImportance]] = None
-) -> dict:
+    importance_filter: Optional[List[MemoryImportance]] = None,
+    keyword_search: bool = True,
+    rerank: bool = True,
+    filter_memories: bool = True,
+    retrieval_criteria: Optional[List[dict]] = None
+) -> List[str]:  # on retourne directement une liste de contenus texte
     """
-    Recherche en mémoire mem0ai avec les filtres, et retourne un dict
-    contenant au moins la clé 'results' avec une liste des résultats trouvés.
+    Recherche dans mem0ai avec filtres et options avancées.
+    Retourne une liste de strings (contenus de mémoire).
     """
 
-    # Prépare le query (exemple simple)
-    query = user_message
-
-    # Prépare les filtres, adapte selon ton système mem0ai
     filters = {}
     if conversation_id:
         filters["conversation_id"] = conversation_id
@@ -119,31 +119,30 @@ def search_memory(
         filters["importance"] = [i.value for i in importance_filter]
 
     try:
-        # Appelle mem0ai.search() - adapter avec ta vraie fonction
-        results = mem0.search(query=query, filters=filters, user_id=conversation_id)
-        # Debug : print("Résultats mem0ai.search:", results)
+        results = mem0.search(
+            query=user_message,
+            filters=filters,
+            user_id=conversation_id,
+            keyword_search=keyword_search,
+            rerank=rerank,
+            filter_memories=filter_memories,
+            retrieval_criteria=retrieval_criteria
+        )
 
-        # Extraction robuste de la liste de résultats
-        if isinstance(results, dict) and "results" in results and isinstance(results["results"], list):
+        if isinstance(results, dict) and "results" in results:
             result_list = results["results"]
         elif isinstance(results, list):
-            # mem0ai peut retourner directement une liste (par ex. [])
             result_list = results
         else:
-            print(f"search_memory: résultats inattendus reçus: {results}")
-            result_list = []
+            print(f"[Mem0] Résultat inattendu: {results}")
+            return []
 
-        # Extraction des contenus mémoire
         contenus = []
         for r in result_list:
             if isinstance(r, dict) and "memory" in r:
                 contenus.append(r["memory"])
-            else:
-                print(f"search_memory: élément inattendu dans résultats: {r}")
-
-        # Retourne un dict conforme avec la clé 'results'
-        return {"results": contenus}
+        return contenus
 
     except Exception as e:
-        print(f"Erreur search_memory : {e}")
-        return {"results": []}
+        print(f"[Mem0] Erreur dans search_memory : {e}")
+        return []

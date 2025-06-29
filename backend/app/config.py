@@ -22,7 +22,7 @@ warnings.filterwarnings(
 
 MEM0_VECTOR_PATH = os.getenv("MEM0_VECTOR_PATH")
 if not MEM0_VECTOR_PATH:
-    raise RuntimeError("Il manque MEM0_VECTOR_PATH dans le .env bordel")
+    raise RuntimeError("Il manque MEM0_VECTOR_PATH dans le .env")
 
 GROK_API_KEY = os.getenv("GROK_API_KEY")
 GROK_URL = os.getenv("GROK_URL", "https://api.x.ai/v1/chat/completions")
