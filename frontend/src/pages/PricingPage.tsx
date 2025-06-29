@@ -31,6 +31,22 @@ const CheckIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const CrossIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth="2"
+    stroke="currentColor"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M6 18L18 6M6 6l12 12"
+    />
+  </svg>
+);
+
 export default function PricingPage() {
   const { user } = useAuthStore();
   const currentPlan = user?.subscription || "free";
@@ -52,7 +68,7 @@ export default function PricingPage() {
       opacity: 1,
       y: 0,
       transition: {
-        type: "spring",
+        type: "spring" as const,
         stiffness: 100,
         damping: 15,
       },
@@ -71,7 +87,7 @@ export default function PricingPage() {
       features: [
         { included: true, text: "10 messages per month" },
         { included: true, text: "1 AI companion" },
-        { included: true, text: "Advanced memory system" },
+        { included: true, text: "Basic memory system" },
         { included: false, text: "Companion-initiated messages" },
         { included: false, text: "Event reminders" },
         { included: false, text: "Enhanced personality" },
@@ -87,7 +103,7 @@ export default function PricingPage() {
       buttonText: "Upgrade Now",
       highlighted: true,
       features: [
-        { included: true, text: "600 messages per month (20/day)" },
+        { included: true, text: "600 messages per month" },
         { included: true, text: "1 AI companion" },
         { included: true, text: "Advanced memory system" },
         { included: true, text: "Companion-initiated messages" },
@@ -317,13 +333,23 @@ export default function PricingPage() {
                         plan.highlighted ? "text-white" : "text-slate-300"
                       }`}
                     >
-                      <CheckIcon
-                        className={`h-6 w-6 flex-none ${
-                          plan.highlighted
-                            ? "text-violet-400"
-                            : "text-slate-500"
-                        }`}
-                      />
+                      {feature.included ? (
+                        <CheckIcon
+                          className={`h-6 w-6 flex-none ${
+                            plan.highlighted
+                              ? "text-violet-400"
+                              : "text-slate-500"
+                          }`}
+                        />
+                      ) : (
+                        <CrossIcon
+                          className={`h-6 w-6 flex-none ${
+                            plan.highlighted
+                              ? "text-violet-400/50"
+                              : "text-slate-500/50"
+                          }`}
+                        />
+                      )}
                       <span className="text-sm">{feature.text}</span>
                     </li>
                   ))}
@@ -718,165 +744,6 @@ export default function PricingPage() {
       >
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/30 via-zinc-800/10 to-transparent" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_50%_50%,rgba(255,255,255,0.02),transparent)]" />
-        </div>
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <motion.span
-              className="inline-block px-4 py-1.5 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10 mb-4"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              Key Benefits
-            </motion.span>
-            <motion.h2
-              className="text-3xl md:text-4xl font-bold text-white mb-6"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              Why Choose Chathera?
-            </motion.h2>
-            <motion.p
-              className="text-lg text-gray-400 max-w-2xl mx-auto mb-12"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              Built with cutting-edge AI technology and designed for meaningful
-              connections
-            </motion.p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {[
-              {
-                title: "Privacy First",
-                description:
-                  "Your conversations are private and secure. We use state-of-the-art encryption to protect your data.",
-              },
-              {
-                title: "Flexible Pricing",
-                description:
-                  "Choose the plan that fits your needs. Start free and scale as you grow.",
-              },
-              {
-                title: "24/7 Availability",
-                description:
-                  "Your AI companions are always there when you need them, ready to chat and support you.",
-              },
-              {
-                title: "Continuous Learning",
-                description:
-                  "Our AI companions evolve and adapt to provide better, more personalized interactions.",
-              },
-            ].map((benefit, index) => (
-              <motion.div
-                key={benefit.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 * index }}
-                className="p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300"
-              >
-                <h3 className="text-xl font-semibold text-white mb-3">
-                  {benefit.title}
-                </h3>
-                <p className="text-gray-400">{benefit.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </motion.section>
-
-      <motion.section
-        className="py-24 relative overflow-hidden"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-      >
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/10 via-zinc-900/5 to-transparent" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_50%_50%,rgba(255,255,255,0.01),transparent)]" />
-        </div>
-        <div className="container mx-auto px-4 max-w-6xl">
-          <div className="text-center mb-16">
-            <motion.span
-              className="inline-block px-4 py-1.5 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10 mb-4"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              FAQ
-            </motion.span>
-            <motion.h2
-              className="text-3xl md:text-4xl font-bold text-white mb-6"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              Frequently Asked Questions
-            </motion.h2>
-            <motion.p
-              className="text-lg text-gray-400 max-w-2xl mx-auto"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              Have questions? We're here to help
-            </motion.p>
-          </div>
-
-          <div className="max-w-3xl mx-auto grid gap-6">
-            {[
-              {
-                question: "How does pay-as-you-go billing work?",
-                answer:
-                  "You'll be charged €0.01 per message sent and €1 per active companion per month. Billing occurs at the end of each month.",
-              },
-              {
-                question: "Can I switch plans anytime?",
-                answer:
-                  "Yes, you can upgrade, downgrade, or switch to pay-as-you-go at any time. Changes take effect immediately.",
-              },
-              {
-                question: "Is there a minimum commitment?",
-                answer:
-                  "No minimum commitment required. You can start with the free plan and upgrade whenever you're ready.",
-              },
-              {
-                question: "How does the memory system work?",
-                answer:
-                  "Our advanced memory system allows AI companions to remember past conversations and important details, creating more meaningful and contextual interactions.",
-              },
-            ].map((faq, index) => (
-              <motion.div
-                key={faq.question}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 * index }}
-                className="p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300"
-              >
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {faq.question}
-                </h3>
-                <p className="text-gray-400">{faq.answer}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </motion.section>
-
-      <motion.section
-        className="py-24 relative overflow-hidden"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-      >
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/20 via-zinc-800/10 to-transparent" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_50%_50%,rgba(255,255,255,0.03),transparent)]" />
         </div>
         <div className="container mx-auto px-4 relative">
@@ -912,7 +779,7 @@ export default function PricingPage() {
                   whileTap={{ scale: 0.95 }}
                   className="px-8 py-3 rounded-lg bg-amber-500 text-white font-medium hover:bg-amber-600 transition-colors"
                 >
-                  Get Started Free
+                  Get Started for Free
                 </motion.button>
               </Link>
               <Link to="/contact">

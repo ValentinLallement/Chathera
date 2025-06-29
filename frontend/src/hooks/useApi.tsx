@@ -1,7 +1,18 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { UseMutationResult } from "@tanstack/react-query";
-import { getHealth, logIn, signUp, getMe, getBots } from "../api/api";
+import {
+  getHealth,
+  logIn,
+  signUp,
+  getMe,
+  getBots,
+  apiCallWithRefresh,
+  refreshToken,
+  createBot,
+} from "../api/api";
 import type {
+  CreateBotParams,
+  CreateBotResponse,
   LogInParams,
   LogInResponse,
   SignUpParams,
@@ -41,7 +52,6 @@ export function useLogIn(): UseMutationResult<
       try {
         const userData = await getMe(loginResponse.access_token);
         setUser(userData);
-        toast;
       } catch (error) {
         console.error("Failed to fetch user data:", error);
       }
@@ -49,23 +59,23 @@ export function useLogIn(): UseMutationResult<
       return loginResponse;
     },
     onError(err) {
-      console.error("Échec de la connexion :", err.message);
+      console.error("Login failed:", err.message);
     },
   });
 }
 
 export function useGetMe() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, setToken } = useAuthStore();
 
   return useQuery({
     queryKey: ["useGetMe"],
     queryFn: () => {
       if (!accessToken) throw new Error("Not authenticated");
-      return getMe(accessToken);
+      return apiCallWithRefresh(() => getMe(accessToken), setToken);
     },
     staleTime: 1000 * 60 * 2,
     retry: 1,
-    enabled: !!accessToken, // only run query if we have a token
+    enabled: !!accessToken,
   });
 }
 
@@ -79,7 +89,7 @@ export function useHealth() {
 }
 
 export function useGetBots() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, setToken } = useAuthStore();
 
   return useQuery({
     queryKey: ["useGetBots"],
@@ -98,10 +108,73 @@ export function useGetBots() {
         });
         throw new Error("Not authenticated");
       }
-      return getBots(accessToken);
+      return apiCallWithRefresh(() => getBots(accessToken), setToken);
     },
     staleTime: 1000 * 60 * 2,
     retry: 1,
-    enabled: !!accessToken, // only run query if we have a token
+    enabled: !!accessToken,
+  });
+}
+
+export function useCreateBot(): UseMutationResult<
+  CreateBotResponse,
+  Error,
+  CreateBotParams
+> {
+  const { accessToken, setToken } = useAuthStore();
+
+  return useMutation<CreateBotResponse, Error, CreateBotParams>({
+    mutationFn: async (params: CreateBotParams) => {
+      if (!accessToken) {
+        toast.error("Not authenticated", {
+          style: {
+            borderRadius: "10px",
+            background: "#1f1f1f",
+            border: "1px solid #e53e3e",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: "0.95rem",
+          },
+        });
+        throw new Error("Not authenticated");
+      }
+      return apiCallWithRefresh(() => createBot(accessToken, params), setToken);
+    },
+  });
+}
+
+export function useRefreshToken() {
+  const { setToken, setUser } = useAuthStore();
+
+  return useMutation({
+    mutationFn: async () => {
+      const refreshResponse = await refreshToken();
+      setToken(refreshResponse.access_token);
+
+      try {
+        const userData = await getMe(refreshResponse.access_token);
+        setUser(userData);
+      } catch (error) {
+        console.error("Failed to fetch user data after refresh:", error);
+        throw error;
+      }
+
+      return refreshResponse;
+    },
+    onError: (error) => {
+      console.error("Token refresh failed:", error);
+      toast.error("Session expired. Please log in again.", {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #e53e3e",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+    },
   });
 }

@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+//import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -16,10 +16,8 @@ const router = createBrowserRouter([
 ]);
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <Toaster />
-      <RouterProvider router={router} />
-    </ErrorBoundary>
-  </StrictMode>
+  <ErrorBoundary>
+    <Toaster />
+    <RouterProvider router={router} />
+  </ErrorBoundary>
 );

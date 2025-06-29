@@ -4,16 +4,19 @@ import { useAuthStore } from "../stores/authStore";
 import Logo from "../components/Logo";
 import type { MouseEvent } from "react";
 
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faVenusMars } from "@fortawesome/free-solid-svg-icons";
+
 // Import SVG icons
 import Bar_Left from "../assets/images/svgs/Bar_Left.svg";
 import HomeIcon from "../assets/images/svgs/Home.svg";
 import ChatIcon from "../assets/images/svgs/Chat.svg";
-import GirlIcon from "../assets/images/svgs/Girl.svg";
+//import GirlIcon from "../assets/images/svgs/Girl.svg";
 import SettingsIcon from "../assets/images/svgs/Settings.svg";
 
 interface MenuItemProps {
   to: string;
-  icon: string;
+  icon: string | React.ReactNode;
   text: string;
   isActive?: boolean;
 }
@@ -62,11 +65,17 @@ const MenuItem = ({ to, icon, text, isActive }: MenuItemProps) => {
           className={`w-10 h-10 rounded-lg flex items-center justify-center bg-black/20 backdrop-blur-xl border border-white/5 transition-all duration-300 
           ${isActive ? "border-violet-500/20" : "group-hover:border-white/10"}`}
         >
-          <img
-            src={icon}
-            alt={text}
-            className="w-5 h-5 text-white [&>path]:stroke-white"
-          />
+          {typeof icon === "string" ? (
+            <img
+              src={icon}
+              alt={text}
+              className={`w-6 h-6 transition-transform duration-300 ${
+                isActive ? "transform scale-110" : "group-hover:scale-105"
+              }`}
+            />
+          ) : (
+            icon
+          )}
         </div>
         <span
           className={`text-sm font-medium transition-colors duration-300 
@@ -136,7 +145,7 @@ export default function HomePage() {
             />
             <MenuItem
               to="/dashboard/partners"
-              icon={GirlIcon}
+              icon={<FontAwesomeIcon icon={faVenusMars} />}
               text="Partners"
               isActive={location.pathname.includes("/partners")}
             />

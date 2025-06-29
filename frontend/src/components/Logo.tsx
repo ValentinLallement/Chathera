@@ -9,8 +9,8 @@ export default function Logo({ isClickable = true }: LogoProps) {
   const navigate = useNavigate();
   return (
     <div
-      className={`flex items-center gap-2 ${
-        isClickable ? "cursor-pointer" : ""
+      className={`flex items-center gap-2 cursor-pointer ${
+        isClickable ? "hover:opacity-90" : ""
       }`}
       onClick={() => isClickable && navigate("/")}
     >
