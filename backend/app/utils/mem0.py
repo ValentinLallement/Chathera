@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Union
 from app.db.models.models import MemoryEntry, MemoryImportance, MemoryType  
 from mem0 import Memory
-from app.config import MEM0_CONFIG as config
+from app.config import mem0
 
 # Initialisation globale mem0 (faire 1 fois au lancement)
-mem0 = Memory.from_config(config)
+
 
 def mem0_add_memory(
     db: Session,
@@ -100,10 +100,6 @@ def search_memory(
     conversation_id: Optional[str] = None,
     type_filter: Optional[List[MemoryType]] = None,
     importance_filter: Optional[List[MemoryImportance]] = None,
-    keyword_search: bool = True,
-    rerank: bool = True,
-    filter_memories: bool = True,
-    retrieval_criteria: Optional[List[dict]] = None
 ) -> List[str]:  # on retourne directement une liste de contenus texte
     """
     Recherche dans mem0ai avec filtres et options avancées.
@@ -123,10 +119,6 @@ def search_memory(
             query=user_message,
             filters=filters,
             user_id=conversation_id,
-            keyword_search=keyword_search,
-            rerank=rerank,
-            filter_memories=filter_memories,
-            retrieval_criteria=retrieval_criteria
         )
 
         if isinstance(results, dict) and "results" in results:

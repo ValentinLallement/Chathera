@@ -19,7 +19,7 @@ from app.utils.websocket_registry import register_websocket, unregister_websocke
 from app.utils.mem0 import mem0_add_memory , search_memory
 from app.utils.permissions import check_message_limit
 from app.utils.payg import PlanEnum, report_usage
-
+from app.utils.permissions import increment_message_count, check_message_limit
 
 websocket_router = APIRouter()
 
@@ -58,16 +58,19 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
         unregister_websocket(user.id)
         return
 
-    if not check_message_limit(subscription):
+    if not check_message_limit(subscription, db):
         await websocket.send_json({
             "type": "limit_reached",
             "message": "Je crois qu’on a fait le plein de papotages pour ce mois… "
-               "Mais promis, je serai là dès que tu recharges. Tu vas me manquer ! 💙",
+                    "Mais promis, je serai là dès que tu recharges. Tu vas me manquer ! 💙",
             "timestamp": datetime.utcnow().isoformat()
         })
         await websocket.close()
         unregister_websocket(user.id)
+        print(f"Limite de messages atteinte pour l'utilisateur {user.id}")
         return
+    
+    
 
     subscription.message_count += 1
     db.commit()
@@ -229,7 +232,7 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
 
             # --- Appel DeepSeek pour réponse automatique ---
             try:
-                auto_reply = get_auto_reply_from_openrouter(prompt, conversation.id, dernier_message, db)
+                auto_reply = get_auto_reply_from_deepseek(prompt, conversation.id, dernier_message, db)
                 print(f"Réponse DeepSeek : {auto_reply}")
                 json.dumps(auto_reply)  # Test de sérialisation
             except Exception as e:
@@ -446,10 +449,7 @@ def retrieve_contextual_memories(user_message: str, conversation_id: str, db: Se
                 MemoryImportance.HIGH,
                 MemoryImportance.CRITICAL,
                 MemoryImportance.MEDIUM,
-            ],
-            keyword_search=True,
-            rerank=True,
-            filter_memories=True
+            ]
         )
 
         # Convertit les contenus texte en objets MemoryEntry de la base si présents

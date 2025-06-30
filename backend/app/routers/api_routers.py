@@ -45,7 +45,7 @@ from app.utils.payg import report_usage
 from mem0 import Memory
 
 WEBUI_API_URL = "http://127.0.0.1:7860"
-mem0 = Memory.from_config(MEM0_CONFIG)
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

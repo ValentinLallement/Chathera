@@ -58,22 +58,33 @@ VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY")
 
 OPENROUTER_API_KEY= os.getenv("OPENROUTER_API_KEY")
 
-os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-
+#os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+os.environ["DEEPSEEK_API_KEY"] = DEEPSEEK_API_KEY
 # Configuration mem0 
-MEM0_CONFIG = { # note: il faut renomer ta config val. bon la je l'ai fait mais pense y
+MEM0_CONFIG = {
+    "llm": {
+        "provider": "deepseek",
+        "config": {
+            "model": "deepseek-chat",  # default model
+            "temperature": 0.6,
+            "max_tokens": 2000,
+            "api_key": DEEPSEEK_API_KEY,
+        }
+    },
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-3-large"
+            "model": "text-embedding-3-small", 
+            "api_key": OPENAI_API_KEY,
         }
     },
     "vector_store": {
         "provider": "faiss",
         "config": {
             "collection_name": "conversations",
-            "path": MEM0_VECTOR_PATH # Utilise une variable d'env c'est mieux
+            "path": MEM0_VECTOR_PATH,
         }
     }
 }
 
+mem0 = Memory.from_config(MEM0_CONFIG)

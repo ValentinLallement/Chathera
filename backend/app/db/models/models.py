@@ -105,7 +105,7 @@ class Conversation(SQLModel, table=True):
     bot_id: uuid.UUID = Field(foreign_key="bot.id", nullable=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    # Relations
+        # Relations
     user: Optional["User"] = Relationship(back_populates="conversations")
     bot: Optional["Bot"] = Relationship(back_populates="conversations")
     messages: List["Message"] = Relationship(
@@ -294,6 +294,6 @@ class PushSubscription(SQLModel, table=True):
     __tablename__ = "push_subscriptions"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(index=True)
+    user_id: UUID = Field(foreign_key="user.id", nullable=False)
     endpoint: str = Field(index=True, unique=True, nullable=False)
     keys: dict = Field(sa_column=Column(JSON, nullable=False))

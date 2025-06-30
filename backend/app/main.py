@@ -55,7 +55,7 @@ from app.utils.payg import report_usage
 from app.routers.api_routers import api_router
 from mem0 import Memory
 
-mem0 = Memory.from_config(MEM0_CONFIG)
+
 
 
 # --- lifespan ---
@@ -91,7 +91,7 @@ app.add_middleware(
 app.include_router(websocket_router)
 app.include_router(message.router,prefix="/api")
 app.include_router(auth_google.router)
-app.include_router(stripe_routes.router, prefix="/api")
+app.include_router(stripe_routes.router, prefix="/api" )
 app.include_router(api_router, prefix="/api")
 
 

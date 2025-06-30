@@ -500,7 +500,7 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, dernier_mes
         ],
         "model": "deepseek-reasoner",
         "stream": False,
-        "temperature": 1.3
+        "temperature": 0.6
     }
 
     try:
@@ -625,7 +625,7 @@ def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_m
             {"role": "system", "content": prompt},
             {"role": "user", "content": dernier_str}
         ],
-        "temperature": 1.3,
+        "temperature": 0.6,
         "stream": False,
         "max_tokens": 2048,
     }
