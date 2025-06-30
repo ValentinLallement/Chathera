@@ -22,7 +22,9 @@ export default function AuthentificationPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isChecked, setIsChecked] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(() => {
+    return location.state?.isSignUp ?? false;
+  });
 
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -127,7 +129,7 @@ export default function AuthentificationPage() {
           fontSize: "0.95rem",
         },
       });
-      // Get the redirect path from location state, default to dashboard
+
       const from =
         (location.state as { from?: { pathname: string } })?.from?.pathname ||
         "/dashboard";

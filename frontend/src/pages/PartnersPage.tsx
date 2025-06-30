@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCreateBot, useGetBots, useRefreshToken } from "../hooks/useApi";
 import { motion, AnimatePresence } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -7,6 +7,7 @@ import { faVenus } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useSidebarStore } from "../stores/sidebarStore";
+import { useConversationStore } from "../stores/conversationStore";
 
 type Gender = "Male" | "Female";
 type Personality = "Friendly" | "Professional" | "Casual" | "Serious" | "Sweet";
@@ -463,6 +464,8 @@ export default function PartnersPage() {
   const [[isCreating, direction], setIsCreating] = useState([false, 0]);
   const [currentStep, setCurrentStep] = useState(1);
   const { isOpen } = useSidebarStore();
+  const navigate = useNavigate();
+  const { setSelectedBotId } = useConversationStore();
   const [formData, setFormData] = useState<CompanionForm>({
     gender: null,
     name: "",
@@ -500,6 +503,11 @@ export default function PartnersPage() {
     } else {
       handleBackToList();
     }
+  };
+
+  const handleBotClick = (botId: string) => {
+    setSelectedBotId(botId);
+    navigate("/dashboard/chat");
   };
 
   return (
@@ -594,6 +602,7 @@ export default function PartnersPage() {
                       <motion.div
                         key={bot.bot_id}
                         variants={itemVariants}
+                        onClick={() => handleBotClick(bot.bot_id)}
                         className="group relative p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300 cursor-pointer"
                       >
                         <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-violet-500/0 group-hover:from-violet-500/5 group-hover:to-violet-500/0 transition-all duration-500 rounded-xl" />

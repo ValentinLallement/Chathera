@@ -16,23 +16,35 @@ import {
 } from "../hooks/useApi";
 import { useConversationStore } from "../stores/conversationStore";
 import { useSidebarStore } from "../stores/sidebarStore";
+import { useAuthStore } from "../stores/authStore";
+import toast from "react-hot-toast";
+
+interface Message {
+  id: string;
+  content: string;
+  user_id: string;
+  conversation_id: string;
+  created_at: string;
+}
 
 export default function ChatPage() {
   const [isDropDownOpen, setIsDropDownOpen] = useState(false);
   const { isOpen } = useSidebarStore();
   const [message, setMessage] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const websocketRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
+  const { accessToken } = useAuthStore();
   const bots = useGetBots();
   const conversations = useGetConversations();
   const { selectedBotId, setSelectedBotId } = useConversationStore();
 
-  // Find the current conversation for the selected bot
   const currentConversation = conversations.data?.find(
     (conv) => conv.bot_id === selectedBotId
   );
 
-  // Fetch messages for the current conversation
   const messagesQuery = useGetMessagesInConversation(
     currentConversation?.id || ""
   );
@@ -44,22 +56,136 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
+    if (!accessToken || !selectedBotId) return;
+
+    const ws = new WebSocket(
+      `ws://127.0.0.1:8000/ws/chat?token=${accessToken}`
+    );
+    websocketRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket connection established");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setIsTyping(false);
+
+      if (data.type === "error") {
+        if (data.message.includes("message limit")) {
+          toast(
+            (t) => (
+              <div className="flex flex-col gap-2">
+                <span>
+                  Monthly message limit reached. Please{" "}
+                  <a
+                    href="/pricing"
+                    className="text-blue-400 hover:text-blue-300 underline transition-colors duration-200"
+                    onClick={() => toast.dismiss(t.id)}
+                  >
+                    upgrade
+                  </a>{" "}
+                  your plan to continue chatting.
+                </span>
+              </div>
+            ),
+            {
+              style: {
+                borderRadius: "10px",
+                background: "#1f1f1f",
+                border: "1px solid #e53e3e",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+                color: "#fff",
+                padding: "12px 16px",
+                fontSize: "0.95rem",
+              },
+              duration: 5000,
+            }
+          );
+        } else {
+          toast.error(data.message);
+        }
+      } else if (data.type === "reponse") {
+        messagesQuery.refetch();
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      toast.error("Error connecting to chat server");
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [accessToken, selectedBotId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (
+      !message.trim() ||
+      !selectedBotId ||
+      !websocketRef.current ||
+      !currentConversation
+    )
+      return;
+
+    try {
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        content: message.trim(),
+        user_id: "user",
+        conversation_id: currentConversation.id,
+        created_at: new Date().toISOString(),
+      };
+
+      setLocalMessages((prev) => [...prev, newMessage]);
+      setMessage("");
+      setIsTyping(true);
+      scrollToBottom();
+
+      websocketRef.current.send(
+        JSON.stringify({
+          content: newMessage.content,
+          bot_id: selectedBotId,
+        })
+      );
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+      setIsTyping(false);
+    }
+  };
+
+  useEffect(() => {
     if (bots.data && bots.data.length > 0 && !selectedBotId) {
       setSelectedBotId(bots.data[0].bot_id);
     }
   }, [bots.data, selectedBotId]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messagesQuery.data]);
 
-  // Refetch messages when conversation changes
   useEffect(() => {
     if (currentConversation?.id) {
       messagesQuery.refetch();
     }
   }, [currentConversation?.id]);
+
+  useEffect(() => {
+    if (messagesQuery.data) {
+      setLocalMessages([]);
+      setIsTyping(false);
+    }
+  }, [messagesQuery.data]);
 
   return (
     <div className="h-full w-full flex flex-col bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5">
@@ -174,7 +300,7 @@ export default function ChatPage() {
 
         {/* Chat content area */}
         <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
-          {messagesQuery.data?.map((msg) => (
+          {[...(messagesQuery.data || []), ...localMessages].map((msg) => (
             <div
               key={msg.id}
               className={`flex ${
@@ -192,11 +318,25 @@ export default function ChatPage() {
               </div>
             </div>
           ))}
+
+          {/* Typing indicator */}
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="max-w-[70%] p-3 rounded-xl bg-white/5">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                  <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
         {/* Message input */}
-        <form onSubmit={() => {}} className="p-4 border-t border-white/5">
+        <form onSubmit={handleSubmit} className="p-4 border-t border-white/5">
           <div className="flex items-center gap-2">
             <input
               type="text"
