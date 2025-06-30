@@ -9,6 +9,8 @@ import {
   apiCallWithRefresh,
   refreshToken,
   createBot,
+  getConversations,
+  getMessagesInConversation,
 } from "../api/api";
 import type {
   CreateBotParams,
@@ -116,6 +118,34 @@ export function useGetBots() {
   });
 }
 
+export function useGetConversations() {
+  const { accessToken, setToken } = useAuthStore();
+
+  return useQuery({
+    queryKey: ["useGetConversations"],
+    queryFn: () => {
+      if (!accessToken) {
+        toast.error("Not authenticated", {
+          style: {
+            borderRadius: "10px",
+            background: "#1f1f1f",
+            border: "1px solid #e53e3e",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: "0.95rem",
+          },
+        });
+        throw new Error("Not authenticated");
+      }
+      return apiCallWithRefresh(() => getConversations(accessToken), setToken);
+    },
+    staleTime: 1000 * 60 * 2,
+    retry: 1,
+    enabled: !!accessToken,
+  });
+}
+
 export function useCreateBot(): UseMutationResult<
   CreateBotResponse,
   Error,
@@ -141,6 +171,37 @@ export function useCreateBot(): UseMutationResult<
       }
       return apiCallWithRefresh(() => createBot(accessToken, params), setToken);
     },
+  });
+}
+
+export function useGetMessagesInConversation(conversationId: string) {
+  const { accessToken, setToken } = useAuthStore();
+
+  return useQuery({
+    queryKey: ["useGetMessagesInConversation", conversationId],
+    queryFn: () => {
+      if (!accessToken) {
+        toast.error("Not authenticated", {
+          style: {
+            borderRadius: "10px",
+            background: "#1f1f1f",
+            border: "1px solid #e53e3e",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: "0.95rem",
+          },
+        });
+        throw new Error("Not authenticated");
+      }
+      return apiCallWithRefresh(
+        () => getMessagesInConversation(accessToken, conversationId),
+        setToken
+      );
+    },
+    staleTime: 1000 * 60 * 2,
+    retry: 1,
+    enabled: !!accessToken && !!conversationId,
   });
 }
 

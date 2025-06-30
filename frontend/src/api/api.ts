@@ -13,6 +13,8 @@ export const urls = {
     "logout": `${BASE_URL}/logout`,
     "refresh": `${BASE_URL}/refresh`,
     "createBot": `${BASE_URL}/create_bot`,
+    "conversations": `${BASE_URL}/conversations`,
+    "messages": `${BASE_URL}/conversations/messages`,
 }
 
 
@@ -174,33 +176,6 @@ export async function getMe(token: string): Promise<MeResponse> {
   return res.json();
 }
 
-export async function getBots(token: string): Promise<MeResponse[]> {
-  const res = await fetch(`${urls.bots}`, {
-    method: "GET",
-    credentials: "include",
-    headers: { 
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-  });
-
-  if (!res.ok) {
-    let payload: { detail?: string; [key: string]: any } = { detail: "" };
-    try {
-      payload = await res.json();
-    } catch {
-      throw new Error("Une erreur inattendue est survenue.");
-    }
-
-    if (payload.detail) {
-      throw new Error(payload.detail);
-    } else {
-      throw new Error(`Erreur inconnue (status ${res.status})`);
-    }
-  }
-  return res.json();
-}
-
 /***************************** Bots ******************************/
 
 export interface CreateBotParams {
@@ -244,7 +219,114 @@ export async function createBot(
   }
   return res.json();
 }
+interface getBotsResponse {
+  bot_id: string;
+  name: string;
+  gender: "Male" | "Female";
+  avatar_url: string | null;
+}
+  
+
+export async function getBots(token: string): Promise<getBotsResponse[]> {
+  const res = await fetch(`${urls.bots}`, {
+    method: "GET",
+    credentials: "include",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+  });
+
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
+  return res.json();
+}
+
+/************************* Conversations *************************/
       
+export interface getConversationsResponse {
+  bot_id: string;
+  id: string;
+  user_id: string;
+  created_at: string;
+}
+
+export async function getConversations(token: string): Promise<getConversationsResponse[]> {
+  const res = await fetch(`${urls.conversations}`, {
+    method: "GET",
+    credentials: "include",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+  });
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
+  return res.json();
+}
+
+export interface getMessagesInConversationResponse {
+  content: string;
+  user_id: string;
+  conversation_id: string;
+  id: string;
+  created_at: string;
+}
+
+export async function getMessagesInConversation(
+  token: string,
+  conversationId: string
+): Promise<getMessagesInConversationResponse[]> {
+  const res = await fetch(`${urls.messages}?conversation_id=${conversationId}`, {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({ conversation_id: conversationId }),
+  });
+
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
+  return res.json();
+}
+
 /***************************** Tests *****************************/
 
 export interface HealthResponse {

@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
 import { useCreateBot, useGetBots, useRefreshToken } from "../hooks/useApi";
 import { motion, AnimatePresence } from "framer-motion";
-import GirlIcon from "../assets/images/svgs/GirlPink.svg";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMars } from "@fortawesome/free-solid-svg-icons";
 import { faVenus } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useSidebarStore } from "../stores/sidebarStore";
 
 type Gender = "Male" | "Female";
 type Personality = "Friendly" | "Professional" | "Casual" | "Serious" | "Sweet";
@@ -462,6 +462,7 @@ export default function PartnersPage() {
   const { mutate: refreshToken } = useRefreshToken();
   const [[isCreating, direction], setIsCreating] = useState([false, 0]);
   const [currentStep, setCurrentStep] = useState(1);
+  const { isOpen } = useSidebarStore();
   const [formData, setFormData] = useState<CompanionForm>({
     gender: null,
     name: "",
@@ -508,7 +509,9 @@ export default function PartnersPage() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="mb-8"
+          className={`mb-8 transition-all duration-300 ease-in-out ${
+            isOpen ? "ml-0" : "ml-14 mt-[-10px]"
+          }`}
         >
           <h1 className="text-[#efefef] text-4xl font-bold font-poppins">
             {isCreating ? "Create a companion" : "My companions"}
@@ -589,18 +592,28 @@ export default function PartnersPage() {
                   >
                     {bots.data.map((bot) => (
                       <motion.div
-                        key={bot.id}
+                        key={bot.bot_id}
                         variants={itemVariants}
                         className="group relative p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300 cursor-pointer"
                       >
                         <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 to-violet-500/0 group-hover:from-violet-500/5 group-hover:to-violet-500/0 transition-all duration-500 rounded-xl" />
                         <div className="relative z-10 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-pink-500/10 flex items-center justify-center border border-pink-500/20">
-                              <img
-                                src={GirlIcon}
-                                alt="Girl Icon"
-                                className="w-5 h-5 text-pink-400 filter-pink-400"
+                            <div
+                              className={`h-8 w-8 rounded-full ${
+                                bot.gender == "Female"
+                                  ? "bg-pink-500/10 border-pink-500/20"
+                                  : "bg-blue-500/10 border-blue-500/20"
+                              } flex items-center justify-center border`}
+                            >
+                              <FontAwesomeIcon
+                                icon={bot.gender == "Female" ? faVenus : faMars}
+                                size="lg"
+                                className={
+                                  bot.gender == "Female"
+                                    ? "text-pink-400 filter-pink-400"
+                                    : "text-blue-400 filter-blue-400"
+                                }
                               />
                             </div>
                             <div>

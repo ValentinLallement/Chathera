@@ -103,7 +103,7 @@ export default function HomePage() {
       <div
         className={`h-full text-white transition-all duration-300 ease-in-out ${
           isOpen
-            ? "w-[320px] opacity-100 visible p-4 mr-5 rounded-3xl"
+            ? "w-[320px] opacity-100 visible p-4 pt-7 mr-5 rounded-3xl"
             : "w-0 opacity-0 invisible p-0"
         }`}
       >
@@ -118,13 +118,13 @@ export default function HomePage() {
             </div>
             <button
               onClick={toggle}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
               aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
             >
               <img
                 src={Bar_Left}
                 alt="Toggle sidebar"
-                className="w-6 h-6 transition-transform duration-300 text-white [&>path]:stroke-white"
+                className="w-6 h-6 transition-transform duration-300 text-white [&>path]:stroke-white cursor-pointer"
               />
             </button>
           </div>
@@ -194,7 +194,7 @@ export default function HomePage() {
         {!isOpen && (
           <button
             onClick={toggle}
-            className="absolute top-4 left-4 z-50 p-2 rounded-lg bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/10 text-white transition-all duration-300 ease-in-out"
+            className="absolute cursor-pointer top-6 left-6 z-50 p-2 rounded-lg bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/10 text-white transition-all duration-300 ease-in-out"
             aria-label="Expand sidebar"
           >
             <img
