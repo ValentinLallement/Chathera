@@ -1,6 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
+import { useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLock } from "@fortawesome/free-solid-svg-icons";
+import { useCreateCheckoutSession, useRefreshToken } from "../hooks/useApi";
+import toast from "react-hot-toast";
 
 interface PricingFeature {
   included: boolean;
@@ -50,6 +55,45 @@ const CrossIcon = ({ className }: { className?: string }) => (
 export default function PricingPage() {
   const { user } = useAuthStore();
   const currentPlan = user?.subscription || "free";
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const { mutate: refreshToken } = useRefreshToken();
+  const [hasRetried, setHasRetried] = useState(false);
+  const createCheckoutSession = useCreateCheckoutSession();
+  const navigate = useNavigate();
+
+  const handlePlanClick = async (planName: string) => {
+    if (planName.toLowerCase() === "free") {
+      // For free plan, redirect to auth if not logged in
+      if (!user) {
+        navigate("/auth", { state: { from: "/dashboard" } });
+        return;
+      }
+      // If logged in, navigate to dashboard
+      navigate("/dashboard");
+      return;
+    }
+
+    // For paid plans, proceed with Stripe checkout
+    setLoadingPlan(planName.toLowerCase());
+    try {
+      const planType = planName.toLowerCase() === "premium" ? "premium" : "payg";
+      const result = await createCheckoutSession.mutateAsync({ plan: planType });
+      window.location.href = result.url;
+    } catch (error: any) {
+      console.error("Error creating checkout session:", error);
+      if (error.message.includes("401") && !hasRetried) {
+        setHasRetried(true);
+        await refreshToken(undefined, {
+          onSuccess: () => handlePlanClick(planName)
+        });
+        return;
+      }
+      toast.error("Failed to start checkout process. Please try again.");
+    } finally {
+      setLoadingPlan(null);
+      setHasRetried(false);
+    }
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -313,15 +357,27 @@ export default function PricingPage() {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    onClick={() => handlePlanClick(plan.name)}
+                    disabled={loadingPlan === plan.name.toLowerCase()}
                     className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-300 ${
                       plan.highlighted
                         ? "bg-violet-500 text-white hover:bg-violet-600 shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30"
                         : plan.name === "Full Access"
                         ? "bg-violet-500/90 text-white hover:bg-violet-600 shadow-md shadow-violet-500/10 hover:shadow-lg hover:shadow-violet-500/20"
                         : "bg-white/10 text-white hover:bg-white/20 hover:shadow-md hover:shadow-white/5"
-                    }`}
+                    } relative ${loadingPlan === plan.name.toLowerCase() ? 'cursor-not-allowed opacity-80' : ''}`}
                   >
-                    {plan.buttonText}
+                    {loadingPlan === plan.name.toLowerCase() ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <FontAwesomeIcon 
+                          icon={faLock} 
+                          className="animate-bounce" 
+                        />
+                        <span>Redirecting to checkout...</span>
+                      </div>
+                    ) : (
+                      plan.buttonText
+                    )}
                   </motion.button>
                 </motion.div>
 

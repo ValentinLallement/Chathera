@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useSidebarStore } from "../stores/sidebarStore";
 import { useConversationStore } from "../stores/conversationStore";
+import { useAuthStore } from "../stores/authStore";
 
 type Gender = "Male" | "Female";
 type Personality = "Friendly" | "Professional" | "Casual" | "Serious" | "Sweet";
@@ -459,6 +460,7 @@ const LoadingStep = ({
 };
 
 export default function PartnersPage() {
+  const { user } = useAuthStore();
   const bots = useGetBots();
   const { mutate: refreshToken } = useRefreshToken();
   const [[isCreating, direction], setIsCreating] = useState([false, 0]);
@@ -471,6 +473,12 @@ export default function PartnersPage() {
     name: "",
     personality: null,
   });
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     if (bots.isError) {
@@ -509,6 +517,10 @@ export default function PartnersPage() {
     setSelectedBotId(botId);
     navigate("/dashboard/chat");
   };
+
+  if (!user) {
+    return null; // Return null while redirecting
+  }
 
   return (
     <div className="h-full w-full flex flex-col bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5 scroll-auto">

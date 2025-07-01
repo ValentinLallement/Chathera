@@ -11,6 +11,7 @@ import {
   createBot,
   getConversations,
   getMessagesInConversation,
+  createCheckoutSession,
 } from "../api/api";
 import type {
   CreateBotParams,
@@ -19,6 +20,7 @@ import type {
   LogInResponse,
   SignUpParams,
   SignUpResponse,
+  CreateCheckoutSessionParams,
 } from "../api/api";
 import { useAuthStore } from "../stores/authStore";
 import toast from "react-hot-toast";
@@ -236,6 +238,33 @@ export function useRefreshToken() {
           fontSize: "0.95rem",
         },
       });
+    },
+  });
+}
+
+export function useCreateCheckoutSession() {
+  const { accessToken, setToken } = useAuthStore();
+
+  return useMutation({
+    mutationFn: async (params: CreateCheckoutSessionParams) => {
+      if (!accessToken) {
+        toast.error("Not authenticated", {
+          style: {
+            borderRadius: "10px",
+            background: "#1f1f1f",
+            border: "1px solid #e53e3e",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: "0.95rem",
+          },
+        });
+        throw new Error("Not authenticated");
+      }
+      return apiCallWithRefresh(
+        () => createCheckoutSession(accessToken, params),
+        setToken
+      );
     },
   });
 }

@@ -13,6 +13,7 @@ import {
   useGetBots,
   useGetConversations,
   useGetMessagesInConversation,
+  useRefreshToken,
 } from "../hooks/useApi";
 import { useConversationStore } from "../stores/conversationStore";
 import { useSidebarStore } from "../stores/sidebarStore";
@@ -37,6 +38,8 @@ export default function ChatPage() {
   const websocketRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
   const { accessToken } = useAuthStore();
+  const { mutateAsync: refreshToken } = useRefreshToken();
+  const [hasRetried, setHasRetried] = useState(false);
   const bots = useGetBots();
   const conversations = useGetConversations();
   const { selectedBotId, setSelectedBotId } = useConversationStore();
@@ -55,16 +58,13 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    if (!accessToken || !selectedBotId) return;
-
-    const ws = new WebSocket(
-      `ws://127.0.0.1:8000/ws/chat?token=${accessToken}`
-    );
+  const connectWebSocket = async (token: string) => {
+    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/chat?token=${token}`);
     websocketRef.current = ws;
 
     ws.onopen = () => {
       console.log("WebSocket connection established");
+      setHasRetried(false); // Reset retry flag on successful connection
     };
 
     ws.onmessage = (event) => {
@@ -110,18 +110,42 @@ export default function ChatPage() {
       }
     };
 
-    ws.onerror = (error) => {
+    ws.onerror = async (error) => {
       console.error("WebSocket error:", error);
-      toast.error("Error connecting to chat server");
+
+      // Only attempt refresh once
+      if (!hasRetried) {
+        try {
+          const refreshResponse = await refreshToken();
+          setHasRetried(true);
+          // Close existing connection if any
+          if (websocketRef.current) {
+            websocketRef.current.close();
+          }
+          // Retry connection with new token
+          connectWebSocket(refreshResponse.access_token);
+        } catch (refreshError) {
+          console.error("Token refresh failed:", refreshError);
+          toast.error("Failed to reconnect. Please try logging in again.");
+        }
+      } else {
+        toast.error("Error connecting to chat server");
+      }
     };
 
     ws.onclose = () => {
       console.log("WebSocket connection closed");
     };
+  };
+
+  useEffect(() => {
+    if (!accessToken || !selectedBotId) return;
+
+    connectWebSocket(accessToken);
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
+      if (websocketRef.current?.readyState === WebSocket.OPEN) {
+        websocketRef.current.close();
       }
     };
   }, [accessToken, selectedBotId]);

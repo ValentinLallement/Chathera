@@ -15,6 +15,7 @@ export const urls = {
     "createBot": `${BASE_URL}/create_bot`,
     "conversations": `${BASE_URL}/conversations`,
     "messages": `${BASE_URL}/conversations/messages`,
+    "stripe": `${BASE_URL}/stripe/create-checkout-session`,
 }
 
 
@@ -360,4 +361,45 @@ export async function apiCallWithRefresh<T>(
     }
     throw error;
   }
+}
+
+/***************************** Stripe *************************/
+
+export interface CreateCheckoutSessionParams {
+  plan: "premium" | "payg";
+}
+
+export interface CreateCheckoutSessionResponse {
+  url: string;
+}
+
+export async function createCheckoutSession(
+  token: string,
+  params: CreateCheckoutSessionParams
+): Promise<CreateCheckoutSessionResponse> {
+  const res = await fetch(urls.stripe, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("An unexpected error occurred.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Unknown error (status ${res.status})`);
+    }
+  }
+  return res.json();
 }
