@@ -21,6 +21,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from jose import JWTError, jwt
 from contextlib import asynccontextmanager
 from datetime import datetime
+from uuid import UUID
 
 from google.auth.transport import requests as google_requests
 
@@ -388,6 +389,52 @@ def create_bot_and_conversation(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erreur serveur lors de la création du bot : {e}")
 
+
+@api_router.delete("/delete_bot/{bot_id}")
+def delete_bot(
+    bot_id: UUID,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    # Authentification
+    user = get_user_from_token(token, db, credentials_exception)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Récupération du bot avec UUID
+    bot = db.query(Bot).filter(Bot.id == bot_id, Bot.user_id == user.id).first()
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot non trouvé ou vous n'avez pas les droits")
+
+    # Récupération de l'abonnement
+    subscription = db.query(Subscription).filter(Subscription.user_id == user.id).first()
+    if not subscription:
+        raise HTTPException(status_code=403, detail="Aucun abonnement trouvé pour l'utilisateur")
+
+    try:
+        # Suppression de la conversation liée au bot
+        db.query(Conversation).filter(Conversation.bot_id == bot.id).delete()
+
+        # Suppression du bot
+        db.delete(bot)
+        db.commit()
+
+        # Reporting Stripe : décrémentation si PAYG
+        if subscription.plan == PlanEnum.PAYG and subscription.stripe_subscription_item_bots:
+            try:
+                report_usage(
+                    subscription_item_id=subscription.stripe_subscription_item_bots,
+                    quantity=1,
+                    increment=False
+                )
+            except Exception as e:
+                print(f"Erreur lors du report Stripe de suppression bot : {e}")
+
+        return {"detail": f"Bot {bot.name} supprimé avec succès"}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression du bot : {e}")
 
 
 @api_router.get("/my_bots")

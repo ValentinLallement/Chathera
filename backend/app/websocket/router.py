@@ -137,24 +137,7 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
             db.add(user_message)
             db.commit()
 
-            # --- Ajout mémoire Mem0 pour message utilisateur ---
-            try:
-                mem0_add_memory(
-                    db=db,
-                    conversation_id=conversation.id,
-                    content=user_message.content,
-                    memory_type=MemoryType.SHORT,
-                    importance=MemoryImportance.MEDIUM,
-                    user_id=str(user.id),
-                    timestamp=timestamp
-                )
-            except Exception as e:
-                print(f"Erreur ajout mémoire Mem0 message utilisateur : {e}\n{traceback.format_exc()}")
-                await websocket.send_json({
-                    "type": "warning",
-                    "message": f"Erreur lors de l'ajout de la mémoire utilisateur : {str(e)}",
-                    "timestamp": datetime.utcnow().isoformat()
-                })
+            
 
             # --- Construction du prompt avec souvenirs etc. ---
             souvenirs = retrieve_contextual_memories(
@@ -231,6 +214,7 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
             print(f"Dernier message : {dernier_message}")
 
             # --- Appel DeepSeek pour réponse automatique ---
+            print("Appel DeepSeek")
             try:
                 auto_reply = get_auto_reply_from_deepseek(prompt, conversation.id, dernier_message, db)
                 print(f"Réponse DeepSeek : {auto_reply}")
@@ -252,6 +236,87 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
                     "timestamp": datetime.utcnow().isoformat()
                 })
                 continue
+
+            
+
+            # --- Traitement des actions ---
+            actions = auto_reply.get("actions", [])
+            actions_immediates = []
+
+            for action_data in actions:
+                action_type = action_data.get("type", "")
+                if action_type == "repondre":
+                    print(f"Action immédiate : {action_data}")
+                    actions_immediates.append(action_data)
+                elif action_type == "repondre_delay":
+                    print(f"Action différée : {action_data}")
+                    try:
+                        date_str = action_data.get("date", "")
+                        if date_str.endswith("Z"):
+                            date_str = date_str.replace("Z", "+00:00")
+                        date_action = datetime.fromisoformat(date_str)
+                    except Exception as e:
+                        print(f"Erreur conversion date_action : {e}")
+                        date_action = datetime.utcnow()
+
+                    future = FutureAction(
+                        conversation_id=conversation.id,
+                        action=action_type,
+                        date_action=date_action,
+                        future_message=action_data.get("message", "")
+                    )
+                    db.add(future)
+
+            db.commit()
+            futures = db.query(FutureAction).all()
+            print(f"Future actions en base : {futures}")
+
+            # --- Enregistrement du message bot ---
+            if actions_immediates:
+                reply_message = actions_immediates[0].get("message", "Désolé, une erreur est survenue.")
+            else:
+                reply_message = "vu"
+
+            bot_message = Message(
+                user_id=bot_id,
+                content=reply_message,
+                conversation_id=conversation.id,
+                timestamp=datetime.utcnow()
+            )
+            db.add(bot_message)
+            db.commit()
+
+            # --- Envoi de la réponse ---
+            try:
+                response = {
+                    "type": "reponse",
+                    "message": reply_message,
+                    "timestamp": bot_message.created_at.isoformat()
+                }
+                json.dumps(response)  # Test de sérialisation
+                await websocket.send_json(response)
+            except Exception as e:
+                print(f"Erreur envoi JSON : {e}\n{traceback.format_exc()}")
+                raise
+            
+            # --- Ajout mémoire Mem0 pour message utilisateur ---
+            try:
+                mem0_add_memory(
+                    db=db,
+                    conversation_id=conversation.id,
+                    content=user_message.content,
+                    memory_type=MemoryType.SHORT,
+                    importance=MemoryImportance.MEDIUM,
+                    user_id=str(user.id),
+                    timestamp=timestamp
+                )
+            except Exception as e:
+                print(f"Erreur ajout mémoire Mem0 message utilisateur : {e}\n{traceback.format_exc()}")
+                await websocket.send_json({
+                    "type": "warning",
+                    "message": f"Erreur lors de l'ajout de la mémoire utilisateur : {str(e)}",
+                    "timestamp": datetime.utcnow().isoformat()
+                })
 
             # --- Traitement des entrées MemoryEntry du JSON ---
             memory_entries = auto_reply.get("MemoryEntry", [])
@@ -286,49 +351,7 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
                         "timestamp": datetime.utcnow().isoformat()
                     })
 
-            # --- Traitement des actions ---
-            actions = auto_reply.get("actions", [])
-            actions_immediates = []
-
-            for action_data in actions:
-                action_type = action_data.get("type", "")
-                if action_type == "repondre":
-                    actions_immediates.append(action_data)
-                elif action_type == "repondre_delay":
-                    try:
-                        date_str = action_data.get("date", "")
-                        if date_str.endswith("Z"):
-                            date_str = date_str.replace("Z", "+00:00")
-                        date_action = datetime.fromisoformat(date_str)
-                    except Exception as e:
-                        print(f"Erreur conversion date_action : {e}")
-                        date_action = datetime.utcnow()
-
-                    future = FutureAction(
-                        conversation_id=conversation.id,
-                        action=action_type,
-                        date_action=date_action,
-                        future_message=action_data.get("message", "")
-                    )
-                    db.add(future)
-
-            db.commit()
-
-            # --- Enregistrement du message bot ---
-            if actions_immediates:
-                reply_message = actions_immediates[0].get("message", "Désolé, une erreur est survenue.")
-            else:
-                reply_message = "Pas de réponse générée."
-
-            bot_message = Message(
-                user_id=bot_id,
-                content=reply_message,
-                conversation_id=conversation.id,
-                timestamp=datetime.utcnow()
-            )
-            db.add(bot_message)
-            db.commit()
-
+        
             # --- Ajout mémoire Mem0 pour message bot (SHORT, MEDIUM) ---
             try:
                 mem0_add_memory(
@@ -348,18 +371,7 @@ async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
                     "timestamp": datetime.utcnow().isoformat()
                 })
 
-            # --- Envoi de la réponse ---
-            try:
-                response = {
-                    "type": "reponse",
-                    "message": reply_message,
-                    "timestamp": bot_message.created_at.isoformat()
-                }
-                json.dumps(response)  # Test de sérialisation
-                await websocket.send_json(response)
-            except Exception as e:
-                print(f"Erreur envoi JSON : {e}\n{traceback.format_exc()}")
-                raise
+            
 
     except WebSocketDisconnect:
         unregister_websocket(user.id)

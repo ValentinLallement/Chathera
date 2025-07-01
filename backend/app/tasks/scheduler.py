@@ -96,12 +96,22 @@ async def task_scheduler():
                     websocket = active_websockets.get(conversation.user_id)
 
                     if websocket:
+                        print(f"Tentative d'envoi WebSocket pour {conversation.user_id} avec message : {action.future_message}")
                         try:
                             await websocket.send_json({
                                 "type": "future_action",
                                 "message": action.future_message,
                                 "timestamp": now.isoformat()
                             })
+                            msg = Message(
+                            user_id=conversation.bot_id,
+                            content=action.future_message,
+                            conversation_id=conversation.id,
+                            timestamp=now,
+                            read=True
+                            )
+                            db.add(msg)
+                        
                         except Exception as e:
                             print(f"Erreur envoi WebSocket future_action pour user {conversation.user_id} : {e}")
                             unregister_websocket(conversation.user_id)
@@ -118,11 +128,11 @@ async def task_scheduler():
                         db.add(future_msg)
 
                         # Envoi notification push
-                        await send_notification_to_user(conversation.user_id, action.future_message, db)
+                        #await send_notification_to_user(conversation.user_id, action.future_message, db)
 
                     db.delete(action)
                     db.commit()
             finally:
                 db.close()
 
-        await asyncio.sleep(5)  # Pause 5 secondes avant prochaine vérification
+        await asyncio.sleep(2.5)  # Pause 5 secondes avant prochaine vérification
