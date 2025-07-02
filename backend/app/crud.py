@@ -18,6 +18,7 @@ from . import schemas,auth
 from app.db.models.models import Conversation, Message, FutureAction, Subscription
 from app.utils.payg import PlanEnum
 from app.utils.email import send_email_verification_code
+from app.utils.permissions import MESSAGE_LIMITS
 
 
 #----------------------  User  --------------------------------------------------
@@ -219,21 +220,21 @@ def update_user_subscription(
     user_id: UUID,
     new_plan: Optional[Union[str, PlanEnum]] = None,
     message_limit: Optional[int] = None,
+    message_limit_provided: bool = False  # <-- ajout du flag pour savoir si on modifie
 ):
     subscription = db.query(Subscription).filter(Subscription.user_id == user_id).first()
 
     if not subscription:
-        # Création avec plan FREE par défaut
         subscription = Subscription(
             user_id=user_id,
             plan=PlanEnum.FREE,
-            message_limit=None,  # par défaut None car plan free
+            message_limit=None,
             message_count=0,
             start_date=datetime.utcnow(),
             last_reset=datetime.utcnow().date()
         )
         db.add(subscription)
-        db.flush()  # flush pour générer l'ID si besoin
+        db.flush()
 
     if new_plan:
         try:
@@ -248,14 +249,15 @@ def update_user_subscription(
         subscription.message_count = 0
         subscription.last_reset = datetime.utcnow().date()
 
-    # Gestion message_limit en fonction du plan
-    if subscription.plan in {PlanEnum.FREE, PlanEnum.PREMIUM}:
-        # On force message_limit à None si le plan est free ou premium, peu importe l'entrée
-        subscription.message_limit = None
-    else:
-        # Sinon (payg par exemple), on applique le message_limit donné si existant
-        if message_limit is not None:
-            subscription.message_limit = message_limit
+        # Si on change de plan, et que message_limit n'est pas explicitement modifié,
+        # on applique la limite par défaut du plan
+        if not message_limit_provided:
+            # Exemple : on définit MESSAGE_LIMITS ailleurs dans ton code
+            subscription.message_limit = MESSAGE_LIMITS.get(new_plan, None)
+
+    # On modifie message_limit uniquement si on l'a explicitement demandé
+    if message_limit_provided:
+        subscription.message_limit = message_limit
 
     db.commit()
     db.refresh(subscription)

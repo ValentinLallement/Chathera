@@ -23,6 +23,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from uuid import UUID
 
+
 from google.auth.transport import requests as google_requests
 
 from app import crud, schemas, dependencies, auth
@@ -30,7 +31,7 @@ from app.db.models.models import Conversation, Bot, User, Subscription, PlanEnum
 from app.schemas import (
     CreateBotRequest, UserLogin, PromptRequest, RefreshTokenRequest,
     UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest,
-    SubscriptionData
+    SubscriptionData, UserSubscriptionsResponse,SubscriptionInfo
 
 )
 from app.auth import verify_token, get_user_from_token, create_password_reset_token
@@ -453,7 +454,7 @@ def get_my_bots(token: str = Depends(oauth2_scheme), db: Session = Depends(get_d
 
 # ----------------- Abonnements -----------------
 
-@api_router.put("/user/subscription", response_model=schemas.SubscriptionUpdate)
+@api_router.put("/user/subscription/update", response_model=schemas.SubscriptionUpdate)
 async def update_my_subscription(
     subscription_update: schemas.SubscriptionUpdate,
     token: str = Depends(oauth2_scheme),
@@ -463,16 +464,54 @@ async def update_my_subscription(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    update_data = subscription_update.dict(exclude_unset=True)
+
     try:
         updated_subscription = crud.update_user_subscription(
             db=db,
             user_id=user.id,
-            new_plan=subscription_update.plan,
-            message_limit=subscription_update.message_limit
+            new_plan=update_data.get("plan"),
+            message_limit=update_data.get("message_limit"),
+            message_limit_provided="message_limit" in update_data
         )
         return updated_subscription
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    
+
+@api_router.get("/user/subscription/infos", response_model=UserSubscriptionsResponse)
+def get_user_subscription(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    # Récupérer user depuis token (authentification)
+    user = get_user_from_token(token, db, credentials_exception)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Récupérer le premier abonnement de l'user
+    subscription = db.query(Subscription).filter(Subscription.user_id == user.id).first()
+
+    if not subscription:
+        
+        return UserSubscriptionsResponse(
+            subscriptions=None
+        )
+
+    subs_info = SubscriptionInfo(
+        id=subscription.id,
+        user_id=user.id,
+        plan=subscription.plan,
+        start_date=subscription.start_date,
+        status=subscription.status,
+        message_count=subscription.message_count,
+        last_reset=subscription.last_reset,
+        message_limit=subscription.message_limit,     
+    )
+
+    return UserSubscriptionsResponse(
+        subscriptions=subs_info,
+    )
     
 # ----------------- Notification Push -----------------
 

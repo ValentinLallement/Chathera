@@ -13,7 +13,7 @@ from app.utils.payg import PlanEnum
 
 # ----------------------------- Abonnements -----------------------------
 
-class Subscription(BaseModel):
+class SubscriptionInfo(BaseModel):
     id: UUID
     user_id: UUID
     plan: str
@@ -36,6 +36,9 @@ class SubscriptionUpdate(BaseModel):
 class CheckoutRequest(BaseModel):
     plan: str 
 
+class UserSubscriptionsResponse(BaseModel):
+    subscriptions: Optional[SubscriptionInfo]
+
 # ----------------------------- Utilisateur -----------------------------
 class UserLogin(BaseModel):
     login: str  # Peut être un email ou un nom d'utilisateur
@@ -55,7 +58,7 @@ class User(UserBase):
     id: UUID
     name: Optional[str] = None
     profile_picture: Optional[str] = None
-    subscription: Optional[Subscription] = None
+    subscription: Optional[SubscriptionInfo] = None
 
     class Config:
         from_attributes = True

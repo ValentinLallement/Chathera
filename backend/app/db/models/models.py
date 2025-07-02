@@ -243,6 +243,30 @@ class Subscription(SQLModel, table=True):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+class SubscriptionHistory(SQLModel, table=True):
+    __tablename__ = "subscription_history"
+
+    id: UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    subscription_id: UUID = Field(foreign_key="subscription.id", nullable=False)
+
+    user_id: UUID = Field(foreign_key="user.id", nullable=False)
+
+    plan: PlanEnum = Field()
+    start_date: datetime
+    message_count: int
+    last_reset: date
+    status: SubscriptionStatus
+    message_limit: Optional[int]
+
+    stripe_subscription_id: Optional[str] = Field(default=None, nullable=True, index=True)
+    stripe_subscription_item_messages: Optional[str] = Field(default=None, nullable=True, index=True)
+    stripe_subscription_item_bots: Optional[str] = Field(default=None, nullable=True, index=True)
+
+    recorded_at: datetime = Field(default_factory=datetime.utcnow, nullable=False, index=True)
+
+    class Config:
+        arbitrary_types_allowed = True
+
 # -------- Pay-as-you-go -----------
 
 

@@ -66,6 +66,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         print(f"[Webhook] Erreur lors de la construction de l'événement : {e}")
         raise HTTPException(status_code=400, detail="Webhook error")
 
+    # === checkout.session.completed ===
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
         print(f"[Webhook] checkout.session.completed déclenché - Session ID: {session.get('id')}")
@@ -74,46 +75,39 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             user_id = UUID(session["metadata"]["user_id"])
             plan = session["metadata"]["plan"]
             new_stripe_subscription_id = session.get("subscription")
-            print(f"[Webhook] Utilisateur : {user_id} | Plan : {plan} | Subscription ID : {new_stripe_subscription_id}")
         except Exception as e:
             print(f"[Webhook] Erreur d'extraction des métadonnées : {e}")
             raise HTTPException(status_code=400, detail="Invalid session metadata")
 
         try:
             stripe_subscription = stripe.Subscription.retrieve(new_stripe_subscription_id)
-            print(f"[Webhook] Abonnement Stripe récupéré : {stripe_subscription['id']}")
         except Exception as e:
             print(f"[Webhook] Échec de la récupération de l'abonnement Stripe : {e}")
             raise HTTPException(status_code=500, detail="Stripe subscription retrieval error")
 
-        # Identifier les items de souscription
+        # Identifier les items
         item_messages_id = None
         item_bots_id = None
         for item in stripe_subscription['items']['data']:
             price_id = item['price']['id']
             if price_id == MESSAGE_PRICE_ID:
                 item_messages_id = item['id']
-                print(f"[Webhook] Item messages identifié : {item_messages_id}")
             elif price_id == BOT_PRICE_ID:
                 item_bots_id = item['id']
-                print(f"[Webhook] Item bots identifié : {item_bots_id}")
 
-        # Vérifier la souscription en BDD
         subscription = db.query(Subscription).filter(Subscription.user_id == user_id).first()
 
-        # Si un ancien abonnement Stripe existe, le supprimer
-        if subscription and subscription.stripe_subscription_id and subscription.stripe_subscription_id != new_stripe_subscription_id:
+        # Supprimer ancien abonnement si différent
+        if subscription and subscription.stripe_subscription_id != new_stripe_subscription_id:
             try:
                 stripe.Subscription.delete(subscription.stripe_subscription_id)
-                print(f"[Webhook] Ancien abonnement Stripe annulé : {subscription.stripe_subscription_id}")
             except Exception as e:
-                print(f"[Webhook] Erreur lors de l'annulation de l'ancien abonnement : {e}")
+                print(f"[Webhook] Erreur annulation ancien abonnement : {e}")
 
-        # Créer ou mettre à jour la souscription en base
+        # Créer ou mettre à jour
         if not subscription:
             subscription = Subscription(user_id=user_id)
             db.add(subscription)
-            print(f"[Webhook] Nouvelle souscription créée en base pour l'utilisateur {user_id}")
 
         subscription.plan = plan
         subscription.start_date = datetime.utcnow()
@@ -124,24 +118,75 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
         try:
             db.commit()
-            print("[Webhook] Abonnement enregistré avec succès en base.")
         except Exception as e:
-            print(f"[Webhook] Erreur lors de l'enregistrement de l'abonnement : {e}")
             raise HTTPException(status_code=500, detail="Database commit error")
 
-        # Gérer usage initial si plan = PAYG
+        # Usage initial pour PAYG
         if plan == "payg" and item_bots_id:
             try:
-                from app.db.models.models import Bot  # ajuste si nécessaire
+                from app.db.models.models import Bot
                 initial_bots_usage = db.query(Bot).filter(Bot.user_id == user_id).count()
-                print(f"[Webhook] Bots existants pour utilisateur {user_id} : {initial_bots_usage}")
-
                 report_usage(subscription_item_id=item_bots_id, quantity=initial_bots_usage, increment=False)
-                print(f"[Webhook] Usage initial des bots reporté pour item : {item_bots_id}")
             except Exception as e:
-                print(f"[Webhook] Erreur lors du report de l’usage initial : {e}")
+                print(f"[Webhook] Erreur usage initial : {e}")
+
+    # === invoice.paid ===
+    elif event["type"] == "invoice.paid":
+        invoice = event["data"]["object"]
+        stripe_subscription_id = invoice["subscription"]
+        subscription = db.query(Subscription).filter(Subscription.stripe_subscription_id == stripe_subscription_id).first()
+        if subscription:
+            subscription.status = SubscriptionStatus.active
+            db.commit()
+
+    # === invoice.payment_failed ===
+    elif event["type"] == "invoice.payment_failed":
+        invoice = event["data"]["object"]
+        stripe_subscription_id = invoice["subscription"]
+        subscription = db.query(Subscription).filter(Subscription.stripe_subscription_id == stripe_subscription_id).first()
+        if subscription:
+            subscription.status = SubscriptionStatus.unpaid  # ou past_due
+            db.commit()
+
+    # === customer.subscription.deleted ===
+    elif event["type"] == "customer.subscription.deleted":
+        subscription_data = event["data"]["object"]
+        stripe_subscription_id = subscription_data["id"]
+        subscription = db.query(Subscription).filter(Subscription.stripe_subscription_id == stripe_subscription_id).first()
+        if subscription:
+            subscription.status = SubscriptionStatus.cancelled
+            db.commit()
+
+    # === customer.subscription.updated ===
+    elif event["type"] == "customer.subscription.updated":
+        subscription_data = event["data"]["object"]
+        stripe_subscription_id = subscription_data["id"]
+        new_status = subscription_data["status"]
+
+        subscription = db.query(Subscription).filter(Subscription.stripe_subscription_id == stripe_subscription_id).first()
+        if not subscription:
+            return {"status": "not_found"}
+
+        try:
+            subscription.status = SubscriptionStatus(new_status)
+        except ValueError:
+            subscription.status = SubscriptionStatus.unpaid
+
+        try:
+            price_ids = [item["price"]["id"] for item in subscription_data["items"]["data"]]
+            if MESSAGE_PRICE_ID in price_ids:
+                subscription.plan = "messages"
+            elif BOT_PRICE_ID in price_ids:
+                subscription.plan = "bots"
+            else:
+                subscription.plan = "custom"
+        except Exception as e:
+            print(f"[Webhook] Erreur mise à jour plan : {e}")
+
+        db.commit()
 
     return {"status": "success"}
+
 
 @router.delete("/subscription")
 def cancel_subscription(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
