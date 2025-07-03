@@ -397,30 +397,28 @@ def delete_bot(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    # Authentification
     user = get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Récupération du bot avec UUID
     bot = db.query(Bot).filter(Bot.id == bot_id, Bot.user_id == user.id).first()
     if not bot:
-        raise HTTPException(status_code=404, detail="Bot non trouvé ou vous n'avez pas les droits")
+        raise HTTPException(status_code=404, detail="Bot non trouvé ou pas les droits")
 
-    # Récupération de l'abonnement
     subscription = db.query(Subscription).filter(Subscription.user_id == user.id).first()
     if not subscription:
-        raise HTTPException(status_code=403, detail="Aucun abonnement trouvé pour l'utilisateur")
+        raise HTTPException(status_code=403, detail="Aucun abonnement trouvé")
 
     try:
-        # Suppression de la conversation liée au bot
-        db.query(Conversation).filter(Conversation.bot_id == bot.id).delete()
+        conversations = db.query(Conversation).filter(Conversation.bot_id == bot.id).all()
+        for conv in conversations:
+            db.delete(conv)
+        db.commit()
 
-        # Suppression du bot
         db.delete(bot)
         db.commit()
 
-        # Reporting Stripe : décrémentation si PAYG
+        # Reporting Stripe si PAYG ...
         if subscription.plan == PlanEnum.PAYG and subscription.stripe_subscription_item_bots:
             try:
                 report_usage(
@@ -429,13 +427,13 @@ def delete_bot(
                     increment=False
                 )
             except Exception as e:
-                print(f"Erreur lors du report Stripe de suppression bot : {e}")
+                print(f"Erreur report Stripe suppression bot : {e}")
 
         return {"detail": f"Bot {bot.name} supprimé avec succès"}
 
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression du bot : {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression : {e}")
 
 
 @api_router.get("/my_bots")
