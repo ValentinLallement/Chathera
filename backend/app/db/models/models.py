@@ -243,6 +243,8 @@ class Subscription(SQLModel, table=True):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    
+
 class SubscriptionHistory(SQLModel, table=True):
     __tablename__ = "subscription_history"
 

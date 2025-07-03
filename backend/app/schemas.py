@@ -14,13 +14,13 @@ from app.utils.payg import PlanEnum
 # ----------------------------- Abonnements -----------------------------
 
 class SubscriptionInfo(BaseModel):
-    id: UUID
-    user_id: UUID
     plan: str
     start_date: datetime
     message_count: int
     message_limit: Optional[int]
     last_reset: date
+    status: str
+
 
     class Config:
         from_attributes = True  
@@ -57,8 +57,10 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: UUID
     name: Optional[str] = None
+    username: Optional[str] = None
     profile_picture: Optional[str] = None
-    subscription: Optional[SubscriptionInfo] = None
+    is_verified: bool = False
+    
 
     class Config:
         from_attributes = True
@@ -104,7 +106,7 @@ class RefreshTokenRequest(BaseModel):
 
 class MessageBase(BaseModel):
     content: str
-    created_at: datetime  # on utilise `created_at` pour refléter la base de données
+    created_at: datetime  
 
 class Message(MessageBase):
     id: UUID
