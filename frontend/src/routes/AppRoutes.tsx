@@ -5,6 +5,7 @@ import LoadingIndicator from "../components/LoadingIndicator";
 import ErrorBoundary from "../components/ErrorBoundary";
 import DashBoardLayout from "../layouts/DashBoardLayout";
 import { ProtectedRoute } from "../components/ProtectedRoute";
+import SettingsPage from "../pages/SettingsPage";
 
 // Lazy-load comme ca ya du code splitting bg :)
 const LandingPage = lazy(() => import("../pages/LandingPage"));
@@ -17,6 +18,7 @@ const GoogleCallback = lazy(() => import("../pages/GoogleCallback"));
 const Profile = lazy(() => import("../pages/ProfilePage"));
 const Demo = lazy(() => import("../pages/DemoPage"));
 const Pricing = lazy(() => import("../pages/PricingPage"));
+const Settings = lazy(() => import("../pages/SettingsPage"));
 const UnderConstruction = lazy(() => import("../pages/UnderConstructionPage"));
 
 // Wrap lazy components with error boundary
@@ -94,18 +96,7 @@ export default function AppRoutes() {
           <Route index element={withErrorBoundary(Home)} />
           <Route path="chat" element={withErrorBoundary(Chat)} />
           <Route path="partners" element={withErrorBoundary(Partners)} />
-          <Route
-            path="settings"
-            element={withErrorBoundary(UnderConstruction)}
-          />
-          <Route
-            path="notifications"
-            element={withErrorBoundary(UnderConstruction)}
-          />
-          <Route
-            path="billing"
-            element={withErrorBoundary(UnderConstruction)}
-          />
+          <Route path="settings" element={withErrorBoundary(Settings)} />
         </Route>
       </Route>
 
