@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { MouseEvent } from "react";
 import leaNormal from "../assets/images/girls/leaNormal.png";
 import leaSexy from "../assets/images/girls/leaSexy2.png";
 import leaHot from "../assets/images/girls/leaHot3.png";
@@ -173,6 +174,35 @@ function MessagesSection() {
     </>
   );
 }
+
+const SpotlightItem = ({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) => {
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty("--x", `${x}px`);
+    e.currentTarget.style.setProperty("--y", `${y}px`);
+  };
+
+  return (
+    <div
+      className={`cursor-spotlight ${className}`}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.setProperty("--x", "50%");
+        e.currentTarget.style.setProperty("--y", "50%");
+      }}
+    >
+      {children}
+    </div>
+  );
+};
 
 export default function LandingPage() {
   const [firstSectionHover, setFirstSectionHover] = useState<number | null>(
@@ -419,6 +449,7 @@ export default function LandingPage() {
               privately.
             </p>
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
             {[
               {
@@ -440,26 +471,29 @@ export default function LandingPage() {
                 description: "24/7 dedicated support for premium members",
               },
             ].map((feature) => (
-              <div
-                key={feature.title}
-                className="feature-card p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 group"
-                onMouseMove={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const x = e.clientX - rect.left;
-                  const y = e.clientY - rect.top;
-                  e.currentTarget.style.setProperty("--x", `${x}px`);
-                  e.currentTarget.style.setProperty("--y", `${y}px`);
-                }}
-              >
-                <h3 className="text-white/90 font-semibold mb-2 relative z-10">
-                  {feature.title}
-                </h3>
-                <p className="text-white/70 text-sm relative z-10">
-                  {feature.description}
-                </p>
-              </div>
+              <SpotlightItem>
+                <div
+                  key={feature.title}
+                  className="feature-card p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 group"
+                  onMouseMove={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    e.currentTarget.style.setProperty("--x", `${x}px`);
+                    e.currentTarget.style.setProperty("--y", `${y}px`);
+                  }}
+                >
+                  <h3 className="text-white/90 font-semibold mb-2 relative z-10">
+                    {feature.title}
+                  </h3>
+                  <p className="text-white/70 text-sm relative z-10">
+                    {feature.description}
+                  </p>
+                </div>
+              </SpotlightItem>
             ))}
           </div>
+
           <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full justify-center ">
             <button className="group relative px-6 py-3 rounded-lg overflow-hidden transition-all duration-300 glow-effect">
               <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-violet-500/20 backdrop-blur-md" />
@@ -479,9 +513,11 @@ export default function LandingPage() {
                 Upgrade Now
               </span>
             </button>
-            <button className="cursor-pointer px-6 py-3 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10 text-white/90 hover:bg-white/10 transition-colors">
-              View Plans
-            </button>
+            <SpotlightItem>
+              <button className="cursor-pointer px-6 py-3 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10 text-white/90 hover:bg-white/10 transition-colors">
+                View Plans
+              </button>
+            </SpotlightItem>
           </div>
         </div>
       </section>

@@ -129,7 +129,7 @@ export default function Footer() {
               <ul className="space-y-3">
                 <li>
                   <a
-                    href="https://twitter.com"
+                    href="https://www.tiktok.com/@chathera_officiel"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
@@ -139,7 +139,7 @@ export default function Footer() {
                 </li>
                 <li>
                   <a
-                    href="https://discord.com"
+                    href="https://www.instagram.com/chathera_officiel"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
@@ -149,7 +149,7 @@ export default function Footer() {
                 </li>
                 <li>
                   <a
-                    href="https://github.com"
+                    href="https://discord.com"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
@@ -159,7 +159,7 @@ export default function Footer() {
                 </li>
                 <li>
                   <a
-                    href="#"
+                    href="https://github.com/ValentinLallement"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
