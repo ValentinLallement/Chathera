@@ -17,7 +17,7 @@ const GoogleCallback = lazy(() => import("../pages/GoogleCallback"));
 const Profile = lazy(() => import("../pages/ProfilePage"));
 const Demo = lazy(() => import("../pages/DemoPage"));
 const Pricing = lazy(() => import("../pages/PricingPage"));
-const Settings = lazy(() => import("../pages/SettingsPage"));
+const UnderConstruction = lazy(() => import("../pages/UnderConstructionPage"));
 
 // Wrap lazy components with error boundary
 const withErrorBoundary = (Component: React.ComponentType) => (
@@ -43,6 +43,31 @@ export default function AppRoutes() {
         <Route path="/" element={withErrorBoundary(LandingPage)} />
         <Route path="/demo" element={withErrorBoundary(Demo)} />
         <Route path="/pricing" element={withErrorBoundary(Pricing)} />
+
+        {/* Under construction pages */}
+        <Route path="/about" element={withErrorBoundary(UnderConstruction)} />
+        <Route path="/docs" element={withErrorBoundary(UnderConstruction)} />
+        <Route
+          path="/ai-models"
+          element={withErrorBoundary(UnderConstruction)}
+        />
+        <Route
+          path="/integrations"
+          element={withErrorBoundary(UnderConstruction)}
+        />
+        <Route
+          path="/features"
+          element={withErrorBoundary(UnderConstruction)}
+        />
+        <Route path="/contact" element={withErrorBoundary(UnderConstruction)} />
+        <Route path="/privacy" element={withErrorBoundary(UnderConstruction)} />
+        <Route path="/terms" element={withErrorBoundary(UnderConstruction)} />
+        <Route path="/blog" element={withErrorBoundary(UnderConstruction)} />
+        <Route path="/help" element={withErrorBoundary(UnderConstruction)} />
+        <Route
+          path="/changelog"
+          element={withErrorBoundary(UnderConstruction)}
+        />
       </Route>
 
       {/* Protected routes with MainLayout */}
@@ -69,7 +94,18 @@ export default function AppRoutes() {
           <Route index element={withErrorBoundary(Home)} />
           <Route path="chat" element={withErrorBoundary(Chat)} />
           <Route path="partners" element={withErrorBoundary(Partners)} />
-          <Route path="settings" element={withErrorBoundary(Settings)} />
+          <Route
+            path="settings"
+            element={withErrorBoundary(UnderConstruction)}
+          />
+          <Route
+            path="notifications"
+            element={withErrorBoundary(UnderConstruction)}
+          />
+          <Route
+            path="billing"
+            element={withErrorBoundary(UnderConstruction)}
+          />
         </Route>
       </Route>
 
