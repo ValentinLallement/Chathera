@@ -1,5 +1,10 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useCreateBot, useGetBots, useRefreshToken } from "../hooks/useApi";
+import {
+  useCreateBot,
+  useGetBots,
+  useRefreshToken,
+  useDeleteBot,
+} from "../hooks/useApi";
 import { motion, AnimatePresence } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMars } from "@fortawesome/free-solid-svg-icons";
@@ -8,7 +13,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useSidebarStore } from "../stores/sidebarStore";
 import { useConversationStore } from "../stores/conversationStore";
-import { useAuthStore } from "../stores/authStore";
+import { faTrash } from "@fortawesome/free-solid-svg-icons";
 
 type Gender = "Male" | "Female";
 type Personality = "Friendly" | "Professional" | "Casual" | "Serious" | "Sweet";
@@ -460,9 +465,10 @@ const LoadingStep = ({
 };
 
 export default function PartnersPage() {
-  const { user } = useAuthStore();
   const bots = useGetBots();
   const { mutate: refreshToken } = useRefreshToken();
+  const deleteBot = useDeleteBot();
+  const [botToDelete, setBotToDelete] = useState<string | null>(null);
   const [[isCreating, direction], setIsCreating] = useState([false, 0]);
   const [currentStep, setCurrentStep] = useState(1);
   const { isOpen } = useSidebarStore();
@@ -473,12 +479,6 @@ export default function PartnersPage() {
     name: "",
     personality: null,
   });
-
-  useEffect(() => {
-    if (!user) {
-      navigate("/login");
-    }
-  }, [user, navigate]);
 
   useEffect(() => {
     if (bots.isError) {
@@ -518,9 +518,37 @@ export default function PartnersPage() {
     navigate("/dashboard/chat");
   };
 
-  if (!user) {
-    return null; // Return null while redirecting
-  }
+  const handleDelete = async (botId: string) => {
+    try {
+      await deleteBot.mutateAsync(botId);
+      toast.success("Companion deleted successfully!", {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #333333",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+      bots.refetch();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete companion", {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #e53e3e",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+    } finally {
+      setBotToDelete(null);
+    }
+  };
 
   return (
     <div className="h-full w-full flex flex-col bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5 scroll-auto">
@@ -651,20 +679,34 @@ export default function PartnersPage() {
                               </p>
                             </div>
                           </div>
-                          <div className="h-10 w-10 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/20 group-hover:bg-violet-500/20 transition-all duration-300">
-                            <svg
-                              className="w-5 h-5 text-violet-400"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setBotToDelete(bot.bot_id);
+                              }}
+                              className="cursor-pointer h-10 w-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 hover:bg-red-500/20 transition-all duration-300"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                              <FontAwesomeIcon
+                                icon={faTrash}
+                                className="text-red-400"
                               />
-                            </svg>
+                            </button>
+                            <div className="h-10 w-10 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/20 group-hover:bg-violet-500/20 transition-all duration-300">
+                              <svg
+                                className="w-5 h-5 text-violet-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                                />
+                              </svg>
+                            </div>
                           </div>
                         </div>
                       </motion.div>
@@ -809,6 +851,35 @@ export default function PartnersPage() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {botToDelete && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#1f1f1f] p-6 rounded-2xl border border-gray-800 w-[90%] max-w-md">
+            <h3 className="text-xl font-semibold text-white mb-4">
+              Delete Companion
+            </h3>
+            <p className="text-gray-300 mb-6">
+              Are you sure you want to delete this companion? This action cannot
+              be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setBotToDelete(null)}
+                className="cursor-pointer px-4 py-2 rounded-lg bg-gray-800 text-white hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => botToDelete && handleDelete(botToDelete)}
+                className="cursor-pointer px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

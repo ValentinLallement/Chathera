@@ -1,11 +1,16 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { useSidebarStore } from "../stores/sidebarStore";
 import { useAuthStore } from "../stores/authStore";
+import { useGetSubscriptionInfos } from "../hooks/useApi";
 import Logo from "../components/Logo";
 import type { MouseEvent } from "react";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faVenusMars } from "@fortawesome/free-solid-svg-icons";
+import {
+  faVenusMars,
+  faCrown,
+  faInfinity,
+} from "@fortawesome/free-solid-svg-icons";
 
 // Import SVG icons
 import Bar_Left from "../assets/images/svgs/Bar_Left.svg";
@@ -96,6 +101,65 @@ export default function HomePage() {
   const { isOpen, toggle } = useSidebarStore();
   const { user } = useAuthStore();
   const location = useLocation();
+  const { data: subscriptionData } = useGetSubscriptionInfos();
+
+  const renderUpgradeWidget = () => {
+    const plan = subscriptionData?.subscriptions?.plan?.toLowerCase() || "free";
+
+    if (plan === "premium") {
+      return (
+        <SpotlightItem className="p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 to-yellow-400/5 backdrop-blur-sm border border-yellow-500/10">
+          <div className="flex items-center gap-2 mb-2">
+            <FontAwesomeIcon icon={faCrown} className="text-yellow-400" />
+            <h4 className="text-sm font-medium text-white">Premium Plan</h4>
+          </div>
+          <p className="text-xs text-white/70 mb-3">
+            {subscriptionData?.subscriptions?.message_count} / 600 messages used
+            this month
+          </p>
+          <Link to="/dashboard/settings">
+            <button className="w-full px-4 py-2 rounded-lg bg-yellow-500/20 text-yellow-400 text-sm font-medium border border-yellow-500/20 hover:bg-yellow-500/30 transition-colors">
+              Manage Subscription
+            </button>
+          </Link>
+        </SpotlightItem>
+      );
+    } else if (plan === "payg") {
+      return (
+        <SpotlightItem className="p-4 rounded-xl bg-gradient-to-r from-violet-500/10 to-violet-400/5 backdrop-blur-sm border border-violet-500/10">
+          <div className="flex items-center gap-2 mb-2">
+            <FontAwesomeIcon icon={faInfinity} className="text-violet-400" />
+            <h4 className="text-sm font-medium text-white">Full Access Plan</h4>
+          </div>
+          <p className="text-xs text-white/70 mb-3">
+            {subscriptionData?.subscriptions?.message_count} messages this month
+          </p>
+          <Link to="/dashboard/settings">
+            <button className="w-full px-4 py-2 rounded-lg bg-violet-500/20 text-violet-400 text-sm font-medium border border-violet-500/20 hover:bg-emerald-500/30 transition-colors">
+              Manage Subscription
+            </button>
+          </Link>
+        </SpotlightItem>
+      );
+    }
+
+    return (
+      <SpotlightItem className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-emerald-400/5 backdrop-blur-sm border border-emerald-500/10">
+        <h4 className="text-sm font-medium text-white mb-2">
+          Upgrade to Premium
+        </h4>
+        <p className="text-xs text-white/70 mb-3">
+          {subscriptionData?.subscriptions?.message_count || 0} / 10 messages
+          used this month
+        </p>
+        <Link to="/pricing">
+          <button className="w-full px-4 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium border border-emerald-500/20 hover:bg-violet-500/30 transition-colors">
+            Upgrade Now
+          </button>
+        </Link>
+      </SpotlightItem>
+    );
+  };
 
   return (
     <div className="p-[20px] w-screen h-screen bg-gradient-to-b from-[#1f1f1f] to-[#000000] flex flex-row">
@@ -159,34 +223,35 @@ export default function HomePage() {
 
           {/* Bottom section */}
           <div className="mt-auto">
-            <SpotlightItem className="p-4 rounded-xl bg-gradient-to-r from-violet-500/10 to-violet-400/5 backdrop-blur-sm border border-violet-500/10">
-              <h4 className="text-sm font-medium text-white mb-2">
-                Upgrade to Pro
-              </h4>
-              <p className="text-xs text-white/70 mb-3">
-                Get access to all features and unlimited messages
-              </p>
-              <Link to="/pricing">
-                <button className="w-full px-4 py-2 rounded-lg bg-violet-500/20 text-violet-400 text-sm font-medium border border-violet-500/20 hover:bg-violet-500/30 transition-colors">
-                  Upgrade Now
-                </button>
-              </Link>
+            {renderUpgradeWidget()}
+
+            <SpotlightItem className="p-4 rounded-xl bg-gradient-to-r from-gray-500/11 to-gray-400/5 backdrop-blur-sm border border-gray-500/10 mt-4 flex justify-between items-center">
+              <div>
+                <p className="text-white/90 font-medium">
+                  {user?.name || "Guest"}
+                </p>
+                <p className="text-white/30 text-sm mt-0.5">{user?.username}</p>
+              </div>
+              <div
+                className={`px-3 py-1 rounded-xl bg-gradient-to-b ${
+                  subscriptionData?.subscriptions?.plan?.toLowerCase() ===
+                  "premium"
+                    ? "from-yellow-500/22 to-yellow-400/15 border-yellow-500/15"
+                    : subscriptionData?.subscriptions?.plan?.toLowerCase() ===
+                      "payg"
+                    ? "from-violet-500/22 to-violet-400/15 border-violet-500/15"
+                    : "from-emerald-500/22 to-emerald-400/15 border-emerald-500/15"
+                } backdrop-blur-sm border flex justify-between items-center`}
+              >
+                <p className="text-sm text-white/80 font-medium capitalize">
+                  {subscriptionData?.subscriptions?.plan?.toLowerCase() ==
+                  "payg"
+                    ? "Unlimited"
+                    : subscriptionData?.subscriptions?.plan || "Free"}
+                </p>
+              </div>
             </SpotlightItem>
           </div>
-
-          <SpotlightItem className="p-4 rounded-xl bg-gradient-to-r from-gray-500/11 to-gray-400/5 backdrop-blur-sm border border-gray-500/10 mt-4 flex justify-between items-center">
-            <div>
-              <p className="text-white/90 font-medium">
-                {user?.name || "Guest"}
-              </p>
-              <p className="text-white/30 text-sm mt-0.5">{user?.username}</p>
-            </div>
-            <div className="px-3 py-1 rounded-xl bg-gradient-to-b from-green-500/22 to-green-400/15 backdrop-blur-sm border border-green-500/15 flex justify-between items-center">
-              <p className="text-sm text-white/80 font-medium capitalize">
-                {user?.subscription || "Free"}
-              </p>
-            </div>
-          </SpotlightItem>
         </div>
       </div>
 

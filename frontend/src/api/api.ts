@@ -13,9 +13,11 @@ export const urls = {
     "logout": `${BASE_URL}/logout`,
     "refresh": `${BASE_URL}/refresh`,
     "createBot": `${BASE_URL}/create_bot`,
+    "deleteBot": `${BASE_URL}/delete_bot`,
     "conversations": `${BASE_URL}/conversations`,
     "messages": `${BASE_URL}/conversations/messages`,
     "stripe": `${BASE_URL}/stripe/create-checkout-session`,
+    "subscriptionInfo": `${BASE_URL}/user/subscription/infos`,
 }
 
 
@@ -177,6 +179,48 @@ export async function getMe(token: string): Promise<MeResponse> {
   return res.json();
 }
 
+export interface SubscriptionInfo {
+    id: string;
+    user_id: string;
+    plan: string;
+    start_date: string;
+    message_count: number;
+    message_limit: number | null;
+    last_reset: string;
+    status: string;
+}
+
+export interface SubscriptionInfoResponse {
+    subscriptions: SubscriptionInfo | null;
+}
+
+export async function getSubscriptionInfo(token: string): Promise<SubscriptionInfoResponse> {
+  const res = await fetch(urls.subscriptionInfo, {
+    method: "GET",
+    credentials: "include",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+  });
+
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
+  return res.json();
+}
+
 /***************************** Bots ******************************/
 
 export interface CreateBotParams {
@@ -253,6 +297,32 @@ export async function getBots(token: string): Promise<getBotsResponse[]> {
     }
   }
   return res.json();
+}
+
+export async function deleteBot(token: string, botId: string): Promise<void> {
+  const res = await fetch(`${urls.deleteBot}/${botId}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
 }
 
 /************************* Conversations *************************/

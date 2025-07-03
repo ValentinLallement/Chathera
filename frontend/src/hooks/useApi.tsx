@@ -12,6 +12,8 @@ import {
   getConversations,
   getMessagesInConversation,
   createCheckoutSession,
+  getSubscriptionInfo,
+  deleteBot,
 } from "../api/api";
 import type {
   CreateBotParams,
@@ -266,5 +268,43 @@ export function useCreateCheckoutSession() {
         setToken
       );
     },
+  });
+}
+
+export function useGetSubscriptionInfos() {
+  const { accessToken, setToken } = useAuthStore();
+
+  return useQuery({
+    queryKey: ["useGetSubscriptionInfos"],
+    queryFn: () => {
+      if (!accessToken) {
+        toast.error("Not authenticated", {
+          style: {
+            borderRadius: "10px",
+            background: "#1f1f1f",
+            border: "1px solid #e53e3e",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: "0.95rem",
+          },
+        });
+        throw new Error("Not authenticated");
+      }
+      return apiCallWithRefresh(
+        () => getSubscriptionInfo(accessToken),
+        setToken
+      );
+    },
+    staleTime: 1000 * 60 * 2,
+    retry: 1,
+    enabled: !!accessToken,
+  });
+}
+
+export function useDeleteBot() {
+  const { accessToken } = useAuthStore();
+  return useMutation({
+    mutationFn: (botId: string) => deleteBot(accessToken!, botId),
   });
 }

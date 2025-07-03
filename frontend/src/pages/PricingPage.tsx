@@ -76,15 +76,18 @@ export default function PricingPage() {
     // For paid plans, proceed with Stripe checkout
     setLoadingPlan(planName.toLowerCase());
     try {
-      const planType = planName.toLowerCase() === "premium" ? "premium" : "payg";
-      const result = await createCheckoutSession.mutateAsync({ plan: planType });
+      const planType =
+        planName.toLowerCase() === "premium" ? "premium" : "payg";
+      const result = await createCheckoutSession.mutateAsync({
+        plan: planType,
+      });
       window.location.href = result.url;
     } catch (error: any) {
       console.error("Error creating checkout session:", error);
       if (error.message.includes("401") && !hasRetried) {
         setHasRetried(true);
         await refreshToken(undefined, {
-          onSuccess: () => handlePlanClick(planName)
+          onSuccess: () => handlePlanClick(planName),
         });
         return;
       }
@@ -153,6 +156,8 @@ export default function PricingPage() {
         { included: true, text: "Companion-initiated messages" },
         { included: true, text: "Event reminders" },
         { included: true, text: "Enhanced personality" },
+        { included: true, text: "Natural response times" },
+        { included: true, text: "Access to premium companions" },
       ],
     },
     {
@@ -170,6 +175,8 @@ export default function PricingPage() {
         { included: true, text: "Companion-initiated messages" },
         { included: true, text: "Event reminders" },
         { included: true, text: "Enhanced personality" },
+        { included: true, text: "Natural response times" },
+        { included: true, text: "Access to premium companions" },
       ],
     },
   ];
@@ -365,13 +372,17 @@ export default function PricingPage() {
                         : plan.name === "Full Access"
                         ? "bg-violet-500/90 text-white hover:bg-violet-600 shadow-md shadow-violet-500/10 hover:shadow-lg hover:shadow-violet-500/20"
                         : "bg-white/10 text-white hover:bg-white/20 hover:shadow-md hover:shadow-white/5"
-                    } relative ${loadingPlan === plan.name.toLowerCase() ? 'cursor-not-allowed opacity-80' : ''}`}
+                    } relative ${
+                      loadingPlan === plan.name.toLowerCase()
+                        ? "cursor-not-allowed opacity-80"
+                        : ""
+                    }`}
                   >
                     {loadingPlan === plan.name.toLowerCase() ? (
                       <div className="flex items-center justify-center gap-2">
-                        <FontAwesomeIcon 
-                          icon={faLock} 
-                          className="animate-bounce" 
+                        <FontAwesomeIcon
+                          icon={faLock}
+                          className="animate-bounce"
                         />
                         <span>Redirecting to checkout...</span>
                       </div>
