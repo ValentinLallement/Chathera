@@ -42,8 +42,8 @@ def create_checkout_session(user_id: UUID, plan: str, initial_bots_usage: int = 
             "user_id": str(user_id),
             "plan": plan,
         },
-        success_url="http://localhost:5173/success",
-        cancel_url="http://localhost:5173/cancel",
+        success_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/success",
+        cancel_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/cancel",
     )
 
     return session.url
