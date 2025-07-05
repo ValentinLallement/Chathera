@@ -1,4 +1,4 @@
-from pydantic import BaseModel,ConfigDict, root_validator, EmailStr, Field
+from pydantic import BaseModel,ConfigDict, model_validator, EmailStr, Field
 from sqlmodel import SQLModel
 
 
@@ -129,12 +129,12 @@ class AutoReplyResponse(BaseModel):
     date_future_action: Optional[datetime] = None
     future_message: Optional[str] = None
 
-    @root_validator(pre=True)
-    def convert_empty_strings_to_none(cls, values):
-        for key, value in values.items():
+    @model_validator(mode='before')
+    def convert_empty_strings_to_none(cls, data):
+        for key, value in data.items():
             if value == '':
-                values[key] = None
-        return values
+                data[key] = None
+        return data
     
 class PromptRequest(BaseModel):
     prompt: str

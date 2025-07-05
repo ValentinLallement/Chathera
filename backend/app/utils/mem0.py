@@ -1,5 +1,6 @@
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List, Union
 from app.db.models.models import MemoryEntry, MemoryImportance, MemoryType  
 from mem0 import Memory
@@ -8,8 +9,8 @@ from app.config import mem0
 # Initialisation globale mem0 (faire 1 fois au lancement)
 
 
-def mem0_add_memory(
-    db: Session,
+async def mem0_add_memory(
+    db: AsyncSession,
     conversation_id: Union[int, str],
     content: str,
     memory_type: Union[int, MemoryType, str],
@@ -22,7 +23,7 @@ def mem0_add_memory(
     Ajoute une entrée mémoire vectorisée dans la base et mem0ai (FAISS).
 
     Args:
-        db: session SQLAlchemy.
+        db: AsyncSession SQLAlchemy.
         conversation_id: ID de la conversation (int ou str).
         content: texte à stocker.
         memory_type: type mémoire (int, MemoryType enum ou str).
@@ -68,7 +69,7 @@ def mem0_add_memory(
     )
 
     db.add(memory_entry)
-    db.commit()
+    await db.commit()
     db.refresh(memory_entry)
 
     # Indexation dans mem0ai
@@ -95,7 +96,7 @@ def mem0_add_memory(
 
     return memory_entry
 
-def search_memory(
+async def search_memory(
     user_message: str,
     conversation_id: Optional[str] = None,
     type_filter: Optional[List[MemoryType]] = None,

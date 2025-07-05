@@ -4,6 +4,7 @@ import os
 from uuid import UUID
 from datetime import datetime
 from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import STRIPE_SECRET_KEY,PREMIUM_PRICE_ID,PAYG_PRICE_ID,BOT_PRICE_ID
 from app.db.models.models import Subscription, SubscriptionHistory
@@ -52,7 +53,7 @@ def cancel_stripe_subscription(stripe_subscription_id: str):
     stripe.Subscription.delete(stripe_subscription_id)
 
     
-def log_subscription_history(db: Session, subscription: Subscription):
+async def log_subscription_history(db: AsyncSession, subscription: Subscription):
     history = SubscriptionHistory(
         subscription_id=subscription.id,
         user_id=subscription.user_id,
@@ -68,4 +69,4 @@ def log_subscription_history(db: Session, subscription: Subscription):
         recorded_at=datetime.utcnow()
     )
     db.add(history)
-    db.commit()
+    await db.commit()

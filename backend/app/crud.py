@@ -5,7 +5,8 @@ import random
 import string
 
 from .db.models import models
-from sqlalchemy.orm import Session      
+from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from passlib.context import CryptContext
 from uuid import UUID
@@ -25,14 +26,19 @@ from app.utils.permissions import MESSAGE_LIMITS
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def create_user(db: Session, user: schemas.UserCreate):
-    # Vérifications unicité
-    if db.query(models.User).filter(models.User.email == user.email).first():
+# create_user async corrigé
+async def create_user(db: AsyncSession, user: schemas.UserCreate):
+    stmt_email = select(models.User).where(models.User.email == user.email)
+    result_email = await db.execute(stmt_email)
+    if result_email.scalars().first():
         raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
-    if db.query(models.User).filter(models.User.username == user.username).first():
+    
+    stmt_username = select(models.User).where(models.User.username == user.username)
+    result_username = await db.execute(stmt_username)
+    if result_username.scalars().first():
         raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris.")
 
-    hashed_password = auth.hash_password(user.password)
+    hashed_password = await auth.hash_password(user.password)
     db_user = models.User(
         username=user.username,
         email=user.email,
@@ -41,62 +47,67 @@ def create_user(db: Session, user: schemas.UserCreate):
         is_verified=False
     )
     db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+    await db.commit()
+    await db.refresh(db_user)
 
-    # Abonnement gratuit
     free_subscription = models.Subscription(
         user_id=db_user.id,
         plan=models.PlanEnum.FREE,
         status="active"
     )
     db.add(free_subscription)
-    db.commit()
-    db.refresh(free_subscription)
+    await db.commit()
+    await db.refresh(free_subscription)
     db_user.subscriptions.append(free_subscription)
 
-    # Générer et stocker le code de vérification
     code = ''.join(random.choices(string.digits, k=6))
     db_code = models.EmailVerificationCode(email=db_user.email, code=code)
     db.add(db_code)
-    db.commit()
+    await db.commit()
 
-    # Envoyer l'email avec le code
-    send_email_verification_code(db_user.email, code)
+    await send_email_verification_code(db_user.email, code)
 
     return db_user
 
-def get_user_by_username(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
 
-def get_user_by_username_or_email(db: Session, login: str):
-    return db.query(models.User).filter(
+async def get_user_by_username(db: AsyncSession, username: str):
+    stmt = select(models.User).where(models.User.username == username)
+    result = await db.execute(stmt)
+    return result.scalars().first()
+
+
+async def get_user_by_username_or_email(db: AsyncSession, login: str):
+    stmt = select(models.User).where(
         (models.User.username == login) | (models.User.email == login)
-    ).first()
+    )
+    result = await db.execute(stmt)
+    return result.scalars().first()
 
 
-#----------------------  GOOGLE  --------------------------------------------------
-
-
-def generate_unique_username(db: Session, base_username: str) -> str:
+async def generate_unique_username(db: AsyncSession, base_username: str) -> str:
     username = base_username
     i = 1
-    while db.query(models.User).filter(models.User.username == username).first():
+    while True:
+        stmt = select(models.User).where(models.User.username == username)
+        result = await db.execute(stmt)
+        if not result.scalars().first():
+            break
         username = f"{base_username}{i}"
         i += 1
     return username
 
-def normalize_username(name: str) -> str:
-    # Supprimer les accents et caractères spéciaux
+
+async def normalize_username(name: str) -> str:
     name = unicodedata.normalize('NFD', name).encode('ascii', 'ignore').decode('utf-8')
-    # Remplacer les espaces par des underscores et mettre en minuscules
     name = re.sub(r'\s+', '_', name).lower()
-    # Supprimer les caractères non alphanumériques ou underscore
     name = re.sub(r'[^\w_]', '', name)
     return name
 
-def create_or_update_user_google(db: Session, email: str, name: Optional[str], google_sub: str, picture: Optional[str] = None):
-    user = db.query(models.User).filter(models.User.google_sub == google_sub).first()
+
+async def create_or_update_user_google(db: AsyncSession, email: str, name: Optional[str], google_sub: str, picture: Optional[str] = None):
+    stmt_google_sub = select(models.User).where(models.User.google_sub == google_sub)
+    result = await db.execute(stmt_google_sub)
+    user = result.scalars().first()
     if user:
         updated = False
         if name and user.name != name:
@@ -106,11 +117,13 @@ def create_or_update_user_google(db: Session, email: str, name: Optional[str], g
             user.profile_picture = picture
             updated = True
         if updated:
-            db.commit()
-            db.refresh(user)
+            await db.commit()
+            await db.refresh(user)
         return user
 
-    user = db.query(models.User).filter(models.User.email == email).first()
+    stmt_email = select(models.User).where(models.User.email == email)
+    result = await db.execute(stmt_email)
+    user = result.scalars().first()
     if user:
         updated = False
         if user.google_sub != google_sub:
@@ -120,17 +133,15 @@ def create_or_update_user_google(db: Session, email: str, name: Optional[str], g
             user.name = name
             updated = True
         if picture and user.profile_picture != picture:
-            print("a")
             user.profile_picture = picture
             updated = True
         if updated:
-            db.commit()
-            db.refresh(user)
+            await db.commit()
+            await db.refresh(user)
         return user
 
-    # Création nouvel utilisateur
-    base_username = normalize_username(name or email.split('@')[0])
-    username = generate_unique_username(db, base_username)
+    base_username = await normalize_username(name or email.split('@')[0])
+    username = await generate_unique_username(db, base_username)
 
     new_user = models.User(
         email=email,
@@ -141,35 +152,34 @@ def create_or_update_user_google(db: Session, email: str, name: Optional[str], g
         profile_picture=picture 
     )
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
 
-    # Créer un abonnement free par défaut pour le nouvel utilisateur
     free_subscription = models.Subscription(
         user_id=new_user.id,
         plan=models.PlanEnum.FREE,
-        # start_date, message_count, last_reset, etc. par défaut
+        status="active"
     )
     db.add(free_subscription)
-    db.commit()
-    db.refresh(free_subscription)
+    await db.commit()
+    await db.refresh(free_subscription)
 
-    # Optionnel : liaison en mémoire
-    new_user.subscription = free_subscription
+    new_user.subscriptions.append(free_subscription)
 
     return new_user
 
 
-def get_user_by_google_sub(db: Session, google_sub: str):
-    return db.query(models.User).filter(models.User.google_sub == google_sub).first()
-
+async def get_user_by_google_sub(db: AsyncSession, google_sub: str):
+    stmt = select(models.User).where(models.User.google_sub == google_sub)
+    result = await db.execute(stmt)
+    return result.scalars().first()
 
 #-----------------------------  Conversation  -------------------------------------------
 
 
 
 # Conversation
-def create_conversation(session: Session, user_id: UUID) -> Conversation:
+async def create_conversation(session: Session, user_id: UUID) -> Conversation:
     conversation = Conversation(user_id=user_id)
     session.add(conversation)
     session.commit()
@@ -177,12 +187,12 @@ def create_conversation(session: Session, user_id: UUID) -> Conversation:
     return conversation
 
 
-def get_conversation_by_id(session: Session, conversation_id: UUID) -> Conversation | None:
+async def get_conversation_by_id(session: Session, conversation_id: UUID) -> Conversation | None:
     return session.get(Conversation, conversation_id)
 
 
 # Message
-def create_message(session: Session, user_id: UUID, conversation_id: UUID, content: str) -> Message:
+async def create_message(session: Session, user_id: UUID, conversation_id: UUID, content: str) -> Message:
     message = Message(user_id=user_id, conversation_id=conversation_id, content=content)
     session.add(message)
     session.commit()
@@ -191,7 +201,7 @@ def create_message(session: Session, user_id: UUID, conversation_id: UUID, conte
 
 
 # FutureAction
-def create_future_action(
+async def create_future_action(
     session: Session,
     conversation_id: UUID,
     action: str,
@@ -209,20 +219,26 @@ def create_future_action(
     session.refresh(fa)
     return fa
 
-def get_messages_by_user(db: Session, user_id: UUID) -> list[Message]:
-    return db.query(Message).filter(Message.user_id == user_id).all()
 
+async def get_messages_by_user(db: AsyncSession, user_id: UUID) -> list[Message]:
+    stmt = (
+        select(Message)
+        .where(Message.user_id == user_id)
+        .order_by(Message.created_at)  # Optionnel : tri par date
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
 
-#-----------------------------  Abonnements  -------------------------------------------
-
-def update_user_subscription(
-    db: Session,
+async def update_user_subscription(
+    db: AsyncSession,
     user_id: UUID,
     new_plan: Optional[Union[str, PlanEnum]] = None,
     message_limit: Optional[int] = None,
-    message_limit_provided: bool = False  # <-- ajout du flag pour savoir si on modifie
+    message_limit_provided: bool = False
 ):
-    subscription = db.query(Subscription).filter(Subscription.user_id == user_id).first()
+    stmt = select(Subscription).where(Subscription.user_id == user_id)
+    result = await db.exe(stmt)
+    subscription = result.scalars().first()
 
     if not subscription:
         subscription = Subscription(
@@ -234,7 +250,7 @@ def update_user_subscription(
             last_reset=datetime.utcnow().date()
         )
         db.add(subscription)
-        db.flush()
+        await db.flush()  # flush async
 
     if new_plan:
         try:
@@ -249,16 +265,21 @@ def update_user_subscription(
         subscription.message_count = 0
         subscription.last_reset = datetime.utcnow().date()
 
-        # Si on change de plan, et que message_limit n'est pas explicitement modifié,
-        # on applique la limite par défaut du plan
         if not message_limit_provided:
-            # Exemple : on définit MESSAGE_LIMITS ailleurs dans ton code
             subscription.message_limit = MESSAGE_LIMITS.get(new_plan, None)
 
-    # On modifie message_limit uniquement si on l'a explicitement demandé
     if message_limit_provided:
         subscription.message_limit = message_limit
 
-    db.commit()
-    db.refresh(subscription)
+    await db.commit()
+    await db.refresh(subscription)
     return subscription
+
+
+
+
+
+
+
+
+

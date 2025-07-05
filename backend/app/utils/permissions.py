@@ -1,5 +1,6 @@
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.models import PlanEnum, Subscription
 
 BOT_LIMITS = {
@@ -15,14 +16,14 @@ MESSAGE_LIMITS = {
 }
 
 
-def check_bot_limit(subscription: Subscription, current_bot_count: int) -> bool:
+async def check_bot_limit(subscription: Subscription, current_bot_count: int) -> bool:
     limit = BOT_LIMITS.get(subscription.plan)
     if limit is None:
         return True  # illimité
     return current_bot_count < limit
 
 
-def check_message_limit(subscription: Subscription, db: Session) -> bool:
+async def check_message_limit(subscription: Subscription, db: AsyncSession) -> bool:
     today = datetime.utcnow().date()
 
     # Réinitialisation mensuelle (sauf pour FREE)
@@ -31,7 +32,7 @@ def check_message_limit(subscription: Subscription, db: Session) -> bool:
             subscription.message_count = 0
             subscription.last_reset = today
             db.add(subscription)
-            db.commit()
+            await db.commit()
 
     # Limite personnalisée pour PAYG (ex: override DB)
     if subscription.plan == PlanEnum.PAYG:

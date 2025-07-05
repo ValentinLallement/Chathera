@@ -36,19 +36,19 @@ def client():
         yield c
     drop_test_db()
 
-def test_read_root(client):
+async def test_read_root(client):
     response = client.get("/api/")
     print(f"Read root status: {response.status_code}, response: {response.text}")
     assert response.status_code == 200
     assert response.json() == {"message": "Hello, FastAPI is ready!"}
 
-def test_health_check(client):
+async def test_health_check(client):
     response = client.get("/api/health")
     print(f"Health check status: {response.status_code}, response: {response.text}")
     assert response.status_code == 200
     assert response.json() == {"status": "healthy"}
 
-def test_register_user(client, email_test, unique_username, password_test):
+async def test_register_user(client, email_test, unique_username, password_test):
     user_data = {
         "username": unique_username,
         "email": email_test,
@@ -65,7 +65,7 @@ def test_register_user(client, email_test, unique_username, password_test):
     assert "id" in response_data, "ID not returned"
     print(f"Registered user ID: {response_data['id']}, type: {type(response_data['id'])}")
 
-def test_email_verification_flow(client, email_test, unique_username, password_test):
+async def test_email_verification_flow(client, email_test, unique_username, password_test):
     # Register a user first
     user_data = {
         "username": unique_username,
@@ -85,7 +85,7 @@ def test_email_verification_flow(client, email_test, unique_username, password_t
     # Get verification code
     with get_test_session() as db:
         stmt = select(EmailVerificationCode).where(EmailVerificationCode.email == email_test).order_by(EmailVerificationCode.created_at.desc())
-        verification = db.execute(stmt).scalars().first()
+        verification = await db.execute(stmt).scalars().scalars().first()
         assert verification is not None, "Verification code not found"
         verification_code = str(verification.code)
         print(f"Verification code: {verification_code}, type: {type(verification_code)}")
@@ -95,7 +95,7 @@ def test_email_verification_flow(client, email_test, unique_username, password_t
     print(f"Verify email code status: {response.status_code}, response: {response.text}")
     assert response.status_code == 200, f"Verify email failed: {response.text}"
 
-def test_login_and_refresh_token(client, email_test, unique_username, password_test):
+async def test_login_and_refresh_token(client, email_test, unique_username, password_test):
     # Register and verify user
     user_data = {
         "username": unique_username,
@@ -116,7 +116,7 @@ def test_login_and_refresh_token(client, email_test, unique_username, password_t
     assert response.status_code == 200
     with get_test_session() as db:
         stmt = select(EmailVerificationCode).where(EmailVerificationCode.email == email_test).order_by(EmailVerificationCode.created_at.desc())
-        verification = db.execute(stmt).scalars().first()
+        verification = await db.execute(stmt).scalars().scalars().first()
         assert verification is not None
         verification_code = str(verification.code)
         response = client.post("/api/verify-email-code", json={"email": email_test, "code": verification_code})
@@ -125,7 +125,7 @@ def test_login_and_refresh_token(client, email_test, unique_username, password_t
 
     # Debug: Check user ID in database
     with get_test_session() as db:
-        user = db.query(User).filter(User.email == email_test).first()
+        user = db.query(User).filter(User.email == email_test).scalars().first()
         assert user is not None
         print(f"Database user ID: {user.id}, type: {type(user.id)}")
 
@@ -166,7 +166,7 @@ def test_logout(client):
     assert response.status_code == 200
     assert response.json()["message"] == "Déconnecté"
 
-def test_read_user_me(client, email_test, unique_username, password_test):
+async def test_read_user_me(client, email_test, unique_username, password_test):
     # Register and verify user
     user_data = {
         "username": unique_username,
@@ -186,7 +186,7 @@ def test_read_user_me(client, email_test, unique_username, password_test):
     assert response.status_code == 200
     with get_test_session() as db:
         stmt = select(EmailVerificationCode).where(EmailVerificationCode.email == email_test).order_by(EmailVerificationCode.created_at.desc())
-        verification = db.execute(stmt).scalars().first()
+        verification = await db.execute(stmt).scalars().scalars().first()
         assert verification is not None
         verification_code = str(verification.code)
         response = client.post("/api/verify-email-code", json={"email": email_test, "code": verification_code})
@@ -195,7 +195,7 @@ def test_read_user_me(client, email_test, unique_username, password_test):
 
     # Debug: Check user ID in database
     with get_test_session() as db:
-        user = db.query(User).filter(User.email == email_test).first()
+        user = db.query(User).filter(User.email == email_test).scalars().first()
         assert user is not None
         print(f"Database user ID: {user.id}, type: {type(user.id)}")
 
@@ -223,7 +223,7 @@ def test_read_user_me(client, email_test, unique_username, password_test):
     data = response.json()
     assert "email" in data
 
-def test_create_and_get_bots(client, email_test, unique_username, password_test):
+async def test_create_and_get_bots(client, email_test, unique_username, password_test):
     # Register and verify user
     user_data = {
         "username": unique_username,
@@ -243,7 +243,7 @@ def test_create_and_get_bots(client, email_test, unique_username, password_test)
     assert response.status_code == 200
     with get_test_session() as db:
         stmt = select(EmailVerificationCode).where(EmailVerificationCode.email == email_test).order_by(EmailVerificationCode.created_at.desc())
-        verification = db.execute(stmt).scalars().first()
+        verification = await db.execute(stmt).scalars().scalars().first()
         assert verification is not None
         verification_code = str(verification.code)
         response = client.post("/api/verify-email-code", json={"email": email_test, "code": verification_code})
@@ -252,7 +252,7 @@ def test_create_and_get_bots(client, email_test, unique_username, password_test)
 
     # Create a subscription for the user
     with get_test_session() as db:
-        user = db.query(User).filter(User.email == email_test).first()
+        user = db.query(User).filter(User.email == email_test).scalars().first()
         assert user is not None
         print(f"Database user ID: {user.id}, type: {type(user.id)}")
         subscription = Subscription(
@@ -262,7 +262,7 @@ def test_create_and_get_bots(client, email_test, unique_username, password_test)
             created_at=datetime.utcnow()
         )
         db.add(subscription)
-        db.commit()
+        await db.commit()
         print(f"Created subscription for user ID: {user.id}")
 
     # Login to get token
@@ -297,7 +297,7 @@ def test_create_and_get_bots(client, email_test, unique_username, password_test)
     bots = response.json()
     assert any(bot["bot_id"] == bot_info["bot_id"] for bot in bots)
 
-def test_change_password(client, email_test, unique_username, password_test):
+async def test_change_password(client, email_test, unique_username, password_test):
     # Register and verify user
     user_data = {
         "username": unique_username,
@@ -317,7 +317,7 @@ def test_change_password(client, email_test, unique_username, password_test):
     assert response.status_code == 200
     with get_test_session() as db:
         stmt = select(EmailVerificationCode).where(EmailVerificationCode.email == email_test).order_by(EmailVerificationCode.created_at.desc())
-        verification = db.execute(stmt).scalars().first()
+        verification = await db.execute(stmt).scalars().scalars().first()
         assert verification is not None
         verification_code = str(verification.code)
         response = client.post("/api/verify-email-code", json={"email": email_test, "code": verification_code})
@@ -326,7 +326,7 @@ def test_change_password(client, email_test, unique_username, password_test):
 
     # Debug: Check user ID in database
     with get_test_session() as db:
-        user = db.query(User).filter(User.email == email_test).first()
+        user = db.query(User).filter(User.email == email_test).scalars().first()
         assert user is not None
         print(f"Database user ID: {user.id}, type: {type(user.id)}")
 

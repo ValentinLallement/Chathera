@@ -32,10 +32,9 @@ from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlmodel import Session
+
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import Session
 
 from google.auth.transport import requests
 from starlette.middleware.sessions import SessionMiddleware
@@ -44,7 +43,7 @@ from contextlib import asynccontextmanager
 
 
 from app.websocket.router import websocket_router
-from app.database import get_session
+from app.database import get_db
 from app.dependencies import get_db
 from app.routers import message,auth_google,stripe_routes,api_routers
 from app.config import REFRESH_SECRET_KEY, ALGORITHM, SECRET_KEY, MEM0_CONFIG
@@ -59,6 +58,7 @@ from mem0 import Memory
 
 
 # --- lifespan ---
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler_task = asyncio.create_task(task_scheduler())

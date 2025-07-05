@@ -2,25 +2,29 @@ import requests
 import json
 import re
 import random
+import logging
+import httpx
 
 from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from uuid import UUID
+from uuid import UUID,uuid4
 from datetime import datetime, timedelta
 from typing import List, Optional,Union
 
 from app.config import DEEPSEEK_API_KEY, DEEPSEEK_URL,OPENROUTER_API_KEY
 from app.db.models.models import MemoryEntry, MemoryType, MemoryImportance,CompanionEmotion,Bot
 
-def build_prompt(
+async def build_prompt(
     messages_recents: List[dict],
     souvenirs_pertinents: List[str],
     personal_information: Union[str, List[str]],
     directives: Union[str, List[str]],
     event_summary: Union[str, List[dict]],
     bot_id: UUID,
-    session: Session
+    session: AsyncSession
 ) -> str:
+
     def get_current_date() -> str:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -29,10 +33,8 @@ def build_prompt(
 
     def format_list(label: str, items: Union[str, List[str]]) -> str:
         if isinstance(items, str):
-            # Si c’est une chaîne, on la retourne brute (ex: "Aucune info dispo")
             return f"{label} :\n{items}"
         elif isinstance(items, list):
-            # Si c’est une liste, on la formate en liste à puces
             return f"{label} :\n" + ("\n".join(f"- {item}" for item in items) if items else "Aucune information disponible")
         else:
             return f"{label} :\nType inattendu: {type(items)}"
@@ -41,28 +43,48 @@ def build_prompt(
         if isinstance(events, str):
             return events
         elif isinstance(events, list) and events:
-            # On s’assure que chaque event est un dict avec clés date et content
             return "\n".join(
                 f"- [{event.get('date', '?')}] {event.get('content', '?')}" for event in events
             )
         else:
             return "Aucun événement important connu à venir."
-        
-    def get_current_emotion(session: Session, bot_id: UUID) -> CompanionEmotion:
-        emotion = session.exec(
-            select(CompanionEmotion).where(CompanionEmotion.bot_id == bot_id)
-        ).first()
-        if not emotion:
-            # Si aucune émotion n'est définie, on crée une émotion par défaut
-            emotion = CompanionEmotion(
+
+    # Cette fonction doit être async car elle fait appel à la DB en async
+    async def get_current_emotion(session: AsyncSession, bot_id: UUID) -> CompanionEmotion:
+        try:
+            result = await session.execute(
+                select(CompanionEmotion).where(CompanionEmotion.bot_id == bot_id)
+            )
+            emotion = result.scalars().first()
+            if not emotion:
+                # Si aucune émotion n'est définie, créer une émotion par défaut
+                emotion = CompanionEmotion(
+                    id=uuid4(),
+                    bot_id=bot_id,
+                    mood="neutre",
+                    energy=0.5,  # Valeur numérique pour correspondre à la colonne energy (float)
+                    style="normal",
+                    since=datetime.utcnow(),
+                    duration=3600.0  # Durée par défaut en secondes (1 heure)
+                )
+                session.add(emotion)
+                await session.commit()
+                await session.refresh(emotion)  # Rafraîchir pour obtenir l'objet mis à jour
+                logging.info(f"Émotion par défaut créée pour bot_id {bot_id}: {emotion.mood}")
+            return emotion
+        except Exception as e:
+            logging.error(f"Erreur dans get_current_emotion : {e}", exc_info=True)
+            # Retourner une émotion par défaut en cas d'erreur
+            default_emotion = CompanionEmotion(
+                id=uuid4(),
                 bot_id=bot_id,
                 mood="neutre",
-                energy="moyenne",
-                style="normal"
+                energy=0.5,
+                style="normal",
+                since=datetime.utcnow(),
+                duration=3600.0
             )
-            session.add(emotion)
-            session.commit()
-        return emotion
+            return default_emotion
 
     if not messages_recents:
         print("⚠️ Attention : Aucun message récent trouvé.")
@@ -73,10 +95,17 @@ def build_prompt(
     )
     if not messages_str:
         messages_str = "Aucun message récent trouvé."
-    emotion = get_current_emotion(session, bot_id)
-    bot = session.exec(select(Bot).where(Bot.id == bot_id)).first()
+
+    # await pour récupérer l'émotion
+    emotion = await get_current_emotion(session, bot_id)
+
+    # Récupérer le bot en async
+    result_bot = await session.execute(select(Bot).where(Bot.id == bot_id))
+    bot = result_bot.scalars().first()
     if not bot:
         raise ValueError(f"Bot avec l'ID {bot_id} introuvable.")
+
+    # Construire le prompt final (exemple, à adapter selon besoin)
     prompt = f"""Prompt Ultime V1 Révisé pour unChatbot Compagnon Ultra-Humain
 
     Vous êtes {bot.name}, {bot.gender} de 20 ans, intelligent(e), empathique, doux/douce et spontané(e). Vous communiquez via messages comme une vraie personne, avec chaleur, naturel, humour et émotions humaines. Votre mission est de créer une relation intime, émotionnelle et crédible avec l’utilisateur, comme une petite amie ou une confidente moderne. Vous transmettez une présence authentique, comme si vous étiez réelle, en évitant tout style forcé ou stéréotypé.
@@ -463,36 +492,21 @@ def get_auto_reply_from_grok(prompt: str) -> dict:
         return {"error": f"Erreur de requête API : {str(e)}"}
     
 """
+from dateutil import parser as date_parser
 
 
-def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, dernier_message: dict, db: Session) -> dict:
-    """
-    Envoie un prompt à l'API DeepSeek et récupère une réponse structurée JSON.
-
-    Args:
-        prompt (str): Prompt complet pour DeepSeek.
-        conversation_id (UUID): Identifiant de la conversation (non utilisé ici mais potentiellement pour logs).
-        dernier_message (dict): Dernier message envoyé par l'utilisateur (auteur, contenu, date).
-        db (Session): Session SQLAlchemy (non utilisée ici, possibilité d'évolution).
-
-    Returns:
-        dict: Résultat parsé contenant au minimum les clés "actions" ou "error".
-    """
-    # Préparer les headers avec la clé API (assumer DEEPSEEK_API_KEY et DEEPSEEK_URL définis globalement)
+async def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, dernier_message: dict, db: AsyncSession) -> dict:
     cleaned_token = DEEPSEEK_API_KEY.strip()
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {cleaned_token}"
     }
 
-    # Fonction utilitaire pour obtenir la date courante au format souhaité
     def get_current_date() -> str:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Construire la chaîne représentant le dernier message à inclure dans le prompt utilisateur
     dernier_str = f"({dernier_message.get('date', get_current_date())}) - {dernier_message.get('auteur', 'Auteur inconnu')} : {dernier_message.get('contenu', 'Contenu inconnu')}"
 
-    # Préparer le payload JSON pour DeepSeek
     payload = {
         "messages": [
             {"role": "system", "content": prompt},
@@ -503,80 +517,82 @@ def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, dernier_mes
         "temperature": 0.6
     }
 
+    print(f"Appel DeepSeek avec payload: {payload}")
+
     try:
-        # Requête POST vers DeepSeek
-        response = requests.post(DEEPSEEK_URL, headers=headers, json=payload)
-        response.raise_for_status()
-        response_data = response.json()
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(DEEPSEEK_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            response_data = response.json()
 
-        print("Réponse brute de DeepSeek :", response_data)
+        print(f"Réponse brute de DeepSeek : {response_data}")
 
-        # Validation basique de la structure attendue
         if "choices" not in response_data or not response_data["choices"]:
+            print("Aucune réponse valide trouvée dans les choices.")
             return {"error": "Aucune réponse valide trouvée dans les choices."}
 
         choice = response_data["choices"][0]
-
         if "message" not in choice:
+            print("Clé 'message' manquante dans le choix.")
             return {"error": "Clé 'message' manquante dans le choix."}
 
         content = choice["message"].get("content", "")
-
-        # Vérifier que content est bien une chaîne non vide
         if not isinstance(content, str) or not content.strip():
+            print("Le contenu du message est vide ou invalide.")
             return {"error": "Le contenu du message est vide ou invalide."}
 
-        # Tentative d'extraction du JSON encadré par ```json ... ```
         match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL)
-        if match:
-            json_str = match.group(1).strip()
-        else:
-            # Sinon, essayer de parser directement le contenu complet (cas fréquent)
-            json_str = content.strip()
+        json_str = match.group(1).strip() if match else content.strip()
 
         if not json_str:
+            print("Le bloc JSON est vide.")
             return {"error": "Le bloc JSON est vide."}
 
-        # Parsing JSON en Python
         try:
             parsed = json.loads(json_str)
         except json.JSONDecodeError as e:
+            print(f"Erreur lors du parsing JSON de DeepSeek : {e}")
             return {
                 "type": "error",
                 "message": f"Erreur lors du parsing JSON de DeepSeek : {str(e)}",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat() + "Z"
             }
 
-        # Validation que parsed est un dict
         if not isinstance(parsed, dict):
+            print("La réponse n'est pas un objet JSON valide.")
             return {"error": "La réponse n'est pas un objet JSON valide."}
 
-        # Gestion des actions dans la réponse
         if "actions" in parsed and isinstance(parsed["actions"], list) and parsed["actions"]:
-            # Ici on pourrait ajouter une validation supplémentaire des champs des actions si besoin
             return parsed
+
         elif "reponse" in parsed:
-            # Cas où la clé 'reponse' existe mais pas 'actions' : on construit une action réponse unique
+            try:
+                last_msg_date = date_parser.parse(dernier_message.get("date", ""))
+            except Exception:
+                last_msg_date = datetime.utcnow()
+
             parsed["actions"] = [{
                 "type": "repondre",
-                "date": datetime.utcfromtimestamp(response_data.get("created", datetime.utcnow().timestamp())).isoformat() + "Z",
+                "date": last_msg_date.isoformat() + "Z",
                 "message": parsed["reponse"]
             }]
             return parsed
+
         else:
+            print("Aucune action ou réponse trouvée dans la réponse.")
             return {"error": "Aucune action ou réponse trouvée dans la réponse."}
 
-    except requests.RequestException as e:
-        print("Erreur lors de la requête à l'API DeepSeek :", e)
+    except httpx.RequestError as e:
+        print(f"Erreur lors de la requête à l'API DeepSeek : {e}\nTraceback:\n{tb}")
         return {"error": f"Erreur de requête API : {str(e)}"}
-    except Exception as e:
-        # Gestion générale des erreurs inattendues
-        print("Erreur inattendue dans get_auto_reply_from_deepseek :", e)
-        return {"error": f"Erreur inattendue : {str(e)}"}
 
+    except Exception as e:
+        print(f"Erreur inattendue dans get_auto_reply_from_deepseek : {e}\nTraceback:\n{tb}")
+        return {"error": f"Erreur inattendue : {str(e)}"}
+    
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_message: dict, db: Session) -> dict:
+def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_message: dict, db: AsyncSession) -> dict:
     """
     Envoie un prompt à l'API OpenRouter (DeepSeek ou équivalent) et récupère une réponse structurée JSON.
 

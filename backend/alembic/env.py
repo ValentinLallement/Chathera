@@ -4,9 +4,8 @@ from logging.config import fileConfig
 from configparser import ConfigParser
 
 from dotenv import load_dotenv
-from sqlalchemy import engine_from_config, pool
 from alembic import context
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel,engine_from_config,pool
 
 # Charger les variables d'environnement depuis le fichier .env
 load_dotenv()

@@ -5,7 +5,7 @@ from datetime import datetime,timedelta
 
 from pydantic_core import core_schema
 from sqlalchemy import Enum
-from sqlalchemy.orm import Session
+
 
 class PlanEnum(str, Enum):
     FREE = "free"

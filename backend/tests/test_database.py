@@ -18,7 +18,7 @@ engine_test = create_engine(
 )
 
 # Session locale pour la base de test
-TestingSessionLocal = sessionmaker(
+Testingasync_session = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine_test,
@@ -55,7 +55,7 @@ def get_test_session():
     """
     Fournit une session DB pour les tests avec fermeture propre.
     """
-    db = TestingSessionLocal()
+    db = Testingasync_session()
     try:
         yield db
     finally:

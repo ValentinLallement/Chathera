@@ -80,17 +80,22 @@ class Message(SQLModel, table=True):
 class FutureAction(SQLModel, table=True):
     __tablename__ = "future_actions"
 
+    # Pydantic V2 configuration
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,  # Allow arbitrary types like uuid.UUID
+        from_attributes=True          # Enable ORM mode
+    )
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     conversation_id: uuid.UUID = Field(foreign_key="conversation.id", nullable=False)
     action: str = Field(nullable=False)
-    date_action: datetime = Field(nullable=False)
+    date_action: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
     future_message: str = Field(nullable=False)
     condition: Optional[dict] = Field(sa_column=Column(JSON), default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relation vers Conversation
     conversation: Optional["Conversation"] = Relationship(back_populates="future_actions")
-
 # ----------------  conversation  ---------------
  
 class Conversation(SQLModel, table=True):

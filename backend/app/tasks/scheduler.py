@@ -4,10 +4,12 @@ import logging
 from functools import partial
 
 from datetime import datetime, timezone, timedelta
-from sqlalchemy.orm import Session
+from sqlmodel import Session
+from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from pywebpush import webpush, WebPushException
 
-from app.database import SessionLocal
+from app.database import async_session
 from app.db.models.models import FutureAction, Message, Conversation, PushSubscription
 from app.utils.websocket_registry import get_active_websockets, unregister_websocket
 from app.config import VAPID_PRIVATE_KEY
@@ -18,16 +20,18 @@ VAPID_CLAIMS = {
     "sub": "mailto:contact@chathera.com"
 }
 
-def check_condition(condition: dict, db: Session, conversation: Conversation) -> bool:
+async def check_condition(condition: dict, db: AsyncSession, conversation: Conversation) -> bool:
     if condition.get("type") == "no_reply":
         hours = condition.get("timeout_hours", 24)
-        since = datetime.now(timezone.utc) - timedelta(hours=hours)
+        since = datetime.utcnow() - timedelta(hours=hours)
 
-        last_reply = db.query(Message).filter(
+        stmt = select(Message).where(
             Message.conversation_id == conversation.id,
             Message.user_id == conversation.user_id,
             Message.created_at >= since
-        ).first()
+        )
+        result = await db.execute(stmt)
+        last_reply = result.scalars().first()
 
         return last_reply is None
     return True
@@ -50,9 +54,11 @@ async def send_push(subscription_info: dict, message: str):
     )
 
 
-async def send_notification_to_user(user_id: int, message: str, db: Session):
-    subscriptions = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
-    
+async def send_notification_to_user(user_id: int, message: str, db: AsyncSession):
+    stmt = select(PushSubscription).where(PushSubscription.user_id == user_id)
+    result = await db.execute(stmt)
+    subscriptions = result.scalars().all()
+
     for sub in subscriptions:
         subscription_info = {
             "endpoint": sub.endpoint,
@@ -63,76 +69,77 @@ async def send_notification_to_user(user_id: int, message: str, db: Session):
             logging.info(f"Notification push envoyée à l'utilisateur {user_id}")
         except WebPushException as ex:
             logging.error(f"Erreur WebPush: {repr(ex)}")
-            # Supprimer l'abonnement si il est expiré (statut HTTP 410 Gone)
             if ex.response and ex.response.status_code == 410:
                 logging.info(f"Suppression abonnement push expiré pour user {user_id}, endpoint {sub.endpoint}")
-                db.delete(sub)
-                db.commit()
+                await db.delete(sub)
+                await db.commit()
 
 
 async def task_scheduler():
-    """
-    Tâche asynchrone qui tourne en boucle, vérifie les actions futures,
-    et envoie soit via WebSocket si connecté, soit crée un message non lu + notifie.
-    """
     while True:
         async with lock:
-            db: Session = SessionLocal()
-            try:
-                now = datetime.now(timezone.utc)
-                actions = db.query(FutureAction).filter(FutureAction.date_action <= now).all()
+            async with async_session() as db:
+                try:
+                    now = datetime.utcnow().replace(tzinfo=None)
+                    stmt_actions = select(FutureAction).where(FutureAction.date_action <= now)
+                    result_actions = await db.execute(stmt_actions)
+                    actions = result_actions.scalars().all()
 
-                for action in actions:
-                    conversation = db.query(Conversation).filter_by(id=action.conversation_id).first()
-                    if not conversation:
-                        db.delete(action)
-                        db.commit()
-                        continue
+                    for action in actions:
+                        stmt_conv = select(Conversation).where(Conversation.id == action.conversation_id)
+                        result_conv = await db.execute(stmt_conv)
+                        conversation = result_conv.scalars().first()
 
-                    if action.condition and not check_condition(action.condition, db, conversation):
-                        continue
+                        if not conversation:
+                            await db.delete(action)
+                            await db.commit()
+                            continue
 
-                    active_websockets = get_active_websockets()
-                    websocket = active_websockets.get(conversation.user_id)
+                        if action.condition and not await check_condition(action.condition, db, conversation):
+                            continue
 
-                    if websocket:
-                        print(f"Tentative d'envoi WebSocket pour {conversation.user_id} avec message : {action.future_message}")
-                        try:
-                            await websocket.send_json({
-                                "type": "future_action",
-                                "message": action.future_message,
-                                "timestamp": now.isoformat()
-                            })
-                            msg = Message(
-                            user_id=conversation.bot_id,
-                            content=action.future_message,
-                            conversation_id=conversation.id,
-                            timestamp=now,
-                            read=True
+                        active_websockets = get_active_websockets()
+                        websocket = active_websockets.get(conversation.user_id)
+
+                        if websocket:
+                            try:
+                                await websocket.send_json({
+                                    "type": "future_action",
+                                    "message": action.future_message,
+                                    "timestamp": now.isoformat()
+                                })
+                                msg = Message(
+                                    user_id=conversation.bot_id,
+                                    content=action.future_message,
+                                    conversation_id=conversation.id,
+                                    timestamp=now,
+                                    read=True
+                                )
+                                db.add(msg)
+                                await db.commit()
+                            except Exception as e:
+                                print(f"Erreur envoi WebSocket future_action pour user {conversation.user_id} : {e}")
+                                unregister_websocket(conversation.user_id)
+                                websocket = None
+
+                        if not websocket:
+                            future_msg = Message(
+                                user_id=conversation.bot_id,
+                                content=action.future_message,
+                                conversation_id=conversation.id,
+                                timestamp=now,
+                                read=False
                             )
-                            db.add(msg)
-                        
-                        except Exception as e:
-                            print(f"Erreur envoi WebSocket future_action pour user {conversation.user_id} : {e}")
-                            unregister_websocket(conversation.user_id)
-                            websocket = None
+                            db.add(future_msg)
+                            await db.commit()
 
-                    if not websocket:
-                        future_msg = Message(
-                            user_id=conversation.bot_id,
-                            content=action.future_message,
-                            conversation_id=conversation.id,
-                            timestamp=now,
-                            read=False
-                        )
-                        db.add(future_msg)
+                            
 
-                        # Envoi notification push
-                        #await send_notification_to_user(conversation.user_id, action.future_message, db)
+                        await db.delete(action)
+                        await db.commit()
 
-                    db.delete(action)
-                    db.commit()
-            finally:
-                db.close()
+                except Exception as e:
+                    print(f"Erreur dans task_scheduler: {e}")
+                    
 
-        await asyncio.sleep(2.5)  # Pause 5 secondes avant prochaine vérification
+        await asyncio.sleep(2.5)

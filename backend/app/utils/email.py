@@ -1,7 +1,7 @@
 import smtplib
 from email.message import EmailMessage
 
-def send_email(to: str, subject: str, body: str):
+async def send_email(to: str, subject: str, body: str):
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = "no-reply@Chathera.com"
@@ -14,7 +14,7 @@ def send_email(to: str, subject: str, body: str):
         server.send_message(msg)
 
 
-def send_email_verification_code(to_email: str, code: str):
+async def send_email_verification_code(to_email: str, code: str):
     msg = EmailMessage()
     msg["Subject"] = "Votre code de vérification"
     msg["From"] = "noreply@chathera.com"

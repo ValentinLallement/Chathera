@@ -3,17 +3,19 @@ import asyncio
 import re
 import json
 import traceback
+import logging
 from typing import List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect,Depends
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from uuid import uuid4, UUID
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta,timezone
 
 from app.db.models.models import Message, Conversation, FutureAction, MemoryType, MemoryImportance, MemoryEntry, Subscription
-from app.database import get_session
-from app.dependencies import get_user_from_websocket,get_db
+from app.database import get_db,async_session
+from app.websocket.auth_ws import get_user_from_websocket
 from app.utils.auto_reply import build_prompt, get_auto_reply_from_deepseek,get_auto_reply_from_openrouter
 from app.utils.websocket_registry import register_websocket, unregister_websocket
 from app.utils.mem0 import mem0_add_memory , search_memory
@@ -27,365 +29,294 @@ websocket_router = APIRouter()
 
 
 @websocket_router.websocket("/ws/chat")
-async def chat(websocket: WebSocket, db: Session = Depends(get_db)):
-    user = await get_user_from_websocket(websocket)
-    
-    if not user:
-        await websocket.close()
-        unregister_websocket(user.id if user else None)
-        return
+async def chat(websocket: WebSocket):
     await websocket.accept()
+
+    user = await get_user_from_websocket(websocket)
+    if not user:
+        print("Connexion WebSocket rejetée : utilisateur non authentifié")
+        await websocket.close(code=1008)
+        return
+
     register_websocket(user.id, websocket)
-
-    subscription = db.query(Subscription).filter_by(user_id=user.id).first()
-    if not subscription:
-        await websocket.send_json({
-            "type": "error",
-            "message": "Aucun abonnement trouvé pour cet utilisateur.",
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        await websocket.close()
-        unregister_websocket(user.id)
-        return
-    
-    if hasattr(subscription, "status") and subscription.status != "active":
-        await websocket.send_json({
-            "type": "error",
-            "message": "Votre abonnement n'est pas actif. Merci de le réactiver pour utiliser le service.",
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        await websocket.close()
-        unregister_websocket(user.id)
-        return
-
-    if not check_message_limit(subscription, db):
-        await websocket.send_json({
-            "type": "limit_reached",
-            "message": "Je crois qu’on a fait le plein de papotages pour ce mois… "
-                    "Mais promis, je serai là dès que tu recharges. Tu vas me manquer ! 💙",
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        await websocket.close()
-        unregister_websocket(user.id)
-        print(f"Limite de messages atteinte pour l'utilisateur {user.id}")
-        return
-    
-    
-
-    subscription.message_count += 1
-    db.commit()
-
-    # --- REPORT USAGE STRIPE ---
-    if subscription.plan == PlanEnum.PAYG and subscription.stripe_subscription_item_messages:
-        try:
-            # Incrémente de 1 l'usage messages sur Stripe
-            report_usage(
-                subscription_item_id=subscription.stripe_subscription_item_messages,
-                quantity=1,
-                increment=True
-            )
-        except Exception as e:
-            print(f"Erreur lors du report d'usage messages à Stripe : {e}")
-
-    
+    print(f"Utilisateur {user.id} connecté au WebSocket")
 
     try:
-        while True:
-            try:
+        async with async_session() as db:
+            while True:
                 data = await websocket.receive_text()
-                message_data = json.loads(data)
-                print(f"Message reçu : {message_data}")
-            except Exception as e:
-                print(f"Erreur réception JSON : {e}\n{traceback.format_exc()}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": f"Erreur de réception ou JSON invalide : {str(e)}",
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-                continue
-
-            # Validation du bot_id
-            bot_id_str = message_data.get("bot_id")
-            try:
-                bot_id = UUID(bot_id_str)
-            except Exception:
-                print(f"Erreur bot_id invalide : {bot_id_str}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "bot_id manquant ou invalide",
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-                continue
-
-            # Récupération ou création de la conversation unique user/bot
-            conversation = db.query(Conversation).filter_by(user_id=user.id, bot_id=bot_id).first()
-            if not conversation:
-                conversation = Conversation(user_id=user.id, bot_id=bot_id)
-                db.add(conversation)
-                db.commit()
-                db.refresh(conversation)
-
-            timestamp = datetime.utcnow()
-
-            # --- Enregistrement message utilisateur ---
-            user_message = Message(
-                user_id=user.id,
-                content=message_data.get("content", ""),
-                conversation_id=conversation.id,
-                timestamp=timestamp
-            )
-            db.add(user_message)
-            db.commit()
-
-            
-
-            # --- Construction du prompt avec souvenirs etc. ---
-            souvenirs = retrieve_contextual_memories(
-                user_message=user_message.content,
-                conversation_id=str(conversation.id),
-                db=db,
-            )
-
-            messages_db = (
-                db.query(Message)
-                .filter(Message.conversation_id == conversation.id)
-                .order_by(Message.created_at.desc())
-                .limit(10)
-                .all()
-            )
-            messages_recents = [
-                {
-                    "auteur": user.name if msg.user_id == user.id else "IA",
-                    "contenu": msg.content,
-                    "date": msg.created_at.strftime("%Y-%m-%d %H:%M:%S")  # Conversion explicite
-                }
-                for msg in reversed(messages_db)
-            ]
-            print(f"Messages récents : {messages_recents}")
-
-            memories = db.query(MemoryEntry).filter(MemoryEntry.conversation_id == conversation.id).all()
-            personal_info = "\n".join(f"- {m.content}" for m in memories if m.type == MemoryType.PERSONAL) or "Aucune info personnelle"
-
-            directives_entries = db.query(MemoryEntry).filter(
-                MemoryEntry.conversation_id == conversation.id,
-                MemoryEntry.type == MemoryType.DIRECTIVE
-            ).order_by(MemoryEntry.importance.desc(), MemoryEntry.created_at.desc()).all()
-            directives_text = "\n".join(f"- {d.content}" for d in directives_entries) or "Aucune directive"
-
-            now = datetime.utcnow()
-            soon = now + timedelta(days=7)
-            events_soon = db.query(MemoryEntry).filter(
-                MemoryEntry.type == MemoryType.EVENT,
-                MemoryEntry.event_date != None,
-                MemoryEntry.event_date.between(now, soon)
-            ).all()
-            event_summary = "\n".join(
-                f"- ({e.event_date.strftime('%Y-%m-%d')}) {e.content}" for e in events_soon
-            ) or "Aucun événement prévu"
-
-            try:
-                prompt = build_prompt(
-                    messages_recents,
-                    souvenirs,
-                    directives_text,
-                    personal_info,
-                    event_summary,
-                    bot_id,
-                    get_session()
-                )
-                print(f"Prompt construit : {prompt[:100]}...")
-                json.dumps(prompt)  # Test de sérialisation
-            except Exception as e:
-                print(f"Erreur build_prompt : {e}\n{traceback.format_exc()}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": f"Erreur lors de la construction du prompt : {str(e)}",
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-                continue
-
-            dernier_message = {
-                "auteur": user.name,
-                "contenu": user_message.content,
-                "date": timestamp.strftime("%Y-%m-%d %H:%M:%S"),  # Conversion explicite
-                "user_id": str(user.id),
-                "conversation_id": str(conversation.id)
-            }
-            print(f"Dernier message : {dernier_message}")
-
-            # --- Appel DeepSeek pour réponse automatique ---
-            print("Appel DeepSeek")
-            try:
-                auto_reply = get_auto_reply_from_deepseek(prompt, conversation.id, dernier_message, db)
-                print(f"Réponse DeepSeek : {auto_reply}")
-                json.dumps(auto_reply)  # Test de sérialisation
-            except Exception as e:
-                print(f"Erreur DeepSeek : {e}\n{traceback.format_exc()}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": f"Erreur DeepSeek : {str(e)}",
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-                continue
-
-            if "error" in auto_reply:
-                print(f"Erreur dans auto_reply : {auto_reply['error']}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": auto_reply["error"],
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-                continue
-
-            
-
-            # --- Traitement des actions ---
-            actions = auto_reply.get("actions", [])
-            actions_immediates = []
-
-            for action_data in actions:
-                action_type = action_data.get("type", "")
-                if action_type == "repondre":
-                    print(f"Action immédiate : {action_data}")
-                    actions_immediates.append(action_data)
-                elif action_type == "repondre_delay":
-                    print(f"Action différée : {action_data}")
-                    try:
-                        date_str = action_data.get("date", "")
-                        if date_str.endswith("Z"):
-                            date_str = date_str.replace("Z", "+00:00")
-                        date_action = datetime.fromisoformat(date_str)
-                    except Exception as e:
-                        print(f"Erreur conversion date_action : {e}")
-                        date_action = datetime.utcnow()
-
-                    future = FutureAction(
-                        conversation_id=conversation.id,
-                        action=action_type,
-                        date_action=date_action,
-                        future_message=action_data.get("message", "")
-                    )
-                    db.add(future)
-
-            db.commit()
-            futures = db.query(FutureAction).all()
-            print(f"Future actions en base : {futures}")
-
-            # --- Enregistrement du message bot ---
-            if actions_immediates:
-                reply_message = actions_immediates[0].get("message", "Désolé, une erreur est survenue.")
-            else:
-                reply_message = "vu"
-
-            bot_message = Message(
-                user_id=bot_id,
-                content=reply_message,
-                conversation_id=conversation.id,
-                timestamp=datetime.utcnow()
-            )
-            db.add(bot_message)
-            db.commit()
-
-            # --- Envoi de la réponse ---
-            try:
-                response = {
-                    "type": "reponse",
-                    "message": reply_message,
-                    "timestamp": bot_message.created_at.isoformat()
-                }
-                json.dumps(response)  # Test de sérialisation
-                await websocket.send_json(response)
-            except Exception as e:
-                print(f"Erreur envoi JSON : {e}\n{traceback.format_exc()}")
-                raise
-            
-            # --- Ajout mémoire Mem0 pour message utilisateur ---
-            try:
-                mem0_add_memory(
-                    db=db,
-                    conversation_id=conversation.id,
-                    content=user_message.content,
-                    memory_type=MemoryType.SHORT,
-                    importance=MemoryImportance.MEDIUM,
-                    user_id=str(user.id),
-                    timestamp=timestamp
-                )
-            except Exception as e:
-                print(f"Erreur ajout mémoire Mem0 message utilisateur : {e}\n{traceback.format_exc()}")
-                await websocket.send_json({
-                    "type": "warning",
-                    "message": f"Erreur lors de l'ajout de la mémoire utilisateur : {str(e)}",
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-
-            # --- Traitement des entrées MemoryEntry du JSON ---
-            memory_entries = auto_reply.get("MemoryEntry", [])
-            for memory_entry_data in memory_entries:
                 try:
-                    event_date_str = memory_entry_data.get("event_date")
-                    event_date = None
-                    if event_date_str:
-                        try:
-                            if event_date_str.endswith("Z"):
-                                event_date_str = event_date_str.replace("Z", "+00:00")
-                            event_date = datetime.fromisoformat(event_date_str)
-                        except ValueError as e:
-                            print(f"Erreur conversion event_date : {e}")
-                            event_date = None
-
-                    mem0_add_memory(
-                        db=db,
-                        conversation_id=conversation.id,
-                        content=memory_entry_data.get("contenu", ""),
-                        memory_type=memory_entry_data.get("type", "other"),
-                        importance=memory_entry_data.get("importance", "medium"),
-                        user_id=str(user.id),
-                        timestamp=datetime.utcnow(),
-                        event_date=event_date
-                    )
-                except Exception as e:
-                    print(f"Erreur ajout mémoire Mem0 pour MemoryEntry : {e}\n{traceback.format_exc()}")
+                    message_data = json.loads(data)
+                except json.JSONDecodeError as e:
+                    print(f"Erreur de décodage JSON : {e}")
                     await websocket.send_json({
-                        "type": "warning",
-                        "message": f"Erreur lors de l'ajout de la mémoire DeepSeek : {str(e)}",
+                        "type": "error",
+                        "message": "Format de message invalide",
                         "timestamp": datetime.utcnow().isoformat()
                     })
+                    continue
 
-        
-            # --- Ajout mémoire Mem0 pour message bot (SHORT, MEDIUM) ---
-            try:
-                mem0_add_memory(
-                    db=db,
-                    conversation_id=conversation.id,
-                    content=bot_message.content,
-                    memory_type=MemoryType.SHORT,
-                    importance=MemoryImportance.MEDIUM,
-                    user_id=str(user.id),
-                    timestamp=bot_message.created_at
+                content = message_data.get("content", "")
+                if not content:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Le contenu du message ne peut pas être vide",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    continue
+
+                stmt_sub = select(Subscription).where(Subscription.user_id == user.id)
+                result_sub = await db.execute(stmt_sub)
+                subscription = result_sub.scalars().first()
+
+                if not subscription:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Aucun abonnement.",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    await websocket.close(code=1008)
+                    break
+
+                if getattr(subscription, "status", None) != "active":
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Abonnement inactif.",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    await websocket.close(code=1008)
+                    break
+
+                if not await check_message_limit(subscription, db):
+                    await websocket.send_json({
+                        "type": "limit_reached",
+                        "message": "Limite atteinte.",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    await websocket.close(code=1008)
+                    break
+
+                subscription.message_count += 1
+                await db.commit()
+
+                if subscription.plan == PlanEnum.PAYG and subscription.stripe_subscription_item_messages:
+                    try:
+                        report_usage(subscription_item_id=subscription.stripe_subscription_item_messages, quantity=1, increment=True)
+                    except Exception as e:
+                        print(f"Erreur Stripe : {e}")
+
+                try:
+                    bot_id = UUID(message_data.get("bot_id"))
+                except (ValueError, TypeError) as e:
+                    print(f"Erreur bot_id invalide : {e}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "bot_id invalide",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    continue
+
+                stmt_conv = select(Conversation).where(
+                    Conversation.user_id == user.id,
+                    Conversation.bot_id == bot_id
                 )
-            except Exception as e:
-                print(f"Erreur ajout mémoire Mem0 message bot : {e}\n{traceback.format_exc()}")
+                result_conv = await db.execute(stmt_conv)
+                conversation = result_conv.scalars().first()
+
+                if not conversation:
+                    conversation = Conversation(user_id=user.id, bot_id=bot_id)
+                    db.add(conversation)
+                    await db.commit()
+                    await db.refresh(conversation)
+
+                timestamp = datetime.utcnow()
+                user_msg = Message(
+                    user_id=user.id,
+                    content=content,
+                    conversation_id=conversation.id,
+                    created_at=timestamp
+                )
+                db.add(user_msg)
+                await db.commit()
+
+                try:
+                    souvenirs = await retrieve_contextual_memories(
+                        user_message=user_msg.content,
+                        conversation_id=str(conversation.id),
+                        db=db
+                    )
+                except Exception as e:
+                    print(f"Erreur lors de la récupération des souvenirs : {e}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Erreur lors de la récupération des souvenirs",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    continue
+
+                stmt_msgs = select(Message).where(Message.conversation_id == conversation.id).order_by(Message.created_at.desc()).limit(10)
+                result_msgs = await db.execute(stmt_msgs)
+                messages_db = result_msgs.scalars().all()
+
+                messages_recents = [
+                    {
+                        "auteur": user.name if m.user_id == user.id else "IA",
+                        "contenu": m.content,
+                        "date": m.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    } for m in reversed(messages_db)
+                ]
+
+                stmt_personal = select(MemoryEntry).where(
+                    MemoryEntry.conversation_id == conversation.id,
+                    MemoryEntry.type == MemoryType.PERSONAL
+                )
+                result_personal = await db.execute(stmt_personal)
+                personal_info_list = result_personal.scalars().all()
+                personal_info = "\n".join(f"- {m.content}" for m in personal_info_list) or "Aucune info"
+
+                stmt_directives = select(MemoryEntry).where(
+                    MemoryEntry.conversation_id == conversation.id,
+                    MemoryEntry.type == MemoryType.DIRECTIVE
+                ).order_by(MemoryEntry.importance.desc(), MemoryEntry.created_at.desc())
+                result_directives = await db.execute(stmt_directives)
+                directives_list = result_directives.scalars().all()
+                directives = "\n".join(f"- {d.content}" for d in directives_list) or "Aucune directive"
+
+                now, soon = datetime.utcnow(), datetime.utcnow() + timedelta(days=7)
+                stmt_events = select(MemoryEntry).where(
+                    MemoryEntry.type == MemoryType.EVENT,
+                    MemoryEntry.event_date != None,
+                    MemoryEntry.event_date.between(now, soon)
+                )
+                result_events = await db.execute(stmt_events)
+                events = result_events.scalars().all()
+                event_summary = "\n".join(f"- ({e.event_date.strftime('%Y-%m-%d')}) {e.content}" for e in events) or "Aucun événement"
+
+                try:
+                    prompt = await build_prompt(
+                        messages_recents,
+                        souvenirs,
+                        personal_info,
+                        directives,
+                        event_summary,
+                        bot_id,
+                        db
+                    )
+                except Exception as e:
+                    print(f"Erreur lors de la construction du prompt : {e}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Erreur lors de la construction du prompt",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    continue
+
+                dernier_msg = {
+                    "auteur": user.name,
+                    "contenu": user_msg.content,
+                    "date": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    "user_id": str(user.id),
+                    "conversation_id": str(conversation.id)
+                }
+
+                try:
+                    auto_reply = await get_auto_reply_from_deepseek(prompt, conversation.id, dernier_msg, db)
+                    if "error" in auto_reply:
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": auto_reply["error"],
+                            "timestamp": datetime.utcnow().isoformat()
+                        })
+                        continue
+                except Exception as e:
+                    print(f"Erreur lors de l'appel à get_auto_reply_from_deepseek : {e}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Erreur lors de la génération de la réponse",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    continue
+
+                actions = auto_reply.get("actions", [])
+                reply_msg = next((a.get("message") for a in actions if a.get("type") == "repondre"), "vu")
+
+                for act in actions:
+                    if act.get("type") == "repondre_delay":
+                        try:
+                            act_date = datetime.fromisoformat(act["date"].replace("Z", "+00:00"))
+                            act_date = act_date.astimezone(timezone.utc).replace(tzinfo=None)
+                        except Exception as e:
+                            print(f"Erreur de parsing de date pour action différée : {e}")
+                            act_date = datetime.utcnow()
+
+                        db.add(FutureAction(
+                            conversation_id=conversation.id,
+                            action="repondre_delay",
+                            date_action=act_date,
+                            future_message=act.get("message")
+                        ))
+
+                bot_msg = Message(
+                    user_id=bot_id,
+                    content=reply_msg,
+                    conversation_id=conversation.id,
+                    created_at=datetime.utcnow()
+                )
+                db.add(bot_msg)
+                await db.commit()
+
                 await websocket.send_json({
-                    "type": "warning",
-                    "message": f"Erreur lors de l'ajout de la mémoire bot : {str(e)}",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "type": "reponse",
+                    "message": reply_msg,
+                    "timestamp": bot_msg.created_at.isoformat()
                 })
 
-            
+                try:
+                    await mem0_add_memory(db, conversation.id, user_msg.content, MemoryType.SHORT, MemoryImportance.MEDIUM, str(user.id), timestamp)
+                    await mem0_add_memory(db, conversation.id, bot_msg.content, MemoryType.SHORT, MemoryImportance.MEDIUM, str(user.id), bot_msg.created_at)
+                except Exception as e:
+                    print(f"Erreur lors de l'ajout à la mémoire : {e}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Erreur lors de la mise à jour de la mémoire",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    continue
+
+                for m in auto_reply.get("MemoryEntry", []):
+                    try:
+                        event_date = datetime.fromisoformat(m["event_date"].replace("Z", "+00:00")) if m.get("event_date") else None
+                    except Exception as e:
+                        print(f"Erreur de parsing de date pour MemoryEntry : {e}")
+                        event_date = None
+                    try:
+                        await mem0_add_memory(
+                            db,
+                            conversation.id,
+                            m.get("contenu", ""),
+                            m.get("type", "other"),
+                            m.get("importance", "medium"),
+                            str(user.id),
+                            datetime.utcnow(),
+                            event_date
+                        )
+                    except Exception as e:
+                        print(f"Erreur lors de l'ajout de MemoryEntry : {e}")
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Erreur lors de l'ajout de MemoryEntry",
+                            "timestamp": datetime.utcnow().isoformat()
+                        })
+                        continue
 
     except WebSocketDisconnect:
+        print(f"Utilisateur {user.id} déconnecté du WebSocket")
         unregister_websocket(user.id)
-        print(f"Déconnexion de l'utilisateur {user.id}")
-
     except Exception as e:
-        print(f"Erreur WebSocket : {str(e)}\n{traceback.format_exc()}")
-        await websocket.send_json({
-            "type": "error",
-            "message": f"Erreur interne : {str(e)}",
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        await websocket.close()
+        print(f"Erreur dans la gestion du WebSocket pour {user.id}: {e}")
         unregister_websocket(user.id)
+        await websocket.close(code=1008)
+        return
 
 # Fonctions utiles
 
@@ -410,34 +341,28 @@ def extract_json_block(content: str):
     json_str = match.group(1)
     return json.loads(json_str)
 
-def get_all_memories(conversation_id: UUID, db: Session) -> List[MemoryEntry]:
+async def get_all_memories(conversation_id: UUID, db: AsyncSession) -> List[MemoryEntry]:
     """
     Récupère toutes les entrées mémoire liées à une conversation donnée, triées par importance (desc) puis par date (desc).
-    
-    Args:
-        conversation_id (UUID): ID de la conversation.
-        db (Session): Session SQLAlchemy.
-
-    Returns:
-        List[MemoryEntry]: Liste des souvenirs associés.
     """
     try:
-        memories = db.query(MemoryEntry).filter(
+        statement = select(MemoryEntry).where(
             MemoryEntry.conversation_id == conversation_id
         ).order_by(
-            MemoryEntry.importance.desc(),  # d'abord les plus importantes
-            MemoryEntry.created_at.desc()   # puis les plus récentes
-        ).all()
+            MemoryEntry.importance.desc(),
+            MemoryEntry.created_at.desc()
+        )
 
-        return memories
+        results = await db.execute(statement)  # Ajout de await
+        return results.scalars().all()
 
     except Exception as e:
-        print(f"[get_all_memories] Erreur lors de la récupération des souvenirs : {e}")
+        logging.error(f"[get_all_memories] Erreur lors de la récupération des souvenirs : {e}", exc_info=True)
         return []
     
 
 
-def retrieve_contextual_memories(user_message: str, conversation_id: str, db: Session) -> List[MemoryEntry]:
+async def retrieve_contextual_memories(user_message: str, conversation_id: str, db: AsyncSession) -> List[MemoryEntry]:
     """
     Combine recherche vectorielle Mem0 et fallback lexical.
     Retourne des objets MemoryEntry SQLModel.
@@ -446,7 +371,7 @@ def retrieve_contextual_memories(user_message: str, conversation_id: str, db: Se
     souvenirs_lexical = []
 
     try:
-        memories_content = search_memory(
+        memories_content = await search_memory(  # Ajout de await
             user_message=user_message,
             conversation_id=conversation_id,
             type_filter=[
@@ -465,16 +390,15 @@ def retrieve_contextual_memories(user_message: str, conversation_id: str, db: Se
         )
 
         # Convertit les contenus texte en objets MemoryEntry de la base si présents
-        all_db_memories = get_all_memories(UUID(conversation_id), db)
+        all_db_memories = await get_all_memories(UUID(conversation_id), db)  # Ajout de await
         souvenirs_vector = [
             m for m in all_db_memories
             if m.content in memories_content
         ]
-        print(f"[Mem0 search] {len(souvenirs_vector)} souvenirs vectoriels : {[m.content for m in souvenirs_vector]}")
+        logging.info(f"[Mem0 search] {len(souvenirs_vector)} souvenirs vectoriels : {[m.content for m in souvenirs_vector]}")
 
     except Exception as e:
-        import traceback
-        print(f"[Mem0 search] Erreur : {e}\n{traceback.format_exc()}")
+        logging.error(f"[Mem0 search] Erreur : {e}", exc_info=True)
 
     try:
         mots_cles = ["anniversaire", "rendez-vous", "souvenir", "date", "lieu", "préférence"]
@@ -484,9 +408,8 @@ def retrieve_contextual_memories(user_message: str, conversation_id: str, db: Se
             and m.id not in {s.id for s in souvenirs_vector}
         ]
         if souvenirs_lexical:
-            print(f"[Fallback lexical] {len(souvenirs_lexical)} souvenirs : {[m.content for m in souvenirs_lexical]}")
+            logging.info(f"[Fallback lexical] {len(souvenirs_lexical)} souvenirs : {[m.content for m in souvenirs_lexical]}")
     except Exception as e:
-        import traceback
-        print(f"[Fallback lexical] Erreur : {e}\n{traceback.format_exc()}")
+        logging.error(f"[Fallback lexical] Erreur : {e}", exc_info=True)
 
     return souvenirs_vector + souvenirs_lexical

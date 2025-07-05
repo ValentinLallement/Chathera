@@ -12,18 +12,18 @@ from .. import crud  # Assure that 'crud.py' exists in the same package
 from .. import auth  # Assure that 'auth.py' exists and provides token creation functions
 from app.auth import create_access_token, create_refresh_token
 from app.crud import get_user_by_google_sub, create_or_update_user_google
-from app.database import get_session
+from app.database import get_db
 from app.dependencies import get_db
 from app.schemas import GoogleLogin
 from app.config import GOOGLE_CLIENT_ID
 
 from sqlmodel import Session
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from google.auth.transport import requests as google_requests  # module Google
 from google.oauth2 import id_token as google_id_token
 
-session = get_session()
+session = get_db()
 
 
 
@@ -52,7 +52,7 @@ async def google_login(request: Request):
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @router.get('/auth/google/callback')
-async def google_callback(request: Request, db: Session = Depends(get_db)):
+async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         token = await oauth.google.authorize_access_token(request)
     except OAuthError:
@@ -72,8 +72,8 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     # Utilise la fonction unifiée
     user_from_db = create_or_update_user_google(db, email=email, name=name, google_sub=google_sub,picture=picture)
 
-    access_token = auth.create_access_token(data={"sub": str(user_from_db.id)})
-    refresh_token = auth.create_refresh_token(data={"sub": str(user_from_db.id)})
+    access_token = await auth.create_access_token(data={"sub": str(user_from_db.id)})
+    refresh_token = await auth.create_refresh_token(data={"sub": str(user_from_db.id)})
 
     return {
         "access_token": access_token,
@@ -83,7 +83,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/auth/google")
-def login_google(google_login: GoogleLogin, db: Session = Depends(get_db)):
+def login_google(google_login: GoogleLogin, db: AsyncSession = Depends(get_db)):
     try:
         # Vérifier le id_token (identité)
         idinfo = google_id_token.verify_oauth2_token(

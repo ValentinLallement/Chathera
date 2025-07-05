@@ -12,9 +12,8 @@ from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Body, Qu
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse, JSONResponse
 
-from sqlmodel import Session
-from sqlalchemy.orm import Session as SQLAlchemySession
-from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic import BaseModel, EmailStr, Field
 from starlette.middleware.sessions import SessionMiddleware
@@ -36,7 +35,7 @@ from app.schemas import (
 )
 from app.auth import verify_token, get_user_from_token, create_password_reset_token
 from app.websocket.router import websocket_router
-from app.database import get_session
+from app.database import get_db
 from app.dependencies import get_db
 from app.config import REFRESH_SECRET_KEY, ALGORITHM, SECRET_KEY, MEM0_CONFIG ,ACCESS_TOKEN_EXPIRE_MINUTES
 from app.tasks.scheduler import task_scheduler
@@ -61,7 +60,7 @@ credentials_exception = HTTPException(
 api_router = APIRouter()
 
 @api_router.get("/")
-def read_root():
+async def read_root():
     return {"message": "Hello, FastAPI is ready!"}
 
 # Health check endpoint
@@ -74,24 +73,37 @@ async def health_check():
 
 
 @api_router.post("/register", response_model=schemas.User)
-def register(user: schemas.UserCreate, db: Session = Depends(dependencies.get_db)):
+async def register(user: schemas.UserCreate, db: AsyncSession = Depends(dependencies.get_db)):
     return crud.create_user(db=db, user=user)
 
 
+
 @api_router.post("/request-email-verification")
-def request_email_verification(payload: EmailRequest, db: Session = Depends(dependencies.get_db)):
+async def request_email_verification(
+    payload: EmailRequest,
+    db: AsyncSession = Depends(dependencies.get_db)
+):
     email = payload.email
 
-    user = db.query(models.User).filter(models.User.email == email).first()
+    # await db.execute pour la requête select
+    stmt_user = select(models.User).where(models.User.email == email)
+    result = await db.execute(stmt_user)
+    user = result.scalars().first()
+
     if user and user.is_verified:
         raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
 
-    # Invalider les anciens codes non utilisés
-    db.query(models.EmailVerificationCode).filter(
-        models.EmailVerificationCode.email == email,
-        models.EmailVerificationCode.is_used == False
-    ).update({models.EmailVerificationCode.is_used: True})
-    db.commit()
+    # await db.execute pour la mise à jour (update)
+    stmt_update = (
+        models.EmailVerificationCode.__table__.update()
+        .where(
+            (models.EmailVerificationCode.email == email) &
+            (models.EmailVerificationCode.is_used == False)
+        )
+        .values(is_used=True)
+    )
+    await db.execute(stmt_update)
+    await db.commit()
 
     # Générer un nouveau code à 6 chiffres
     code = ''.join(random.choices(string.digits, k=6))
@@ -99,55 +111,64 @@ def request_email_verification(payload: EmailRequest, db: Session = Depends(depe
     # Enregistrer le code en base
     db_code = models.EmailVerificationCode(email=email, code=code)
     db.add(db_code)
-    db.commit()
+    await db.commit()
 
     # Envoyer le code par email
-    send_email_verification_code(email, code)
+    await send_email_verification_code(email, code)
 
     return {"message": "Un nouveau code de vérification a été envoyé."}
 
+
 @api_router.post("/verify-email-code")
-def verify_email_code(payload: schemas.EmailCodeVerification, db: Session = Depends(dependencies.get_db)):
-    verification = (
-        db.query(models.EmailVerificationCode)
-        .filter(
-            models.EmailVerificationCode.email == payload.email,
-            models.EmailVerificationCode.code == payload.code,
-            models.EmailVerificationCode.is_used == False,
-            models.EmailVerificationCode.expires_at > datetime.utcnow()
+async def verify_email_code(
+    payload: schemas.EmailCodeVerification,
+    db: AsyncSession = Depends(dependencies.get_db)
+):
+    stmt_verif = (
+        select(models.EmailVerificationCode)
+        .where(
+            (models.EmailVerificationCode.email == payload.email) &
+            (models.EmailVerificationCode.code == payload.code) &
+            (models.EmailVerificationCode.is_used == False) &
+            (models.EmailVerificationCode.expires_at > datetime.utcnow())
         )
         .order_by(models.EmailVerificationCode.created_at.desc())
-        .first()
     )
+
+    result_verif = await db.execute(stmt_verif)
+    verification = result_verif.scalars().first()  # Note: first() n'est pas async
 
     if not verification:
         raise HTTPException(status_code=400, detail="Code invalide ou expiré.")
 
     verification.is_used = True
 
-    # On valide aussi le user
-    user = db.query(models.User).filter(models.User.email == payload.email).first()
-    if user:
-        user.is_verified = True
-    else:
+    # Recherche utilisateur
+    stmt_user = select(models.User).where(models.User.email == payload.email)
+    result_user = await db.execute(stmt_user)
+    user = result_user.scalars().first()
+
+    if not user:
         raise HTTPException(status_code=400, detail="Utilisateur non trouvé.")
 
-    db.commit()
+    user.is_verified = True
+
+    await db.commit()
 
     return {"message": "Email vérifié avec succès."}
 # ----------------- Tokens -----------------
 
 @api_router.post("/token")
-def login_for_access_token(
+async def login_for_access_token(
     user: UserLogin,
-    db: Session = Depends(dependencies.get_db)
+    db: AsyncSession = Depends(dependencies.get_db)
 ):
-    user_from_db = crud.get_user_by_username_or_email(db=db, login=user.login)
-    if not user_from_db or not auth.verify_password(user.password, user_from_db.password):
+    user_from_db = await crud.get_user_by_username_or_email(db=db, login=user.login)
+    if not user_from_db or not await auth.verify_password(user.password, user_from_db.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou mot de passe incorrect")
 
-    access_token = auth.create_access_token(data={"sub": str(user_from_db.id)})
-    refresh_token = auth.create_refresh_token(data={"sub": str(user_from_db.id)})
+    access_token = await auth.create_access_token(data={"sub": str(user_from_db.id)})
+    refresh_token = await auth.create_refresh_token(data={"sub": str(user_from_db.id)})
 
     response = JSONResponse(content={
         "message": "Connexion réussie",
@@ -170,9 +191,9 @@ def login_for_access_token(
     
 
 @api_router.post("/refresh")
-def refresh_token_from_cookie(
+async def refresh_token_from_cookie(
     request: Request,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
@@ -190,7 +211,7 @@ def refresh_token_from_cookie(
         if not user:
             raise HTTPException(status_code=401, detail="Utilisateur non trouvé")
 
-        new_access_token = auth.create_access_token(data={"sub": str(user.id)})
+        new_access_token = await auth.create_access_token(data={"sub": str(user.id)})
 
         return JSONResponse(content={
             "message": "Token rafraîchi avec succès",
@@ -202,7 +223,7 @@ def refresh_token_from_cookie(
         raise HTTPException(status_code=401, detail="Token de rafraîchissement invalide")
     
 @api_router.post("/logout")
-def logout():
+async def logout():
     response = JSONResponse(content={"message": "Déconnecté"})
     response.delete_cookie(key="refresh_token")
     return response
@@ -211,88 +232,90 @@ def logout():
 
 
 @api_router.get("/user/me", response_model=schemas.User)
-def read_users_me(current_user: schemas.User = Depends(dependencies.get_current_user)):
+async def read_users_me(current_user: schemas.User = Depends(dependencies.get_current_user)):
     return current_user
 
 
 @api_router.delete("/user/delete")
-def delete_account(
+async def delete_account(
     request: UserDeleteRequest,
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
-    user = get_user_from_token(token, db,credentials_exception)
+    user = await get_user_from_token(token, db,credentials_exception)
 
     # Vérifie le mot de passe
-    if not auth.verify_password(request.password, user.password):
+    if not await auth.verify_password(request.password, user.password):
         raise HTTPException(status_code=403, detail="Mot de passe incorrect.")
 
     # Supprime l'utilisateur
     db.delete(user)
-    db.commit()
+    await db.commit()
 
     return {"detail": "Compte supprimé avec succès."}
 
 # ----------------- Modify password -----------------
 
 @api_router.post("/user/change-password")
-def change_password(
+async def change_password(
     request: ChangePasswordRequest,
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):  
 
-    user = get_user_from_token(token, db,credentials_exception)
+    user = await get_user_from_token(token, db,credentials_exception)
 
     
 
     # Vérifie l'ancien mot de passe
-    if not auth.verify_password(request.old_password, user.password):
+    if not await auth.verify_password(request.old_password, user.password):
         raise HTTPException(status_code=403, detail="Ancien mot de passe incorrect.")
 
     # Met à jour avec le nouveau mot de passe haché
-    user.password = auth.hash_password(request.new_password)
-    db.commit()
+    user.password = await auth.hash_password(request.new_password)
+    await db.commit()
 
     return {"detail": "Mot de passe mis à jour avec succès."}
 # ----------------- reset password -----------------
 
 @api_router.post("/user/request-password-reset")
-def request_password_reset(request: PasswordResetRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == request.email).first()
+async def request_password_reset(request: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+    stmt = select(User).where(User.email == request.email)
+    user = await db.execute(stmt).scalars().first()
+
+    # Toujours répondre la même chose pour ne pas révéler l'existence de l'email
     if not user:
-        # Optionnel : ne pas révéler que l’email n'existe pas
-        raise HTTPException(status_code=200, detail="Si cet email existe, un lien de réinitialisation a été envoyé.")
+        return {"detail": "Si cet email existe, un lien de réinitialisation a été envoyé."}
 
-    # Générer un token JWT temporaire spécial "reset password"
-    reset_token = create_password_reset_token(user.id)
-
-    # Créer le lien de reset à envoyer par email
+    reset_token = await create_password_reset_token(user.id)
     reset_link = f"https://Chathera.com/reset-password?token={reset_token}"
 
-    send_email(
+    await send_email(
         to=user.email,
         subject="Réinitialisation de votre mot de passe",
         body=f"Cliquez ici pour réinitialiser votre mot de passe : {reset_link}"
     )
 
-    return {"detail": f"Un lien de réinitialisation a été envoyé à l'email : {request.email} ."}
+    return {"detail": f"Un lien de réinitialisation a été envoyé à l'email : {request.email}."}
 
 
 @api_router.post("/user/reset-password")
-def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
     try:
         payload = jwt.decode(request.token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Token invalide ou expiré.")
     except JWTError:
         raise HTTPException(status_code=401, detail="Token invalide ou expiré.")
 
-    user = db.query(User).filter(User.id == user_id).first()
+    stmt = select(User).where(User.id == user_id)
+    user = await db.execute(stmt).scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
 
-    user.password = auth.hash_password(request.new_password)
-    db.commit()
+    user.password = await auth.hash_password(request.new_password)
+    await db.commit()
 
     return {"detail": "Mot de passe réinitialisé avec succès."}
 
@@ -331,48 +354,68 @@ async def generate_image(data: PromptRequest, token: str = Depends(verify_token)
 
 
 @api_router.post("/create_bot")
-def create_bot_and_conversation(
+async def create_bot_and_conversation(
     request: CreateBotRequest,
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    token: str = Depends(dependencies.oauth2_scheme),
+    db: AsyncSession = Depends(dependencies.get_db)
 ):
-    # Authentification
-    user = get_user_from_token(token, db, credentials_exception)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Impossible de valider les identifiants.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-    # Récupération de l'abonnement
-    subscription = db.query(Subscription).filter(Subscription.user_id == user.id).first()
+    # ✅ Récupération utilisateur via token
+    user = await get_user_from_token(token, db, credentials_exception)
+
+    # ✅ Vérifie que l'utilisateur a un abonnement
+    result = await db.execute(
+        select(models.Subscription).where(models.Subscription.user_id == user.id)
+    )
+    subscription = result.scalars().first()
+
     if not subscription:
         raise HTTPException(status_code=403, detail="Aucun abonnement trouvé pour l'utilisateur")
 
-    # Vérification que l'abonnement est actif (hors FREE)
-    if subscription.plan != PlanEnum.FREE:
-        status = getattr(subscription, "status", None)
-        if status != SubscriptionStatus.active:
-            raise HTTPException(
-                status_code=403,
-                detail="Votre abonnement n'est pas actif. Merci de le réactiver pour utiliser le service."
-            )
+    # ✅ Si plan ≠ FREE, abonnement doit être actif
+    if subscription.plan != PlanEnum.FREE and subscription.status != SubscriptionStatus.active:
+        raise HTTPException(
+            status_code=403,
+            detail="Votre abonnement n'est pas actif. Merci de le réactiver pour utiliser le service."
+        )
 
-    # Vérification de la limite de bots
-    existing_bot_count = db.query(Bot).filter(Bot.user_id == user.id).count()
+    # ✅ Compter les bots existants
+    result = await db.execute(
+        select(models.Bot).where(models.Bot.user_id == user.id)
+    )
+    existing_bots = result.scalars().all()
+    existing_bot_count = len(existing_bots)
+
+    # ✅ Vérifier la limite
     if not check_bot_limit(subscription, existing_bot_count):
         raise HTTPException(status_code=403, detail="Limite de bots atteinte pour votre abonnement")
 
+    # ✅ Création du bot et conversation
     try:
-        # Création du bot
-        bot = Bot(name=request.name, user_id=user.id,gender=request.gender, personality=request.personality)
-        db.add(bot)
-        db.commit()
-        db.refresh(bot)
+        new_bot = models.Bot(
+            name=request.name,
+            user_id=user.id,
+            gender=request.gender,
+            personality=request.personality
+        )
+        db.add(new_bot)
+        await db.commit()
+        await db.refresh(new_bot)
 
-        # Création de la conversation associée
-        conversation = Conversation(user_id=user.id, bot_id=bot.id)
-        db.add(conversation)
-        db.commit()
+        new_conversation = models.Conversation(
+            user_id=user.id,
+            bot_id=new_bot.id
+        )
+        db.add(new_conversation)
+        await db.commit()
+        await db.refresh(new_conversation)
 
-        # Reporting usage Stripe uniquement pour les plans PAYG
+        # ✅ Report d’usage Stripe (facultatif)
         if subscription.plan == PlanEnum.PAYG and subscription.stripe_subscription_item_bots:
             try:
                 report_usage(
@@ -381,72 +424,80 @@ def create_bot_and_conversation(
                     increment=True
                 )
             except Exception as e:
-                # Remplacer print par logger dans un vrai projet
-                print(f"Erreur lors du report d'usage bots à Stripe : {e}")
+                logging.warning(f"Erreur lors du report d'usage bots à Stripe : {e}")
 
-        return {"bot_id": bot.id, "conversation_id": conversation.id}
+        return {
+            "bot_id": new_bot.id,
+            "conversation_id": new_conversation.id
+        }
 
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Erreur serveur lors de la création du bot : {e}")
+        await db.rollback()
+        logging.error(f"Erreur serveur lors de la création du bot : {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur serveur lors de la création du bot.")
 
 
 @api_router.delete("/delete_bot/{bot_id}")
-def delete_bot(
+async def delete_bot(
     bot_id: UUID,
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    token: str = Depends(dependencies.oauth2_scheme),
+    db: AsyncSession = Depends(dependencies.get_db)
 ):
-    user = get_user_from_token(token, db, credentials_exception)
+    user = await get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    bot = db.query(Bot).filter(Bot.id == bot_id, Bot.user_id == user.id).first()
+    # Attention à await db.execute et récupérer le résultat avant .scalars().first()
+    stmt_bot = select(Bot).where(Bot.id == bot_id, Bot.user_id == user.id)
+    result_bot = await db.execute(stmt_bot)
+    bot = result_bot.scalars().first()
     if not bot:
         raise HTTPException(status_code=404, detail="Bot non trouvé ou pas les droits")
 
-    subscription = db.query(Subscription).filter(Subscription.user_id == user.id).first()
+    stmt_sub = select(models.Subscription).where(models.Subscription.user_id == user.id)
+    result_sub = await db.execute(stmt_sub)
+    subscription = result_sub.scalars().first()
     if not subscription:
         raise HTTPException(status_code=403, detail="Aucun abonnement trouvé")
 
     try:
-        conversations = db.query(Conversation).filter(Conversation.bot_id == bot.id).all()
+        # Supprimer les conversations liées
+        stmt_conv = select(Conversation).where(Conversation.bot_id == bot.id)
+        result_conv = await db.execute(stmt_conv)
+        conversations = result_conv.scalars().all()
+
         for conv in conversations:
-            db.delete(conv)
-        db.commit()
+            await db.delete(conv)  # La méthode delete() est asynchrone en AsyncSession
 
-        db.delete(bot)
-        db.commit()
+        await db.commit()
 
-        # Reporting Stripe si PAYG ...
+        await db.delete(bot)
+        await db.commit()
+
         if subscription.plan == PlanEnum.PAYG and subscription.stripe_subscription_item_bots:
             try:
-                report_usage(
-                    subscription_item_id=subscription.stripe_subscription_item_bots,
-                    quantity=1,
-                    increment=False
-                )
+                report_usage(subscription_item_id=subscription.stripe_subscription_item_bots, quantity=1, increment=False)
             except Exception as e:
                 print(f"Erreur report Stripe suppression bot : {e}")
 
         return {"detail": f"Bot {bot.name} supprimé avec succès"}
 
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression : {e}")
 
 
 @api_router.get("/my_bots")
-def get_my_bots(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    # Vérifie le token
-    user = get_user_from_token(token, db, credentials_exception)
+async def get_my_bots(token: str = Depends(dependencies.oauth2_scheme), db: AsyncSession = Depends(dependencies.get_db)):
+    user = await get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Récupère les bots créés par l’utilisateur
-    bots = db.query(Bot).filter(Bot.user_id == user.id).all()
+    stmt_bots = select(Bot).where(Bot.user_id == user.id)
+    result = await db.execute(stmt_bots)         
+    bots = result.scalars().all()
 
-    return [{"bot_id": bot.id, "name": bot.name ,"gender": bot.gender , "avatar_url": bot.avatar_url } for bot in bots]
+    return [{"bot_id": bot.id, "name": bot.name, "gender": bot.gender, "avatar_url": bot.avatar_url} for bot in bots]
 
 
 
@@ -456,9 +507,9 @@ def get_my_bots(token: str = Depends(oauth2_scheme), db: Session = Depends(get_d
 async def update_my_subscription(
     subscription_update: schemas.SubscriptionUpdate,
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
-    user = get_user_from_token(token, db, credentials_exception)
+    user = await get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -478,23 +529,20 @@ async def update_my_subscription(
     
 
 @api_router.get("/user/subscription/infos", response_model=UserSubscriptionsResponse)
-def get_user_subscription(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+async def get_user_subscription(
+    token: str = Depends(dependencies.oauth2_scheme),
+    db: AsyncSession = Depends(dependencies.get_db)
 ):
-    # Récupérer user depuis token (authentification)
-    user = get_user_from_token(token, db, credentials_exception)
+    user = await get_user_from_token(token, db, credentials_exception)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Récupérer le premier abonnement de l'user
-    subscription = db.query(Subscription).filter(Subscription.user_id == user.id).first()
+    stmt_sub = select(models.Subscription).where(models.Subscription.user_id == user.id)
+    result = await db.execute(stmt_sub)
+    subscription = result.scalars().first()
 
     if not subscription:
-        
-        return UserSubscriptionsResponse(
-            subscriptions=None
-        )
+        return UserSubscriptionsResponse(subscriptions=None)
 
     subs_info = SubscriptionInfo(
         id=subscription.id,
@@ -504,22 +552,7 @@ def get_user_subscription(
         status=subscription.status,
         message_count=subscription.message_count,
         last_reset=subscription.last_reset,
-        message_limit=subscription.message_limit,     
+        message_limit=subscription.message_limit,
     )
 
-    return UserSubscriptionsResponse(
-        subscriptions=subs_info,
-    )
-    
-# ----------------- Notification Push -----------------
-
-@api_router.post("/subscribe_push")
-async def subscribe_push(subscription: SubscriptionData, user_id: int, db: Session = Depends(get_db)):
-    # Vérifier si l'abonnement existe déjà
-    existing = db.query(PushSubscription).filter(PushSubscription.endpoint == subscription.endpoint).first()
-    if existing:
-        return {"message": "Subscription already exists."}
-    new_sub = PushSubscription(user_id=user_id, endpoint=subscription.endpoint, keys=subscription.keys)
-    db.add(new_sub)
-    db.commit()
-    return {"message": "Subscription saved."}
+    return UserSubscriptionsResponse(subscriptions=subs_info)
