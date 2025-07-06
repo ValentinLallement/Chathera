@@ -16,10 +16,11 @@ from typing import Optional, Union
 from fastapi import HTTPException
 
 from . import schemas,auth
-from app.db.models.models import Conversation, Message, FutureAction, Subscription
+from app.db.models.models import Conversation, Message, FutureAction, Subscription, UserLegalConsent
 from app.utils.payg import PlanEnum
 from app.utils.email import send_email_verification_code
 from app.utils.permissions import MESSAGE_LIMITS
+
 
 
 #----------------------  User  --------------------------------------------------
@@ -275,7 +276,21 @@ async def update_user_subscription(
     await db.refresh(subscription)
     return subscription
 
+# ----------------------------- Consent ---------------------------------------
 
+async def get_or_create_user_consent(db: AsyncSession, user_id: str) -> UserLegalConsent:
+    result = await db.execute(
+        select(UserLegalConsent).where(UserLegalConsent.user_id == user_id)
+    )
+    consent = result.scalar_one_or_none()
+
+    if not consent:
+        consent = UserLegalConsent(user_id=user_id)
+        db.add(consent)
+        await db.commit()
+        await db.refresh(consent)
+
+    return consent
 
 
 

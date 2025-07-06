@@ -26,13 +26,14 @@ from uuid import UUID
 from google.auth.transport import requests as google_requests
 
 from app import crud, schemas, dependencies, auth
-from app.db.models.models import Conversation, Bot, User, Subscription, PlanEnum, SubscriptionStatus, PushSubscription
+from app.db.models.models import Conversation, Bot, User, Subscription, PlanEnum, SubscriptionStatus, PushSubscription, UserLegalConsent
 from app.schemas import (
     CreateBotRequest, UserLogin, PromptRequest, RefreshTokenRequest,
     UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest,
-    SubscriptionData, UserSubscriptionsResponse,SubscriptionInfo
+    SubscriptionData, UserSubscriptionsResponse,SubscriptionInfo,UserLegalConsentBase, UserLegalConsentRead
 
 )
+from app.crud import get_or_create_user_consent
 from app.auth import verify_token, get_user_from_token, create_password_reset_token
 from app.websocket.router import websocket_router
 from app.database import get_db
@@ -424,7 +425,7 @@ async def create_bot_and_conversation(
                     increment=True
                 )
             except Exception as e:
-                logging.warning(f"Erreur lors du report d'usage bots à Stripe : {e}")
+                print(f"Erreur lors du report d'usage bots à Stripe : {e}")
 
         return {
             "bot_id": new_bot.id,
@@ -433,7 +434,7 @@ async def create_bot_and_conversation(
 
     except Exception as e:
         await db.rollback()
-        logging.error(f"Erreur serveur lors de la création du bot : {e}", exc_info=True)
+        print(f"Erreur serveur lors de la création du bot : {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Erreur serveur lors de la création du bot.")
 
 
@@ -551,8 +552,73 @@ async def get_user_subscription(
         start_date=subscription.start_date,
         status=subscription.status,
         message_count=subscription.message_count,
+        free_message_count=subscription.free_message_count,
         last_reset=subscription.last_reset,
         message_limit=subscription.message_limit,
     )
 
     return UserSubscriptionsResponse(subscriptions=subs_info)
+
+
+# ------------------------- Consent -------------------------
+
+@api_router.post("/legal/accept", response_model=UserLegalConsentRead)
+async def accept_legal_consent(
+    consent_data: UserLegalConsentBase,
+    token: str = Depends(dependencies.oauth2_scheme),
+    db: AsyncSession = Depends(dependencies.get_db)
+):
+    user = await get_user_from_token(token, db, credentials_exception)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    consent = await get_or_create_user_consent(db, user.id)
+
+    now = datetime.utcnow()
+    # Pour chaque champ accepté à True, on met à jour la date correspondante
+    if consent_data.accepted_terms is True:
+        consent.accepted_terms = True
+        consent.accepted_terms_at = now
+
+    if consent_data.accepted_privacy is True:
+        consent.accepted_privacy = True
+        consent.accepted_privacy_at = now
+
+    if consent_data.accepted_cookies is True:
+        consent.accepted_cookies = True
+        consent.accepted_cookies_at = now
+
+    await db.commit()
+    await db.refresh(consent)
+    return consent
+
+
+@api_router.put("/legal/update", response_model=UserLegalConsentRead)
+async def update_legal_consent(
+    update_data: UserLegalConsentBase,
+    token: str = Depends(dependencies.oauth2_scheme),
+    db: AsyncSession = Depends(dependencies.get_db)
+):
+    user = await get_user_from_token(token, db, credentials_exception)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    consent = await get_or_create_user_consent(db, user.id)
+    now = datetime.utcnow()
+
+    # Modifie chaque champ, met à jour la date ou supprime la date si False
+    if update_data.accepted_terms is not None:
+        consent.accepted_terms = update_data.accepted_terms
+        consent.accepted_terms_at = now if update_data.accepted_terms else None
+
+    if update_data.accepted_privacy is not None:
+        consent.accepted_privacy = update_data.accepted_privacy
+        consent.accepted_privacy_at = now if update_data.accepted_privacy else None
+
+    if update_data.accepted_cookies is not None:
+        consent.accepted_cookies = update_data.accepted_cookies
+        consent.accepted_cookies_at = now if update_data.accepted_cookies else None
+
+    await db.commit()
+    await db.refresh(consent)
+    return consent

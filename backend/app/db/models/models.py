@@ -52,6 +52,29 @@ class User(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
+    legal_consent: Optional["UserLegalConsent"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+
+
+class UserLegalConsent(SQLModel, table=True):
+    __tablename__ = "user_legal_consent"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+
+    accepted_terms: bool = Field(default=False)
+    accepted_terms_at: Optional[datetime] = None
+
+    accepted_privacy: bool = Field(default=False)
+    accepted_privacy_at: Optional[datetime] = None
+
+    accepted_cookies: bool = Field(default=False)
+    accepted_cookies_at: Optional[datetime] = None
+
+    user: Optional["User"] = Relationship(back_populates="legal_consent")
+
 
 class EmailVerificationCode(SQLModel, table=True):
     __tablename__ = "email_verification_codes"
@@ -222,10 +245,14 @@ class MemoryEntry(SQLModel, table=True):
 
 class SubscriptionStatus(str, Enum):
     active = "active"
-    cancelled = "cancelled"
+    canceled = "canceled"
+    incomplete = "incomplete"
+    incomplete_expired = "incomplete_expired"
     past_due = "past_due"
-    unpaid = "unpaid"
     trialing = "trialing"
+    unpaid = "unpaid"
+    paused = "paused"
+
     
 class Subscription(SQLModel, table=True):
     __tablename__ = "subscription"
@@ -237,6 +264,7 @@ class Subscription(SQLModel, table=True):
     plan: PlanEnum = Field(default=PlanEnum.FREE)    
     start_date: datetime = Field(default_factory=datetime.utcnow)
     message_count: int = Field(default=0)
+    free_message_count: int = Field(default=0)
     last_reset: date = Field(default_factory=lambda: datetime.utcnow().date())
     status: SubscriptionStatus = Field(default=SubscriptionStatus.active,nullable=True)
     message_limit: Optional[int] = Field(default=None)
@@ -260,10 +288,11 @@ class SubscriptionHistory(SQLModel, table=True):
 
     plan: PlanEnum = Field()
     start_date: datetime
-    message_count: int
+    message_count: int = Field(default=0)
+    free_message_count: int = Field(default=0)
     last_reset: date
-    status: SubscriptionStatus
-    message_limit: Optional[int]
+    status: SubscriptionStatus = Field(default=SubscriptionStatus.active,nullable=True)
+    message_limit: Optional[int] = Field(default=None)
 
     stripe_subscription_id: Optional[str] = Field(default=None, nullable=True, index=True)
     stripe_subscription_item_messages: Optional[str] = Field(default=None, nullable=True, index=True)

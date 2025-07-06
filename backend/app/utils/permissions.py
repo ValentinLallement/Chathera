@@ -18,6 +18,8 @@ MESSAGE_LIMITS = {
 
 async def check_bot_limit(subscription: Subscription, current_bot_count: int) -> bool:
     limit = BOT_LIMITS.get(subscription.plan)
+    if subscription.status != "active":
+        return False
     if limit is None:
         return True  # illimité
     return current_bot_count < limit
@@ -39,13 +41,16 @@ async def check_message_limit(subscription: Subscription, db: AsyncSession) -> b
         if subscription.message_limit is not None:
             return subscription.message_count < subscription.message_limit
         return True 
+    
+    if subscription.plan == PlanEnum.FREE:
+        if subscription.free_message_count >= 10 :
+            return False
 
-    # Limite standard
-    limit = MESSAGE_LIMITS.get(subscription.plan)
-    if limit is None:
-        return True 
+    if subscription.plan == PlanEnum.PREMIUM:
+        if subscription.message_count >= 600:
+            return False
 
-    return subscription.message_count < limit
+    return True
 
 def increment_message_count(subscription: Subscription):
     today = datetime.utcnow().date()

@@ -14,6 +14,8 @@ from app.utils.payg import PlanEnum
 # ----------------------------- Abonnements -----------------------------
 
 class SubscriptionInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     plan: str
     start_date: datetime
     message_count: int
@@ -21,16 +23,11 @@ class SubscriptionInfo(BaseModel):
     last_reset: date
     status: str
 
-
-    class Config:
-        from_attributes = True  
-
 class SubscriptionUpdate(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     plan: Optional[PlanEnum] = None
     message_limit: Optional[int] = None
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 class CheckoutRequest(BaseModel):
@@ -39,31 +36,26 @@ class CheckoutRequest(BaseModel):
 class UserSubscriptionsResponse(BaseModel):
     subscriptions: Optional[SubscriptionInfo]
 
-# ----------------------------- Utilisateur -----------------------------
+# ----------------------------- Utilisateur -------------------------------
 class UserLogin(BaseModel):
     login: str  # Peut être un email ou un nom d'utilisateur
     password: str
-class UserBase(BaseModel):
-    username: Optional[str] = None
-    email: str
 
-class UserCreate(UserBase):
+
+class UserCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     password: str
     name: str
 
-    class Config:
-        from_attributes = True
+class User(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
-class User(UserBase):
     id: UUID
     name: Optional[str] = None
     username: Optional[str] = None
     profile_picture: Optional[str] = None
     is_verified: bool = False
-    
-
-    class Config:
-        from_attributes = True
 
 class GoogleLogin(BaseModel):
     token: str  # Token ID JWT envoyé par le client Google
@@ -93,7 +85,7 @@ class EmailRequest(BaseModel):
     email: EmailStr
 
 
-# ----------------------------- Authentification -----------------------------
+# ----------------------------- Authentification -------------------------
 class Token(BaseModel):
     access_token: str
     refresh_token: str
@@ -102,18 +94,17 @@ class Token(BaseModel):
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
-# ----------------------------- Message -----------------------------
+# ----------------------------- Message ----------------------------------
 
 class MessageBase(BaseModel):
     content: str
     created_at: datetime  
 
-class Message(MessageBase):
+class Message(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     user_id: UUID
-
-    class Config:
-        from_attributes = True
     
 class ConversationRequest(BaseModel):
     conversation_id: UUID
@@ -149,7 +140,7 @@ class CreateBotRequest(BaseModel):
     gender: Literal["Male", "Female"]  # ou str si tu veux laisser plus libre
     personality: Literal["Friendly", "Professional", "Casual", "Serious","Sweet"]  # ou str si tu veux laisser plus libre
     
-# ----------------------------- Avatar -----------------------------
+# ----------------------------- Avatar ----------------------------------------
 
 class AvatarPayload(BaseModel):
     bot_id: int
@@ -160,3 +151,19 @@ class AvatarPayload(BaseModel):
 class SubscriptionData(BaseModel):
     endpoint: str
     keys: dict
+
+
+
+# ----------------------------- Consent ---------------------------------------
+
+class UserLegalConsentBase(BaseModel):
+    accepted_terms: Optional[bool] = None
+    accepted_privacy: Optional[bool] = None
+    accepted_cookies: Optional[bool] = None
+
+class UserLegalConsentRead(UserLegalConsentBase):
+    model_config = ConfigDict(from_attributes=True)
+    accepted_terms_at: Optional[datetime]
+    accepted_privacy_at: Optional[datetime]
+    accepted_cookies_at: Optional[datetime]
+

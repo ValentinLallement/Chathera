@@ -1,4 +1,5 @@
 import stripe
+import time
 
 from uuid import UUID
 from datetime import datetime, timezone
@@ -17,7 +18,7 @@ from app.schemas import CheckoutRequest
 from app.dependencies import get_db
 from app.auth import get_user_from_token
 from app.crud import update_user_subscription
-from app.db.models.models import Subscription,SubscriptionStatus,Bot
+from app.db.models.models import Subscription,SubscriptionStatus,Bot, PlanEnum, SubscriptionHistory
 from app.config import MESSAGE_PRICE_ID, BOT_PRICE_ID
 from app.utils.payg import report_usage
 
@@ -42,22 +43,82 @@ async def create_session(
     db: AsyncSession = Depends(get_db)
 ):
     user = await get_user_from_token(token, db, credentials_exception)
-    user_id = user.id if user else None
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_id = user.id
 
     try:
+        print(f"[create_session] Début pour user_id={user_id}, plan={data.plan}")
+
+        # 1. Vérifier s'il a déjà un abonnement actif du même type
+        stmt = select(Subscription).where(
+            Subscription.user_id == user_id,
+            Subscription.plan == data.plan,
+            Subscription.status == SubscriptionStatus.active
+        )
+        result = await db.execute(stmt)
+        active_subscription = result.scalars().first()
+        if active_subscription:
+            print(f"[create_session] Abonnement actif trouvé: {active_subscription.id}")
+            raise HTTPException(status_code=400, detail="You already have an active subscription of this type.")
+
+        # 2. Chercher dans l'historique un abonnement identique (plan) pour pouvoir le reprendre
+        stmt = select(SubscriptionHistory).where(
+            SubscriptionHistory.user_id == user_id,
+            SubscriptionHistory.plan == data.plan
+        ).order_by(SubscriptionHistory.recorded_at.desc())  # prendre le plus récent
+        result = await db.execute(stmt)
+        last_history = result.scalars().first()
+
+        if last_history and last_history.stripe_subscription_id:
+            print(f"[create_session] Historique trouvé avec subscription_id Stripe: {last_history.stripe_subscription_id}")
+
+            # Récupération de l’abonnement Stripe avant modification
+            sub = stripe.Subscription.retrieve(last_history.stripe_subscription_id)
+            print(f"[create_session] Etat avant modification : pause_collection={sub.get('pause_collection')}, status={sub.get('status')}")
+
+            # 1. Lever la pause d'abord
+            sub_mod = stripe.Subscription.modify(
+                last_history.stripe_subscription_id,
+                pause_collection=""
+            )
+            print(f"[create_session] Résultat modification pause_collection=None: {sub_mod['status']}")
+
+            time.sleep(2)  # Laisser le temps à Stripe d'appliquer la modification
+
+            # Vérification après levée de la pause
+            sub_after_pause = stripe.Subscription.retrieve(last_history.stripe_subscription_id)
+            print(f"[create_session] Etat après suppression pause : pause_collection={sub_after_pause.get('pause_collection')}, status={sub_after_pause.get('status')}")
+
+            # 2. Ensuite seulement : redémarrer le cycle de facturation
+            sub_restart = stripe.Subscription.modify(
+                last_history.stripe_subscription_id,
+                cancel_at_period_end=False,
+                billing_cycle_anchor="now",
+                proration_behavior="none"
+            )
+            current_period_start = sub_restart.get('current_period_start')
+            print(f"[create_session] Résultat redémarrage facturation: status={sub_restart['status']}, current_period_start={current_period_start}")
+            
+            return {"detail": "Subscription resumed successfully via existing Stripe subscription."}
+
+        # 4. Sinon, créer une nouvelle session de paiement classique
         initial_bots_usage = 0
         if data.plan == "payg":
             stmt = select(func.count()).select_from(Bot).where(Bot.user_id == user_id)
             result = await db.execute(stmt)
-            initial_bots_usage = result.scalar_one()  # récupère le count directement
-            print(f"Initial bots usage for user {user_id}: {initial_bots_usage}")
+            initial_bots_usage = result.scalar_one()
+            print(f"[create_session] Initial bots usage for user {user_id}: {initial_bots_usage}")
 
         checkout_url = create_checkout_session(user_id, data.plan, initial_bots_usage)
+        print(f"[create_session] Création session checkout URL: {checkout_url}")
+
         return {"url": checkout_url}
 
     except Exception as e:
+        print(f"[create_session] Exception levée: {e}")
         raise HTTPException(status_code=400, detail=str(e))
-
 
 @router.post("/webhook")
 async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
@@ -153,6 +214,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         subscription = result.scalars().first()
         if subscription:
             subscription.status = SubscriptionStatus.unpaid
+            print("fonction qui notifie l'utilisateur de l'échec du paiement")
             await db.commit()
 
     elif event["type"] == "customer.subscription.deleted":
@@ -170,28 +232,70 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         stripe_subscription_id = subscription_data["id"]
         new_status = subscription_data["status"]
 
+        # Vérifie si abonnement est en pause via pause_collection venant de Stripe
+        pause_collection = subscription_data.get("pause_collection")
+        if pause_collection and pause_collection.get("behavior") == "mark_uncollectible":
+            new_status = "paused"
+
+        # Récupération en base
         stmt = select(Subscription).where(Subscription.stripe_subscription_id == stripe_subscription_id)
         result = await db.execute(stmt)
         subscription = result.scalars().first()
         if not subscription:
             return {"status": "not_found"}
 
+        # Mettre à jour le statut (try/except si statut inconnu)
         try:
             subscription.status = SubscriptionStatus(new_status)
         except ValueError:
             subscription.status = SubscriptionStatus.unpaid
 
-        try:
-            price_ids = [item["price"]["id"] for item in subscription_data["items"]["data"]]
-            if MESSAGE_PRICE_ID in price_ids:
-                subscription.plan = "messages"
-            elif BOT_PRICE_ID in price_ids:
-                subscription.plan = "bots"
-            else:
-                subscription.plan = "custom"
-        except Exception as e:
-            print(f"[Webhook] Erreur mise à jour plan : {e}")
+        # Si pause => basculer en free et réinitialiser certains champs
+        if new_status == "paused":
+            subscription.plan = PlanEnum.FREE
+            subscription.stripe_subscription_id = None
+            subscription.stripe_subscription_item_bots = None
+            subscription.stripe_subscription_item_messages = None
+            subscription.message_limit = None
+            subscription.start_date = datetime.utcnow()
 
+        else:
+            try:
+                price_ids = [item["price"]["id"] for item in subscription_data["items"]["data"]]
+
+                if PREMIUM_PRICE_ID in price_ids:
+                    if subscription.plan != PlanEnum.PREMIUM:
+                        subscription.start_date = datetime.utcnow()
+                    subscription.plan = PlanEnum.PREMIUM
+
+                elif any(pid in price_ids for pid in [MESSAGE_PRICE_ID, BOT_PRICE_ID]):
+                    if subscription.plan != PlanEnum.PAYG:
+                        subscription.start_date = datetime.utcnow()
+                    subscription.plan = PlanEnum.PAYG
+                    subscription.message_count = 0
+                else:
+                    subscription.plan = PlanEnum.FREE
+
+                subscription.last_reset = datetime.utcnow().date()
+            except Exception as e:
+                print(f"[Webhook] Erreur mise à jour plan : {e}")
+
+        # Enregistre l'historique
+        history = SubscriptionHistory(
+            subscription_id=subscription.id,
+            user_id=subscription.user_id,
+            plan=subscription.plan,
+            start_date=subscription.start_date,
+            message_count=subscription.message_count,
+            free_message_count=subscription.free_message_count,
+            last_reset=subscription.last_reset,
+            status=subscription.status,
+            message_limit=subscription.message_limit,
+            stripe_subscription_id=subscription.stripe_subscription_id,
+            stripe_subscription_item_messages=subscription.stripe_subscription_item_messages,
+            stripe_subscription_item_bots=subscription.stripe_subscription_item_bots
+        )
+        db.add(history)
         await db.commit()
 
     return {"status": "success"}
@@ -206,14 +310,30 @@ async def cancel_subscription(token: str = Depends(oauth2_scheme), db: AsyncSess
     stmt = select(Subscription).where(Subscription.user_id == user.id)
     result = await db.execute(stmt)
     subscription = result.scalars().first()
+
     if not subscription or not subscription.stripe_subscription_id:
         raise HTTPException(status_code=404, detail="Subscription not found")
 
     try:
-        cancel_stripe_subscription(subscription.stripe_subscription_id)
+        if subscription.plan == PlanEnum.PAYG:
+            stripe.Invoice.create(
+                customer=subscription.stripe_customer_id,
+                subscription=subscription.stripe_subscription_id,
+                auto_advance=True  # pour que la facture passe automatiquement en "open"
+            )
 
-        subscription.status = "cancelled"
+        
+        stripe.Subscription.modify(
+            subscription.stripe_subscription_id,
+            cancel_at_period_end=False,
+            pause_collection={"behavior": "mark_uncollectible"}
+        )
+
+        # ✅ Optionnel : met à jour le statut dans ta base locale
+        subscription.status = "paused"
         await db.commit()
-        return {"detail": "Subscription cancelled successfully"}
+
+        return {"detail": "Subscription has been paused immediately."}
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

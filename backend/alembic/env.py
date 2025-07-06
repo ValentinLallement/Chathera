@@ -1,11 +1,12 @@
 import os
 import sys
-from logging.config import fileConfig
+
 from configparser import ConfigParser
 
 from dotenv import load_dotenv
 from alembic import context
-from sqlmodel import SQLModel,engine_from_config,pool
+from sqlmodel import SQLModel,engine_from_config
+from sqlalchemy.pool import NullPool
 
 # Charger les variables d'environnement depuis le fichier .env
 load_dotenv()
@@ -32,7 +33,7 @@ from app.db.models.models import (
 config = context.config
 
 # Récupérer l'URL de la base de données
-database_url = os.getenv("DATABASE_URL")
+database_url = os.getenv("SYNC_DATABASE_URL")
 if not database_url:
     raise EnvironmentError("DATABASE_URL non défini dans le fichier .env")
 
@@ -43,8 +44,7 @@ if config.config_file_name:
     parser.set(config.config_ini_section, "sqlalchemy.url", database_url)
     config.file_config = parser
 
-# Configuration du logging
-fileConfig(config.config_file_name)
+
 
 # Définir les métadonnées des modèles pour Alembic
 target_metadata = SQLModel.metadata
@@ -67,7 +67,7 @@ def run_migrations_online():
     connectable = engine_from_config(
         config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
+        poolclass=NullPool,
     )
 
     with connectable.connect() as connection:

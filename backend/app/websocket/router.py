@@ -2,8 +2,7 @@ import uuid
 import asyncio
 import re
 import json
-import traceback
-import logging
+
 from typing import List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect,Depends
@@ -97,6 +96,8 @@ async def chat(websocket: WebSocket):
                     break
 
                 subscription.message_count += 1
+                if subscription.plan == PlanEnum.FREE:
+                    subscription.free_message_count += 1
                 await db.commit()
 
                 if subscription.plan == PlanEnum.PAYG and subscription.stripe_subscription_item_messages:
@@ -357,7 +358,7 @@ async def get_all_memories(conversation_id: UUID, db: AsyncSession) -> List[Memo
         return results.scalars().all()
 
     except Exception as e:
-        logging.error(f"[get_all_memories] Erreur lors de la récupération des souvenirs : {e}", exc_info=True)
+        print(f"[get_all_memories] Erreur lors de la récupération des souvenirs : {e}", exc_info=True)
         return []
     
 
@@ -395,10 +396,10 @@ async def retrieve_contextual_memories(user_message: str, conversation_id: str, 
             m for m in all_db_memories
             if m.content in memories_content
         ]
-        logging.info(f"[Mem0 search] {len(souvenirs_vector)} souvenirs vectoriels : {[m.content for m in souvenirs_vector]}")
+        print(f"[Mem0 search] {len(souvenirs_vector)} souvenirs vectoriels : {[m.content for m in souvenirs_vector]}")
 
     except Exception as e:
-        logging.error(f"[Mem0 search] Erreur : {e}", exc_info=True)
+        print(f"[Mem0 search] Erreur : {e}", exc_info=True)
 
     try:
         mots_cles = ["anniversaire", "rendez-vous", "souvenir", "date", "lieu", "préférence"]
@@ -408,8 +409,8 @@ async def retrieve_contextual_memories(user_message: str, conversation_id: str, 
             and m.id not in {s.id for s in souvenirs_vector}
         ]
         if souvenirs_lexical:
-            logging.info(f"[Fallback lexical] {len(souvenirs_lexical)} souvenirs : {[m.content for m in souvenirs_lexical]}")
+            print(f"[Fallback lexical] {len(souvenirs_lexical)} souvenirs : {[m.content for m in souvenirs_lexical]}")
     except Exception as e:
-        logging.error(f"[Fallback lexical] Erreur : {e}", exc_info=True)
+        print(f"[Fallback lexical] Erreur : {e}", exc_info=True)
 
     return souvenirs_vector + souvenirs_lexical

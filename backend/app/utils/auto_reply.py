@@ -2,8 +2,8 @@ import requests
 import json
 import re
 import random
-import logging
 import httpx
+import traceback
 
 from sqlmodel import Session, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,10 +70,10 @@ async def build_prompt(
                 session.add(emotion)
                 await session.commit()
                 await session.refresh(emotion)  # Rafraîchir pour obtenir l'objet mis à jour
-                logging.info(f"Émotion par défaut créée pour bot_id {bot_id}: {emotion.mood}")
+                print(f"Émotion par défaut créée pour bot_id {bot_id}: {emotion.mood}")
             return emotion
         except Exception as e:
-            logging.error(f"Erreur dans get_current_emotion : {e}", exc_info=True)
+            print(f"Erreur dans get_current_emotion : {e}", exc_info=True)
             # Retourner une émotion par défaut en cas d'erreur
             default_emotion = CompanionEmotion(
                 id=uuid4(),
@@ -583,10 +583,12 @@ async def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, derni
             return {"error": "Aucune action ou réponse trouvée dans la réponse."}
 
     except httpx.RequestError as e:
+        tb = traceback.format_exc()
         print(f"Erreur lors de la requête à l'API DeepSeek : {e}\nTraceback:\n{tb}")
         return {"error": f"Erreur de requête API : {str(e)}"}
 
     except Exception as e:
+        tb = traceback.format_exc()
         print(f"Erreur inattendue dans get_auto_reply_from_deepseek : {e}\nTraceback:\n{tb}")
         return {"error": f"Erreur inattendue : {str(e)}"}
     

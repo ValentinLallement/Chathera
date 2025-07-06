@@ -66,11 +66,11 @@ async def send_notification_to_user(user_id: int, message: str, db: AsyncSession
         }
         try:
             await send_push(subscription_info, message)
-            logging.info(f"Notification push envoyée à l'utilisateur {user_id}")
+            print(f"Notification push envoyée à l'utilisateur {user_id}")
         except WebPushException as ex:
-            logging.error(f"Erreur WebPush: {repr(ex)}")
+            print(f"Erreur WebPush: {repr(ex)}")
             if ex.response and ex.response.status_code == 410:
-                logging.info(f"Suppression abonnement push expiré pour user {user_id}, endpoint {sub.endpoint}")
+                print(f"Suppression abonnement push expiré pour user {user_id}, endpoint {sub.endpoint}")
                 await db.delete(sub)
                 await db.commit()
 
