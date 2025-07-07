@@ -19,19 +19,12 @@ def create_checkout_session(user_id: UUID, plan: str, initial_bots_usage: int = 
 
     if plan == "premium":
         line_items = [
-            {
-                "price": PREMIUM_PRICE_ID,
-                "quantity": 1,
-            }
+            {"price": PREMIUM_PRICE_ID, "quantity": 1}
         ]
     elif plan == "payg":
         line_items = [
-            {
-                "price": PAYG_PRICE_ID,
-                "quantity": 1,
-            }
+            {"price": PAYG_PRICE_ID, "quantity": 1}
         ]
-        print(line_items)
     else:
         raise ValueError(f"Plan inconnu : {plan}")
 
@@ -42,6 +35,7 @@ def create_checkout_session(user_id: UUID, plan: str, initial_bots_usage: int = 
         metadata={
             "user_id": str(user_id),
             "plan": plan,
+            "initial_bots_usage": str(initial_bots_usage),
         },
         success_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/success",
         cancel_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/cancel",

@@ -28,6 +28,9 @@ async def check_bot_limit(subscription: Subscription, current_bot_count: int) ->
 async def check_message_limit(subscription: Subscription, db: AsyncSession) -> bool:
     today = datetime.utcnow().date()
 
+    if subscription.status != "active":
+        return False
+    
     # Réinitialisation mensuelle (sauf pour FREE)
     if subscription.plan in [PlanEnum.PREMIUM, PlanEnum.PAYG]:
         if subscription.last_reset < today.replace(day=1):

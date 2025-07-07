@@ -17,11 +17,17 @@ class SubscriptionInfo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     plan: str
-    start_date: datetime
     message_count: int
     message_limit: Optional[int]
-    last_reset: date
+    free_message_count: int
     status: str
+
+    # Champs Stripe live
+    stripe_current_period_start: Optional[datetime] = None
+    stripe_current_period_end: Optional[datetime] = None
+    stripe_cancel_at_period_end: Optional[bool] = None
+    stripe_plan_amount_eur: Optional[float] = None
+    stripe_currency: Optional[str] = None
 
 class SubscriptionUpdate(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)

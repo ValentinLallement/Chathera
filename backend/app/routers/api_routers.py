@@ -6,6 +6,7 @@ import asyncio
 import uuid
 import random
 import string
+import stripe
 
 from app.db.models import models
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Body, Query, Request
@@ -366,10 +367,10 @@ async def create_bot_and_conversation(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    # ✅ Récupération utilisateur via token
+    # Récupération utilisateur via token
     user = await get_user_from_token(token, db, credentials_exception)
 
-    # ✅ Vérifie que l'utilisateur a un abonnement
+    # Vérifie que l'utilisateur a un abonnement
     result = await db.execute(
         select(models.Subscription).where(models.Subscription.user_id == user.id)
     )
@@ -378,25 +379,25 @@ async def create_bot_and_conversation(
     if not subscription:
         raise HTTPException(status_code=403, detail="Aucun abonnement trouvé pour l'utilisateur")
 
-    # ✅ Si plan ≠ FREE, abonnement doit être actif
+    # Si plan ≠ FREE, abonnement doit être actif
     if subscription.plan != PlanEnum.FREE and subscription.status != SubscriptionStatus.active:
         raise HTTPException(
             status_code=403,
             detail="Votre abonnement n'est pas actif. Merci de le réactiver pour utiliser le service."
         )
 
-    # ✅ Compter les bots existants
+    # Compter les bots existants
     result = await db.execute(
         select(models.Bot).where(models.Bot.user_id == user.id)
     )
     existing_bots = result.scalars().all()
     existing_bot_count = len(existing_bots)
 
-    # ✅ Vérifier la limite
+    # Vérifier la limite
     if not check_bot_limit(subscription, existing_bot_count):
         raise HTTPException(status_code=403, detail="Limite de bots atteinte pour votre abonnement")
 
-    # ✅ Création du bot et conversation
+    # Création du bot et conversation
     try:
         new_bot = models.Bot(
             name=request.name,
@@ -416,7 +417,7 @@ async def create_bot_and_conversation(
         await db.commit()
         await db.refresh(new_conversation)
 
-        # ✅ Report d’usage Stripe (facultatif)
+        # Report d’usage Stripe (facultatif)
         if subscription.plan == PlanEnum.PAYG and subscription.stripe_subscription_item_bots:
             try:
                 report_usage(
@@ -545,18 +546,48 @@ async def get_user_subscription(
     if not subscription:
         return UserSubscriptionsResponse(subscriptions=None)
 
+    # Base locale
     subs_info = SubscriptionInfo(
         id=subscription.id,
         user_id=user.id,
         plan=subscription.plan,
-        start_date=subscription.start_date,
         status=subscription.status,
         message_count=subscription.message_count,
         free_message_count=subscription.free_message_count,
-        last_reset=subscription.last_reset,
         message_limit=subscription.message_limit,
     )
 
+    # 🔁 Ajout des données Stripe
+    if subscription.stripe_subscription_id:
+        try:
+            stripe_sub = stripe.Subscription.retrieve(
+                subscription.stripe_subscription_id,
+                expand=["items.data.price"]
+            )
+            import json
+            print(f"[SubscriptionInfo] Récupération des infos Stripe pour l'abonnement {subscription.id} ({subscription.stripe_subscription_id})")
+            print(json.dumps(stripe_sub, indent=2))  # debug uniquement
+
+            # Récupérer le premier item d'abonnement
+            item = stripe_sub["items"]["data"][0] if stripe_sub.get("items") and stripe_sub["items"]["data"] else None
+
+            if item:
+                subs_info.stripe_current_period_start = datetime.fromtimestamp(
+                    item.get("current_period_start")) if item.get("current_period_start") else None
+                subs_info.stripe_current_period_end = datetime.fromtimestamp(
+                    item.get("current_period_end")) if item.get("current_period_end") else None
+            else:
+                subs_info.stripe_current_period_start = None
+                subs_info.stripe_current_period_end = None
+
+            subs_info.stripe_cancel_at_period_end = stripe_sub.get("cancel_at_period_end")
+
+            price = item.get("price", {}) if item else {}
+            subs_info.stripe_plan_amount_eur = (price.get("unit_amount", 0) / 100) if price.get("unit_amount") else None
+            subs_info.stripe_currency = price.get("currency")
+
+        except Exception as e:
+            print(f"[SubscriptionInfo] Erreur Stripe : {e}")
     return UserSubscriptionsResponse(subscriptions=subs_info)
 
 

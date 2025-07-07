@@ -52,6 +52,8 @@ class User(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
+    stripe_customer_id: Optional[str] = Field(default=None, index=True, nullable=True)
+
     legal_consent: Optional["UserLegalConsent"] = Relationship(
         back_populates="user",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
