@@ -42,7 +42,7 @@ async def read_conversation_messages(
 
     user = await get_user_from_token(token, db, credentials_exception)
 
-    # ✅ Vérifie que la conversation appartient à l'utilisateur
+    # Vérifie que la conversation appartient à l'utilisateur
     result = await db.execute(
         select(Conversation).where(
             Conversation.id == request.conversation_id,
@@ -54,7 +54,7 @@ async def read_conversation_messages(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation introuvable pour cet utilisateur.")
 
-    # ✅ Récupère les messages associés
+    # Récupère les messages associés
     result = await db.execute(
         select(Message)
         .where(Message.conversation_id == request.conversation_id)

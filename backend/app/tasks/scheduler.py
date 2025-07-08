@@ -1,6 +1,5 @@
 import asyncio
 import json
-import logging
 from functools import partial
 
 from datetime import datetime, timezone, timedelta

@@ -42,7 +42,7 @@ from app.dependencies import get_db
 from app.config import REFRESH_SECRET_KEY, ALGORITHM, SECRET_KEY, MEM0_CONFIG ,ACCESS_TOKEN_EXPIRE_MINUTES
 from app.tasks.scheduler import task_scheduler
 from app.utils.permissions import check_bot_limit
-from app.utils.email import send_email, send_email_verification_code
+from app.utils.email import send_email, send_email_verification_code, send_email_for_password_reset
 from app.utils.payg import report_usage
 
 from mem0 import Memory
@@ -283,22 +283,23 @@ async def change_password(
 @api_router.post("/user/request-password-reset")
 async def request_password_reset(request: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
     stmt = select(User).where(User.email == request.email)
-    user = await db.execute(stmt).scalars().first()
+    result = await db.execute(stmt)           # Bien await ici
+    user = result.scalars().first()
 
-    # Toujours répondre la même chose pour ne pas révéler l'existence de l'email
+    # Toujours répondre pareil pour ne pas révéler l'existence de l'email
     if not user:
         return {"detail": "Si cet email existe, un lien de réinitialisation a été envoyé."}
 
     reset_token = await create_password_reset_token(user.id)
     reset_link = f"https://Chathera.com/reset-password?token={reset_token}"
 
-    await send_email(
+    await send_email_for_password_reset(
         to=user.email,
         subject="Réinitialisation de votre mot de passe",
-        body=f"Cliquez ici pour réinitialiser votre mot de passe : {reset_link}"
+        reset_link=reset_link
     )
 
-    return {"detail": f"Un lien de réinitialisation a été envoyé à l'email : {request.email}."}
+    return {"detail": "Si cet email existe, un lien de réinitialisation a été envoyé."}
 
 
 @api_router.post("/user/reset-password")
@@ -312,11 +313,14 @@ async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depen
         raise HTTPException(status_code=401, detail="Token invalide ou expiré.")
 
     stmt = select(User).where(User.id == user_id)
-    user = await db.execute(stmt).scalars().first()
+    result = await db.execute(stmt)            # await obligatoire
+    user = result.scalars().first()
+
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
 
     user.password = await auth.hash_password(request.new_password)
+    db.add(user)
     await db.commit()
 
     return {"detail": "Mot de passe réinitialisé avec succès."}

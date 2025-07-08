@@ -693,11 +693,11 @@ def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_m
         if not isinstance(parsed, dict):
             return {"error": "La réponse n'est pas un objet JSON valide."}
 
-        # ✅ Si des actions sont présentes
+        # Si des actions sont présentes
         if "actions" in parsed and isinstance(parsed["actions"], list) and parsed["actions"]:
             return parsed
 
-        # ✅ Si seulement une réponse brute est donnée, la transformer en action
+        # Si seulement une réponse brute est donnée, la transformer en action
         elif "reponse" in parsed:
             parsed["actions"] = [{
                 "type": "repondre",

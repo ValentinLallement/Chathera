@@ -1,3 +1,4 @@
+import asyncio
 import warnings
 
 # ignore les avertissements de dépréciation venus de FAISS
@@ -14,47 +15,20 @@ warnings.filterwarnings(
     message=r"builtin type .* has no __module__"
 )
 
-import warnings
+
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-
-import base64
-import io
-import requests
-import asyncio
-import uuid
-import os
-from pathlib import Path
-
-from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Body, Query, Request
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.responses import StreamingResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-
-from pydantic import BaseModel
-from sqlmodel import Session
-
-from google.auth.transport import requests
 from starlette.middleware.sessions import SessionMiddleware
-from jose import JWTError, jwt
+
 from contextlib import asynccontextmanager
 
-
 from app.websocket.router import websocket_router
-from app.database import get_db
-from app.dependencies import get_db
 from app.routers import message,auth_google,stripe_routes,api_routers
-from app.config import REFRESH_SECRET_KEY, ALGORITHM, SECRET_KEY, MEM0_CONFIG
 from app.tasks.scheduler import task_scheduler
-from app.utils.permissions import check_bot_limit
-from app.utils.email import send_email
-from app.utils.payg import report_usage
 from app.routers.api_routers import api_router
-from mem0 import Memory
-
-
 
 
 # --- lifespan ---
