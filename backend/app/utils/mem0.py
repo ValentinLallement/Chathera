@@ -70,7 +70,8 @@ async def mem0_add_memory(
 
     db.add(memory_entry)
     await db.commit()
-    db.refresh(memory_entry)
+    await db.refresh(memory_entry)
+
 
     # Indexation dans mem0ai
     metadata = {
