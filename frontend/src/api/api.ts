@@ -18,6 +18,8 @@ export const urls = {
     "messages": `${BASE_URL}/conversations/messages`,
     "stripe": `${BASE_URL}/stripe/create-checkout-session`,
     "subscriptionInfo": `${BASE_URL}/user/subscription/infos`,
+    "requestPasswordReset": `${BASE_URL}/user/request-password-reset`,
+    "changePassword": `${BASE_URL}/user/change-password`,
 }
 
 
@@ -472,4 +474,64 @@ export async function createCheckoutSession(
     }
   }
   return res.json();
+}
+
+export interface RequestPasswordResetParams {
+  email: string;
+}
+
+export async function requestPasswordReset({ email }: RequestPasswordResetParams): Promise<void> {
+  const res = await fetch(urls.requestPasswordReset, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
+}
+
+export interface ChangePasswordParams {
+  old_password: string;
+  new_password: string;
+}
+
+export async function changePassword(token: string, { old_password, new_password }: ChangePasswordParams): Promise<void> {
+  const res = await fetch(urls.changePassword, {
+    method: "POST",
+    credentials: "include",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({ old_password, new_password }),
+  });
+
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
 }

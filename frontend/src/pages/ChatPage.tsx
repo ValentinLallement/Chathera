@@ -8,7 +8,7 @@ import {
   faPlus,
   faPaperPlane,
 } from "@fortawesome/free-solid-svg-icons";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
   useGetBots,
   useGetConversations,
@@ -64,7 +64,7 @@ export default function ChatPage() {
 
     ws.onopen = () => {
       console.log("WebSocket connection established");
-      setHasRetried(false); // Reset retry flag on successful connection
+      setHasRetried(false);
     };
 
     ws.onmessage = (event) => {
@@ -107,6 +107,7 @@ export default function ChatPage() {
         }
       } else if (data.type === "reponse") {
         messagesQuery.refetch();
+        setTimeout(scrollToBottom, 100); // Add scroll after message received
       }
     };
 
@@ -196,7 +197,12 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messagesQuery.data]);
+  }, [messagesQuery.data, localMessages]); // Update dependencies to include localMessages
+
+  // Add useLayoutEffect for immediate scroll on local messages
+  useLayoutEffect(() => {
+    scrollToBottom();
+  }, [localMessages]);
 
   useEffect(() => {
     if (currentConversation?.id) {

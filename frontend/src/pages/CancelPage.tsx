@@ -14,7 +14,7 @@ export default function CancelPage() {
         {/* Background effects */}
         <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-orange-400/5 to-red-500/5 rounded-3xl blur-3xl" />
         <div className="absolute -top-[25%] -left-[25%] w-[150%] h-[150%] bg-gradient-conic from-red-500/10 via-transparent to-transparent opacity-20 animate-slow-spin" />
-        
+
         {/* Cancel X mark animation */}
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }}
@@ -37,22 +37,35 @@ export default function CancelPage() {
                 damping: 20,
               }}
             >
-              <FontAwesomeIcon icon={faTimes} className="text-5xl text-red-400" />
+              <FontAwesomeIcon
+                icon={faTimes}
+                className="text-5xl text-red-400"
+              />
             </motion.div>
           </div>
-          
+
           {/* Cancel particles */}
           <motion.div
             className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-red-500/20"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: [0, 1.2, 0], opacity: [0, 1, 0] }}
-            transition={{ delay: 0.3, duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+            transition={{
+              delay: 0.3,
+              duration: 1.5,
+              repeat: Infinity,
+              repeatDelay: 2,
+            }}
           />
           <motion.div
             className="absolute -bottom-2 -left-4 w-6 h-6 rounded-full bg-orange-400/20"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: [0, 1.2, 0], opacity: [0, 1, 0] }}
-            transition={{ delay: 0.5, duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+            transition={{
+              delay: 0.5,
+              duration: 1.5,
+              repeat: Infinity,
+              repeatDelay: 2,
+            }}
           />
         </motion.div>
 

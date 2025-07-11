@@ -14,7 +14,7 @@ export default function SuccessPage() {
         {/* Background effects */}
         <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-emerald-400/5 to-emerald-500/5 rounded-3xl blur-3xl" />
         <div className="absolute -top-[25%] -left-[25%] w-[150%] h-[150%] bg-gradient-conic from-emerald-500/10 via-transparent to-transparent opacity-20 animate-slow-spin" />
-        
+
         {/* Success checkmark animation */}
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }}
@@ -37,22 +37,35 @@ export default function SuccessPage() {
                 damping: 20,
               }}
             >
-              <FontAwesomeIcon icon={faCheck} className="text-5xl text-emerald-400" />
+              <FontAwesomeIcon
+                icon={faCheck}
+                className="text-5xl text-emerald-400"
+              />
             </motion.div>
           </div>
-          
+
           {/* Success particles */}
           <motion.div
             className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-emerald-500/20"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: [0, 1.2, 0], opacity: [0, 1, 0] }}
-            transition={{ delay: 0.3, duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+            transition={{
+              delay: 0.3,
+              duration: 1.5,
+              repeat: Infinity,
+              repeatDelay: 2,
+            }}
           />
           <motion.div
             className="absolute -bottom-2 -left-4 w-6 h-6 rounded-full bg-emerald-400/20"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: [0, 1.2, 0], opacity: [0, 1, 0] }}
-            transition={{ delay: 0.5, duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+            transition={{
+              delay: 0.5,
+              duration: 1.5,
+              repeat: Infinity,
+              repeatDelay: 2,
+            }}
           />
         </motion.div>
 
@@ -67,7 +80,8 @@ export default function SuccessPage() {
             Payment Successful!
           </h1>
           <p className="text-lg text-white/60 max-w-md mx-auto">
-            Thank you for your purchase. Your subscription has been activated successfully.
+            Thank you for your purchase. Your subscription has been activated
+            successfully.
           </p>
         </motion.div>
 

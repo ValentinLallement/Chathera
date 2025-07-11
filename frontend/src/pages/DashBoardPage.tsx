@@ -135,7 +135,7 @@ export default function HomePage() {
             {subscriptionData?.subscriptions?.message_count} messages this month
           </p>
           <Link to="/dashboard/settings">
-            <button className="w-full px-4 py-2 rounded-lg bg-violet-500/20 text-violet-400 text-sm font-medium border border-violet-500/20 hover:bg-emerald-500/30 transition-colors">
+            <button className="w-full px-4 py-2 rounded-lg bg-violet-500/20 text-violet-400 text-sm font-medium border border-violet-500/20 hover:bg-violet-500/30 transition-colors">
               Manage Subscription
             </button>
           </Link>

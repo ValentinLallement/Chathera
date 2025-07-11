@@ -1,7 +1,7 @@
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
 import { HiChevronLeft } from "react-icons/hi";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import StarLogo from "../assets/images/StarLogo.webp";
@@ -9,6 +9,7 @@ import Title from "../components/Title";
 import { useSignUp, useLogIn } from "../hooks/useApi";
 import { toast } from "react-hot-toast";
 import { GoogleLoginButton } from "../components/GoogleLoginButton";
+import { requestPasswordReset } from "../api/api";
 
 interface FieldErrors {
   name?: string;
@@ -33,6 +34,9 @@ export default function AuthentificationPage() {
   const [confirmationPassword, setConfirmationPassword] = useState("");
 
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
   const {
     mutate: mutateSignUp,
@@ -215,6 +219,59 @@ export default function AuthentificationPage() {
         login: email.trim(),
         password,
       });
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) {
+      toast.error("Please enter your email address", {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #e53e3e",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      await requestPasswordReset({ email: resetEmail });
+      toast.success(
+        "If an account exists with this email, you will receive a password reset link.",
+        {
+          style: {
+            borderRadius: "10px",
+            background: "#1f1f1f",
+            border: "1px solid #6b46C1",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: "0.95rem",
+          },
+        }
+      );
+      setShowForgotPassword(false);
+      setResetEmail("");
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred", {
+        style: {
+          borderRadius: "10px",
+          background: "#1f1f1f",
+          border: "1px solid #e53e3e",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          color: "#fff",
+          padding: "12px 16px",
+          fontSize: "0.95rem",
+        },
+      });
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -447,12 +504,13 @@ export default function AuthentificationPage() {
                       Remember me
                     </label>
                   </div>
-                  <a
-                    href="#"
+                  <button
+                    onClick={() => setShowForgotPassword(true)}
                     className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
+                    type="button"
                   >
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
               )}
 
@@ -466,6 +524,10 @@ export default function AuthentificationPage() {
                   {isSignUp ? "Create Account" : "Sign in"}
                 </span>
               </button>
+              <p className="text-xs text-gray-400 text-center mt-4 mb-2">
+                By continuing, you agree to Chathera's Terms of Service and
+                acknowledge our Privacy Policy
+              </p>
             </motion.form>
           </AnimatePresence>
 
@@ -486,6 +548,70 @@ export default function AuthentificationPage() {
           </p>
         </div>
       </motion.div>
+
+      {/* Forgot Password Modal */}
+      <AnimatePresence>
+        {showForgotPassword && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowForgotPassword(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50"
+            >
+              <div className="relative p-8 bg-black/20 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl">
+                <button
+                  onClick={() => setShowForgotPassword(false)}
+                  className="absolute top-4 right-4 p-2 rounded-full bg-zinc-900/50 hover:bg-zinc-800/50 transition-colors text-gray-400 hover:text-gray-300"
+                >
+                  ×
+                </button>
+
+                <div className="text-center space-y-2 mb-6">
+                  <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-200 to-white">
+                    Reset Password
+                  </h2>
+                  <p className="text-gray-400">
+                    Enter your email address and we'll send you a link to reset
+                    your password
+                  </p>
+                </div>
+
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div>
+                    <input
+                      type="email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300"
+                      placeholder="Enter your email"
+                      disabled={isResetting}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isResetting}
+                    className="w-full px-4 py-3 rounded-lg bg-violet-500/20 text-violet-400 font-medium border border-violet-500/20 hover:bg-violet-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isResetting ? "Sending..." : "Send Reset Link"}
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

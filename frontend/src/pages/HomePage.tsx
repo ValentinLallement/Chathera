@@ -11,33 +11,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import { useSidebarStore } from "../stores/sidebarStore";
-
-const recentConversations = [
-  {
-    id: "1",
-    botName: "Sophia",
-    lastMessage: "I really enjoyed our conversation about art...",
-    timestamp: "2 hours ago",
-    unread: true,
-    affection: 85,
-    personality: "Artistic",
-  },
-  {
-    id: "2",
-    botName: "Emma",
-    lastMessage: "Would love to continue our discussion...",
-    timestamp: "5 hours ago",
-    unread: false,
-    affection: 92,
-    personality: "Sweet",
-  },
-];
-
-const userStats = {
-  remaningMessages: "242",
-  HotPicsLeft: "7",
-  longestStreak: "15 days",
-};
+import { useStatsStore } from "../stores/statsStore";
 
 const features = [
   {
@@ -82,8 +56,21 @@ const itemVariants: Variants = {
 export default function HomePage() {
   const navigate = useNavigate();
   const { isOpen } = useSidebarStore();
+  const {
+    conversations,
+    remainingMessages,
+    hotPicsLeft,
+    longestStreak,
+    updateAffection,
+  } = useStatsStore();
 
   const handleConversationClick = (id: string) => {
+    // Update affection when clicking on a conversation
+    // This is just an example - you might want to track actual message counts
+    const conversation = conversations.find((conv) => conv.id === id);
+    if (conversation) {
+      updateAffection(id, (conversation.messageCount || 0) + 1);
+    }
     navigate(`/dashboard/chat/${id}`);
   };
 
@@ -128,7 +115,7 @@ export default function HomePage() {
             <div>
               <p className="text-white/60 text-sm">Remaining Messages</p>
               <p className="text-white text-xl font-bold">
-                {userStats.remaningMessages}
+                {remainingMessages}
               </p>
             </div>
           </div>
@@ -141,9 +128,7 @@ export default function HomePage() {
               <p className="text-white/60 text-sm">
                 Remaining <i>HotPics</i> generations
               </p>
-              <p className="text-white text-xl font-bold">
-                {userStats.HotPicsLeft}
-              </p>
+              <p className="text-white text-xl font-bold">{hotPicsLeft}</p>
             </div>
           </div>
 
@@ -154,7 +139,7 @@ export default function HomePage() {
             <div>
               <p className="text-white/60 text-sm">Longest Streak</p>
               <p className="text-white text-xl font-bold">
-                {userStats.longestStreak}
+                {longestStreak} days
               </p>
             </div>
           </div>
@@ -176,7 +161,7 @@ export default function HomePage() {
           </div>
 
           <div className="space-y-4">
-            {recentConversations.map((conversation) => (
+            {conversations.map((conversation) => (
               <motion.div
                 key={conversation.id}
                 onClick={() => handleConversationClick(conversation.id)}
