@@ -50,7 +50,8 @@ class UserLogin(BaseModel):
 
 class UserCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
+    username: str
+    email: str
     password: str
     name: str
 
@@ -61,7 +62,7 @@ class User(BaseModel):
     name: Optional[str] = None
     username: Optional[str] = None
     profile_picture: Optional[str] = None
-    is_verified: bool = False
+    is_verified: bool = True
 
 class GoogleLogin(BaseModel):
     token: str  # Token ID JWT envoyé par le client Google

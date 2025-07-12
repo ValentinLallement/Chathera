@@ -20,7 +20,7 @@ from pydantic import BaseModel, EmailStr, Field
 from starlette.middleware.sessions import SessionMiddleware
 from jose import JWTError, jwt
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
 
@@ -76,7 +76,7 @@ async def health_check():
 
 @api_router.post("/register", response_model=schemas.User)
 async def register(user: schemas.UserCreate, db: AsyncSession = Depends(dependencies.get_db)):
-    return crud.create_user(db=db, user=user)
+    return await crud.create_user(db=db, user=user)
 
 
 
@@ -85,47 +85,70 @@ async def request_email_verification(
     payload: EmailRequest,
     db: AsyncSession = Depends(dependencies.get_db)
 ):
-    email = payload.email
+    email = payload.email.lower().strip()
 
-    # await db.execute pour la requête select
+    # Vérifier si un utilisateur avec cet email est déjà vérifié
     stmt_user = select(models.User).where(models.User.email == email)
     result = await db.execute(stmt_user)
     user = result.scalars().first()
-
     if user and user.is_verified:
-        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
+        raise HTTPException(status_code=400, detail="Cet email est déjà vérifié.")
 
-    # await db.execute pour la mise à jour (update)
-    stmt_update = (
-        models.EmailVerificationCode.__table__.update()
+    # Vérifier s’il existe un code avec is_used=True → bloquer
+    stmt_used_code = (
+        select(models.EmailVerificationCode)
+        .where(
+            (models.EmailVerificationCode.email == email) &
+            (models.EmailVerificationCode.is_used == True)
+        )
+        .limit(1)
+    )
+    result_used_code = await db.execute(stmt_used_code)
+    used_code = result_used_code.scalars().first()
+    if used_code:
+        raise HTTPException(status_code=400, detail="l'email est déja utilisé.")
+
+    # Récupérer les codes non utilisés
+    stmt_unused_codes = (
+        select(models.EmailVerificationCode)
         .where(
             (models.EmailVerificationCode.email == email) &
             (models.EmailVerificationCode.is_used == False)
         )
-        .values(is_used=True)
+        .order_by(models.EmailVerificationCode.created_at.desc())
     )
-    await db.execute(stmt_update)
-    await db.commit()
+    result_unused_codes = await db.execute(stmt_unused_codes)
+    unused_codes = result_unused_codes.scalars().all()
 
-    # Générer un nouveau code à 6 chiffres
     code = ''.join(random.choices(string.digits, k=6))
 
-    # Enregistrer le code en base
-    db_code = models.EmailVerificationCode(email=email, code=code)
-    db.add(db_code)
+    if unused_codes:
+        # Mettre à jour le plus récent
+        db_code = unused_codes[0]
+        db_code.code = code
+        db_code.created_at = datetime.utcnow()
+        db_code.expires_at = datetime.utcnow() + timedelta(minutes=10)  # 10 minutes de validité
+        # Invalider les autres
+        for old_code in unused_codes[1:]:
+            old_code.is_used = True
+    else:
+        # Pas de code existant, en créer un nouveau
+        db_code = models.EmailVerificationCode(email=email, code=code)
+        db.add(db_code)
+
     await db.commit()
 
-    # Envoyer le code par email
+    # Envoyer l’email avec le nouveau code
     await send_email_verification_code(email, code)
 
-    return {"message": "Un nouveau code de vérification a été envoyé."}
+    return {"message": "Un code de vérification a été envoyé."}
 
 
 @api_router.post("/verify-email-code")
 async def verify_email_code(
     payload: schemas.EmailCodeVerification,
     db: AsyncSession = Depends(dependencies.get_db)
-):
+):  
     stmt_verif = (
         select(models.EmailVerificationCode)
         .where(
@@ -136,28 +159,18 @@ async def verify_email_code(
         )
         .order_by(models.EmailVerificationCode.created_at.desc())
     )
-
     result_verif = await db.execute(stmt_verif)
-    verification = result_verif.scalars().first()  # Note: first() n'est pas async
-
+    verification = result_verif.scalars().first()
+    print(f"Vérification pour {payload.email} avec code {payload.code}: {verification}")
     if not verification:
         raise HTTPException(status_code=400, detail="Code invalide ou expiré.")
 
     verification.is_used = True
-
-    # Recherche utilisateur
-    stmt_user = select(models.User).where(models.User.email == payload.email)
-    result_user = await db.execute(stmt_user)
-    user = result_user.scalars().first()
-
-    if not user:
-        raise HTTPException(status_code=400, detail="Utilisateur non trouvé.")
-
-    user.is_verified = True
-
     await db.commit()
 
-    return {"message": "Email vérifié avec succès."}
+    # Stocker un jeton temporaire en base ou signer un token
+    return {"message": "Code vérifié avec succès", "email": payload.email}
+
 # ----------------- Tokens -----------------
 
 @api_router.post("/token")
@@ -569,7 +582,7 @@ async def get_user_subscription(
                 expand=["items.data.price"]
             )
             import json
-            print(f"[SubscriptionInfo] Récupération des infos Stripe pour l'abonnement {subscription.id} ({subscription.stripe_subscription_id})")
+            print(f"[SubscriptionInfo] Récupération des infos Stripe")
             print(json.dumps(stripe_sub, indent=2))  # debug uniquement
 
             # Récupérer le premier item d'abonnement

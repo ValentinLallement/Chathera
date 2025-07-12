@@ -29,44 +29,58 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # create_user async corrigé
 async def create_user(db: AsyncSession, user: schemas.UserCreate):
+    # Vérifier si l'email a déjà été utilisé
     stmt_email = select(models.User).where(models.User.email == user.email)
     result_email = await db.execute(stmt_email)
     if result_email.scalars().first():
         raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
     
+    # Vérifier si le nom d'utilisateur est déjà pris
     stmt_username = select(models.User).where(models.User.username == user.username)
     result_username = await db.execute(stmt_username)
     if result_username.scalars().first():
         raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris.")
 
+    # Vérifier si l’email a bien été validé avec un code non utilisé et pas expiré
+    stmt_code = (
+        select(models.EmailVerificationCode)
+        .where(
+            (models.EmailVerificationCode.email == user.email) &
+            (models.EmailVerificationCode.is_used == True) &
+            (models.EmailVerificationCode.expires_at > datetime.utcnow())
+        )
+        .order_by(models.EmailVerificationCode.created_at.desc())
+    )
+    result_code = await db.execute(stmt_code)
+    valid_code = result_code.scalars().first()
+    if valid_code.is_used == False:
+        raise HTTPException(status_code=400, detail="L'email n'a pas été validé.")
+
+    # Hasher le mot de passe
     hashed_password = await auth.hash_password(user.password)
+
+    # Créer l'utilisateur
     db_user = models.User(
         username=user.username,
         email=user.email,
         password=hashed_password,
         name=user.name,
-        is_verified=False
+        is_verified=True  # ✅ Déjà vérifié
     )
     db.add(db_user)
-    await db.commit()
-    await db.refresh(db_user)
+    await db.flush()  # Permet d'obtenir l'ID sans commit
 
+    # Créer une souscription gratuite
     free_subscription = models.Subscription(
         user_id=db_user.id,
         plan=models.PlanEnum.FREE,
         status="active"
     )
     db.add(free_subscription)
-    await db.commit()
-    await db.refresh(free_subscription)
-    db_user.subscriptions.append(free_subscription)
 
-    code = ''.join(random.choices(string.digits, k=6))
-    db_code = models.EmailVerificationCode(email=db_user.email, code=code)
-    db.add(db_code)
+    # Commit global
     await db.commit()
-
-    await send_email_verification_code(db_user.email, code)
+    await db.refresh(db_user)
 
     return db_user
 
