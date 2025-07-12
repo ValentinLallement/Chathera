@@ -63,6 +63,8 @@ async def get_user_from_token(token: str, db: AsyncSession, credentials_exceptio
 
     if user is None:
         raise credentials_exception
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Utilisateur bloqué")
     return user
 
 

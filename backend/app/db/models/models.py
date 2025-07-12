@@ -29,6 +29,7 @@ class User(SQLModel, table=True):
     __tablename__ = "user"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    is_active: bool = Field(default=True, nullable=False)
     username: Optional[str] = None
     email: str
     is_verified: bool = Field(default=False)
