@@ -31,7 +31,9 @@ from app.db.models.models import Conversation, Bot, User, Subscription, PlanEnum
 from app.schemas import (
     CreateBotRequest, UserLogin, PromptRequest, RefreshTokenRequest,
     UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest,
-    SubscriptionData, UserSubscriptionsResponse,SubscriptionInfo,UserLegalConsentBase, UserLegalConsentRead
+    SubscriptionData, UserSubscriptionsResponse,SubscriptionInfo,UserLegalConsentBase, UserLegalConsentRead,
+    AvatarPayload
+
 
 )
 from app.crud import get_or_create_user_consent
@@ -44,6 +46,7 @@ from app.tasks.scheduler import task_scheduler
 from app.utils.permissions import check_bot_limit
 from app.utils.email import send_email, send_email_verification_code, send_email_for_password_reset
 from app.utils.payg import report_usage
+from app.utils.avatar import glb_url_to_readyplayerme_headshot
 
 from mem0 import Memory
 
@@ -222,7 +225,8 @@ async def refresh_token_from_cookie(
 
         # Convertir user_id (chaîne) en uuid.UUID
         user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
-        user = db.get(models.User, user_uuid)
+
+        user = await db.get(models.User, user_uuid)
         if not user:
             raise HTTPException(status_code=401, detail="Utilisateur non trouvé")
 
@@ -519,6 +523,46 @@ async def get_my_bots(token: str = Depends(dependencies.oauth2_scheme), db: Asyn
     return [{"bot_id": bot.id, "name": bot.name, "gender": bot.gender, "avatar_url": bot.avatar_url} for bot in bots]
 
 
+@api_router.post("/save-avatar")
+async def save_avatar(
+    payload: AvatarPayload,
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+):
+    # Authentification de l'utilisateur via token
+    credentials_exception = HTTPException(status_code=401, detail="Token invalide")
+    user = await get_user_from_token(token, db, credentials_exception)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
+    # Recherche du bot
+    result = await db.execute(select(models.Bot).where(models.Bot.id == payload.bot_id))
+    bot = result.scalars().first()
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot introuvable")
+
+    # Vérification des droits d'accès au bot
+    if bot.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Accès interdit : ce bot ne vous appartient pas")
+
+    # Conversion GLB vers PNG
+    try:
+        png_url = glb_url_to_readyplayerme_headshot(payload.glb_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Sauvegarde de l'avatar
+    bot.avatar_url = png_url
+    await db.commit()
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "message": "Avatar enregistré avec succès",
+            "bot_id": str(bot.id),
+            "avatar_url": bot.avatar_url,
+        },
+    )
 
 # ----------------- Abonnements -----------------
 

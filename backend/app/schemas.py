@@ -150,7 +150,7 @@ class CreateBotRequest(BaseModel):
 # ----------------------------- Avatar ----------------------------------------
 
 class AvatarPayload(BaseModel):
-    bot_id: int
+    bot_id: UUID
     glb_url: str
 
 # ----------------------------- Notification Push -----------------------------
