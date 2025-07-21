@@ -190,6 +190,7 @@ export interface SubscriptionInfo {
     message_limit: number | null;
     last_reset: string;
     status: string;
+    remaining: number | null;
 }
 
 export interface SubscriptionInfoResponse {
@@ -266,11 +267,18 @@ export async function createBot(
   }
   return res.json();
 }
+
+interface LastMessage {
+  content: string;
+  sender: "user" | "bot";
+  created_at: string; // ISO date string
+}
 interface getBotsResponse {
   bot_id: string;
   name: string;
   gender: "Male" | "Female";
   avatar_url: string | null;
+  last_message?: LastMessage | null; // facultatif ou null si pas de message
 }
   
 

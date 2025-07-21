@@ -232,20 +232,29 @@ export default function ChatPage() {
               {selectedBot && (
                 <>
                   <div
-                    className={`h-8 w-8 rounded-full ${
+                    className={`h-8 w-8 rounded-full overflow-hidden border ${
                       selectedBot.gender === "Female"
                         ? "bg-pink-500/10 border-pink-500/20"
                         : "bg-blue-500/10 border-blue-500/20"
-                    } flex items-center justify-center border`}
+                    } flex items-center justify-center`}
                   >
-                    <FontAwesomeIcon
-                      icon={selectedBot.gender === "Female" ? faVenus : faMars}
-                      className={
-                        selectedBot.gender === "Female"
-                          ? "text-pink-400"
-                          : "text-blue-400"
-                      }
-                    />
+                    {selectedBot.avatar_url ? (
+                      <img
+                        src={selectedBot.avatar_url}
+                        alt={selectedBot.name}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <FontAwesomeIcon
+                        icon={selectedBot.gender === "Female" ? faVenus : faMars}
+                        className={
+                          selectedBot.gender === "Female"
+                            ? "text-pink-400"
+                            : "text-blue-400"
+                        }
+                      />
+                    )}
                   </div>
                   <span className="text-white font-medium">
                     {selectedBot.name}
@@ -285,20 +294,30 @@ export default function ChatPage() {
                       }`}
                     >
                       <div
-                        className={`h-8 w-8 rounded-full ${
+                        className={`h-8 w-8 rounded-full overflow-hidden border ${
                           bot.gender === "Female"
                             ? "bg-pink-500/10 border-pink-500/20"
                             : "bg-blue-500/10 border-blue-500/20"
-                        } flex items-center justify-center border`}
+                        } flex items-center justify-center`}
                       >
-                        <FontAwesomeIcon
-                          icon={bot.gender === "Female" ? faVenus : faMars}
-                          className={
-                            bot.gender === "Female"
-                              ? "text-pink-400"
-                              : "text-blue-400"
-                          }
-                        />
+                        {bot.avatar_url ? (
+                          <img
+                            src={bot.avatar_url}
+                            alt={bot.name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <FontAwesomeIcon
+                            icon={bot.gender === "Female" ? faVenus : faMars}
+                            size="xl"
+                            className={
+                              bot.gender === "Female"
+                                ? "text-pink-400 filter-pink-400"
+                                : "text-blue-400 filter-blue-400"
+                            }
+                          />
+                        )}
                       </div>
                       <span className="text-white font-medium">{bot.name}</span>
                     </button>

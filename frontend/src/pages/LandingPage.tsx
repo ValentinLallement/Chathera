@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import type { MouseEvent } from "react";
 import leaNormal from "../assets/images/girls/leaNormal.png";
@@ -205,6 +206,7 @@ const SpotlightItem = ({
 };
 
 export default function LandingPage() {
+  const navigate = useNavigate();
   const [firstSectionHover, setFirstSectionHover] = useState<number | null>(
     null
   );
@@ -471,9 +473,8 @@ export default function LandingPage() {
                 description: "24/7 dedicated support for premium members",
               },
             ].map((feature) => (
-              <SpotlightItem>
+              <SpotlightItem key={feature.title}>
                 <div
-                  key={feature.title}
                   className="feature-card p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 group"
                   onMouseMove={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -492,10 +493,14 @@ export default function LandingPage() {
                 </div>
               </SpotlightItem>
             ))}
+
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full justify-center ">
-            <button className="group relative px-6 py-3 rounded-lg overflow-hidden transition-all duration-300 glow-effect">
+            <button
+                onClick={() => navigate("/pricing")}
+                className="group relative px-6 py-3 rounded-lg overflow-hidden transition-all duration-300 glow-effect"
+              >
               <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-violet-500/20 backdrop-blur-md" />
               <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-violet-500 opacity-0 group-hover:opacity-20 transition-opacity duration-700" />
               <div className="absolute inset-[1px] rounded-lg bg-black/40 backdrop-blur-xl" />

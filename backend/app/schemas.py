@@ -21,6 +21,7 @@ class SubscriptionInfo(BaseModel):
     message_limit: Optional[int]
     free_message_count: int
     status: str
+    remaining: Optional[int] = None
 
     # Champs Stripe live
     stripe_current_period_start: Optional[datetime] = None

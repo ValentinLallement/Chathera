@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useGetSubscriptionInfos } from "../hooks/useApi";
 import {
   faMessage,
   faHeart,
@@ -56,17 +57,40 @@ const itemVariants: Variants = {
 export default function HomePage() {
   const navigate = useNavigate();
   const { isOpen } = useSidebarStore();
+
+  // Données du store pour conversations et stats diverses
   const {
     conversations,
-    remainingMessages,
     hotPicsLeft,
     longestStreak,
     updateAffection,
   } = useStatsStore();
 
+  // Récupération des infos d'abonnement avec React Query
+  const {
+    data: subscriptionData,
+    isLoading,
+    error,
+  } = useGetSubscriptionInfos();
+
+  let remainingMessagesDisplay = "...";
+
+  if (isLoading) {
+    remainingMessagesDisplay = "...";
+  } else if (error || !subscriptionData) {
+    remainingMessagesDisplay = "N/A";
+    // Pas de toast ici pour éviter les effets secondaires dans le rendu
+  } else {
+    const remaining = subscriptionData.subscriptions?.remaining;
+
+    if (remaining === null || remaining === undefined) {
+      remainingMessagesDisplay = "∞";
+    } else {
+      remainingMessagesDisplay = remaining.toString();
+    }
+  }
+
   const handleConversationClick = (id: string) => {
-    // Update affection when clicking on a conversation
-    // This is just an example - you might want to track actual message counts
     const conversation = conversations.find((conv) => conv.id === id);
     if (conversation) {
       updateAffection(id, (conversation.messageCount || 0) + 1);
@@ -108,6 +132,7 @@ export default function HomePage() {
           variants={itemVariants}
           className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
         >
+          {/* Remaining Messages */}
           <div className="p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
               <FontAwesomeIcon icon={faMessage} className="text-violet-400" />
@@ -115,42 +140,40 @@ export default function HomePage() {
             <div>
               <p className="text-white/60 text-sm">Remaining Messages</p>
               <p className="text-white text-xl font-bold">
-                {remainingMessages}
+                {remainingMessagesDisplay}
               </p>
             </div>
           </div>
 
+          {/* Remaining Pics */}
           <div className="p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-pink-500/10 flex items-center justify-center border border-pink-500/20">
               <FontAwesomeIcon icon={faHeart} className="text-pink-400" />
             </div>
             <div>
               <p className="text-white/60 text-sm">
-                Remaining <i>HotPics</i> generations
+                Remaining <i>Pics</i> generations
               </p>
               <p className="text-white text-xl font-bold">{hotPicsLeft}</p>
             </div>
           </div>
 
+          {/* Longest Streak */}
           <div className="p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
               <FontAwesomeIcon icon={faClock} className="text-emerald-400" />
             </div>
             <div>
               <p className="text-white/60 text-sm">Longest Streak</p>
-              <p className="text-white text-xl font-bold">
-                {longestStreak} days
-              </p>
+              <p className="text-white text-xl font-bold">{longestStreak} days</p>
             </div>
           </div>
         </motion.div>
 
-        {/* Recent Conversations with Affection */}
+        {/* Recent Conversations */}
         <motion.div variants={itemVariants} className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white text-xl font-bold">
-              Recent Conversations
-            </h2>
+            <h2 className="text-white text-xl font-bold">Recent Conversations</h2>
             <button
               onClick={() => navigate("/dashboard/partners")}
               className="text-violet-400 hover:text-violet-300 transition-colors text-sm flex items-center gap-2"
@@ -178,9 +201,7 @@ export default function HomePage() {
                           <span className="w-2 h-2 rounded-full bg-violet-500" />
                         )}
                       </h3>
-                      <span className="text-white/40 text-sm">
-                        {conversation.timestamp}
-                      </span>
+                      <span className="text-white/40 text-sm">{conversation.timestamp}</span>
                     </div>
                     <div
                       className={`px-3 py-1 rounded-full border ${getAffectionColor(
@@ -195,9 +216,7 @@ export default function HomePage() {
                     {conversation.lastMessage}
                   </p>
                   <div className="flex items-center gap-2">
-                    <span className="text-white/40 text-xs">
-                      {conversation.personality}
-                    </span>
+                    <span className="text-white/40 text-xs">{conversation.personality}</span>
                   </div>
                 </div>
               </motion.div>
@@ -225,10 +244,7 @@ export default function HomePage() {
                   transition={{ duration: 0.2 }}
                 >
                   <div className="h-12 w-12 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
-                    <FontAwesomeIcon
-                      icon={feature.icon}
-                      className="text-violet-400"
-                    />
+                    <FontAwesomeIcon icon={feature.icon} className="text-violet-400" />
                   </div>
                   <h3 className="text-white font-medium">{feature.title}</h3>
                   <p className="text-white/60 text-sm">{feature.description}</p>

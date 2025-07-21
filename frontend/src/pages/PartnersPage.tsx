@@ -649,21 +649,32 @@ export default function PartnersPage() {
                         <div className="relative z-10 flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div
-                              className={`h-8 w-8 rounded-full ${
-                                bot.gender == "Female"
+                              className={`h-10 w-10 rounded-full overflow-hidden border ${
+                                bot.gender === "Female"
                                   ? "bg-pink-500/10 border-pink-500/20"
                                   : "bg-blue-500/10 border-blue-500/20"
-                              } flex items-center justify-center border`}
+                              } flex items-center justify-center`}
                             >
-                              <FontAwesomeIcon
-                                icon={bot.gender == "Female" ? faVenus : faMars}
-                                size="lg"
-                                className={
-                                  bot.gender == "Female"
-                                    ? "text-pink-400 filter-pink-400"
-                                    : "text-blue-400 filter-blue-400"
-                                }
-                              />
+                              {bot.avatar_url ? (
+                                <img
+                                  src={bot.avatar_url}
+                                  alt={`${bot.name} avatar`}
+                                  className="object-cover w-full h-full"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                                  }}
+                                />
+                              ) : (
+                                <FontAwesomeIcon
+                                  icon={bot.gender === "Female" ? faVenus : faMars}
+                                  size="xl"
+                                  className={
+                                    bot.gender === "Female"
+                                      ? "text-pink-400 filter-pink-400"
+                                      : "text-blue-400 filter-blue-400"
+                                  }
+                                />
+                              )}
                             </div>
                             <div>
                               <div className="flex items-center gap-3 mb-1">
@@ -675,7 +686,29 @@ export default function PartnersPage() {
                                 </span>
                               </div>
                               <p className="text-white/60 text-sm">
-                                Click to start chatting
+                                {bot.last_message ? (
+                                  <>
+                                    <span className="font-semibold">
+                                      {bot.last_message.sender === "user"
+                                        ? "You - "
+                                        : `${bot.name} - `}
+                                    </span>
+                                    <span>
+                                      {bot.last_message.content.length > 40
+                                        ? bot.last_message.content.slice(0, 40) + "…"
+                                        : bot.last_message.content}
+                                    </span>
+                                    <br />
+                                    <small className="text-xs text-white/40">
+                                      {new Date(bot.last_message.created_at).toLocaleString(undefined, {
+                                        dateStyle: "short",
+                                        timeStyle: "short",
+                                      })}
+                                    </small>
+                                  </>
+                                ) : (
+                                  "Click to start chatting"
+                                )}
                               </p>
                             </div>
                           </div>

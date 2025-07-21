@@ -15,12 +15,12 @@ interface Conversation {
 interface StatsState {
   conversations: Conversation[];
   remainingMessages: number;
-  hotPicsLeft: number;
+  hotPicsLeft: string; 
   longestStreak: number;
   addConversation: (conversation: Conversation) => void;
   updateAffection: (botId: string, messageCount: number) => void;
   setRemainingMessages: (count: number) => void;
-  setHotPicsLeft: (count: number) => void;
+  setHotPicsLeft: (value: string) => void;
   setLongestStreak: (days: number) => void;
 }
 
@@ -29,7 +29,7 @@ export const useStatsStore = create<StatsState>()(
     (set) => ({
       conversations: [],
       remainingMessages: 242,
-      hotPicsLeft: 7,
+      hotPicsLeft: "Coming soon !",
       longestStreak: 15,
 
       addConversation: (conversation) =>
@@ -52,7 +52,7 @@ export const useStatsStore = create<StatsState>()(
         })),
 
       setRemainingMessages: (count) => set({ remainingMessages: count }),
-      setHotPicsLeft: (count) => set({ hotPicsLeft: count }),
+      setHotPicsLeft: (value) => set({ hotPicsLeft: value }),
       setLongestStreak: (days) => set({ longestStreak: days }),
     }),
     {
