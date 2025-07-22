@@ -53,7 +53,7 @@ async def create_user(db: AsyncSession, user: schemas.UserCreate):
     )
     result_code = await db.execute(stmt_code)
     valid_code = result_code.scalars().first()
-    if valid_code.is_used == False:
+    if valid_code is None:
         raise HTTPException(status_code=400, detail="L'email n'a pas été validé.")
 
     # Hasher le mot de passe

@@ -308,3 +308,63 @@ export function useDeleteBot() {
     mutationFn: (botId: string) => deleteBot(accessToken!, botId),
   });
 }
+
+
+export function useOpenCustomerPortal() {
+  const { accessToken, setToken } = useAuthStore();
+
+  return useMutation({
+    mutationFn: () => {
+      if (!accessToken) {
+        toast.error("Not authenticated");
+        throw new Error("Not authenticated");
+      }
+      return apiCallWithRefresh(() =>
+        fetch("http://127.0.0.1:8000/api/stripe/customer-portal", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }).then((res) => {
+          if (!res.ok) throw new Error("Failed to open customer portal");
+          return res.json();
+        }),
+        setToken
+      );
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to open customer portal");
+    },
+  });
+}
+
+export function useCancelSubscription() {
+  const { accessToken, setToken } = useAuthStore();
+
+  return useMutation({
+    mutationFn: () => {
+      if (!accessToken) {
+        toast.error("Not authenticated");
+        throw new Error("Not authenticated");
+      }
+
+      return apiCallWithRefresh(() =>
+        fetch("http://127.0.0.1:8000/api/stripe/subscription", {
+          method: "DELETE", // ✅ CORRECTION ICI
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }).then((res) => {
+          if (!res.ok) throw new Error("Failed to cancel subscription");
+          return res.json();
+        }),
+        setToken
+      );
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to cancel subscription");
+    },
+  });
+}

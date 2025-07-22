@@ -103,7 +103,7 @@ async def task_scheduler():
                         if websocket:
                             try:
                                 await websocket.send_json({
-                                    "type": "future_action",
+                                    "type": "reponse",
                                     "message": action.future_message,
                                     "timestamp": now.isoformat()
                                 })

@@ -122,25 +122,36 @@ export async function logout(): Promise<void> {
 export async function refreshToken(): Promise<LogInResponse> {
   const res = await fetch(urls.refresh, {
     method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include", // pour envoyer le cookie contenant le refresh_token
+    headers: {
+      "Content-Type": "application/json"
+    }
   });
 
-  if (!res.ok) {
-    let payload: { detail?: string; [key: string]: any } = { detail: "" };
-    try {
-      payload = await res.json();
-    } catch {
-      throw new Error("Token refresh failed");
-    }
+  let payload: { detail?: string; [key: string]: any };
 
-    if (payload.detail) {
-      throw new Error(payload.detail);
-    } else {
-      throw new Error(`Token refresh failed (status ${res.status})`);
-    }
+  try {
+    payload = await res.json();
+  } catch {
+    throw new Error("Erreur lors du décodage de la réponse du serveur.");
   }
-  return res.json();
+
+  if (!res.ok) {
+    throw new Error(payload.detail || `Échec du rafraîchissement du token (statut ${res.status})`);
+  }
+
+  // On attend { message, access_token, token_type }
+  const { access_token, token_type } = payload;
+
+  if (!access_token || !token_type) {
+    throw new Error("Réponse invalide du serveur lors du rafraîchissement.");
+  }
+
+  return {
+    message: payload.message ?? "",
+    access_token,
+    token_type,
+  };
 }
 
 /***************************** Users *****************************/

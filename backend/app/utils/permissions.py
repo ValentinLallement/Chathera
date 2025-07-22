@@ -18,6 +18,7 @@ MESSAGE_LIMITS = {
 
 async def check_bot_limit(subscription: Subscription, current_bot_count: int) -> bool:
     limit = BOT_LIMITS.get(subscription.plan)
+    print(f"[check_bot_limit] Plan: {subscription.plan}, Limit: {limit}, Current Count: {current_bot_count}")
     if subscription.status != "active":
         return False
     if limit is None:

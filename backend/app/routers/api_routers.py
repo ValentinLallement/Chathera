@@ -1,25 +1,20 @@
 import base64
 import io
-import os
 import requests as external_requests  
-import asyncio
 import uuid
 import random
 import string
 import stripe
 
 from app.db.models import models
-from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Body, Query, Request
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Request
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import StreamingResponse, JSONResponse
 
-from sqlmodel import Session, select, desc
+from sqlmodel import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pydantic import BaseModel, EmailStr, Field
-from starlette.middleware.sessions import SessionMiddleware
 from jose import JWTError, jwt
-from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -27,22 +22,20 @@ from uuid import UUID
 from google.auth.transport import requests as google_requests
 
 from app import crud, schemas, dependencies, auth
-from app.db.models.models import Conversation, Bot, User, Subscription, PlanEnum, SubscriptionStatus, PushSubscription, UserLegalConsent,Message
+from app.db.models.models import Conversation, Bot, User, PlanEnum, SubscriptionStatus,Message
 from app.schemas import (
-    CreateBotRequest, UserLogin, PromptRequest, RefreshTokenRequest,
-    UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest,
-    SubscriptionData, UserSubscriptionsResponse,SubscriptionInfo,UserLegalConsentBase, UserLegalConsentRead,
+    CreateBotRequest, UserLogin, PromptRequest,
+    UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest
+    ,UserSubscriptionsResponse,SubscriptionInfo,UserLegalConsentBase, UserLegalConsentRead,
     AvatarPayload
 )
 from app.crud import get_or_create_user_consent
 from app.auth import verify_token, get_user_from_token, create_password_reset_token
-from app.websocket.router import websocket_router
 from app.database import get_db
 from app.dependencies import get_db
-from app.config import REFRESH_SECRET_KEY, ALGORITHM, SECRET_KEY, MEM0_CONFIG ,ACCESS_TOKEN_EXPIRE_MINUTES
-from app.tasks.scheduler import task_scheduler
+from app.config import REFRESH_SECRET_KEY, ALGORITHM, SECRET_KEY
 from app.utils.permissions import check_bot_limit,MESSAGE_LIMITS
-from app.utils.email import send_email, send_email_verification_code, send_email_for_password_reset
+from app.utils.email import send_email_verification_code, send_email_for_password_reset,send_password_changed_email,send_account_created_email
 from app.utils.payg import report_usage
 from app.utils.avatar import glb_url_to_readyplayerme_headshot
 
@@ -74,10 +67,16 @@ async def health_check():
 
 # ----------------- Register -----------------
 
-
 @api_router.post("/register", response_model=schemas.User)
 async def register(user: schemas.UserCreate, db: AsyncSession = Depends(dependencies.get_db)):
-    return await crud.create_user(db=db, user=user)
+    created_user = await crud.create_user(db=db, user=user)
+
+    try:
+        await send_account_created_email(to_email=created_user.email, user_first_name=created_user.first_name)
+    except Exception as e:
+        print(f"[register] Erreur lors de l'envoi du mail de bienvenue: {e}")
+
+    return created_user
 
 
 
@@ -292,6 +291,11 @@ async def change_password(
     user.password = await auth.hash_password(request.new_password)
     await db.commit()
 
+    await send_password_changed_email(
+        to=user.email,
+        user_name=user.first_name or user.username
+    )
+
     return {"detail": "Mot de passe mis à jour avec succès."}
 # ----------------- reset password -----------------
 
@@ -337,6 +341,11 @@ async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depen
     user.password = await auth.hash_password(request.new_password)
     db.add(user)
     await db.commit()
+
+    await send_password_changed_email(
+        to=user.email,
+        user_name=user.first_name or user.username
+    )
 
     return {"detail": "Mot de passe réinitialisé avec succès."}
 
@@ -413,7 +422,7 @@ async def create_bot_and_conversation(
     existing_bot_count = len(existing_bots)
 
     # Vérifier la limite
-    if not check_bot_limit(subscription, existing_bot_count):
+    if not await check_bot_limit(subscription, existing_bot_count):
         raise HTTPException(status_code=403, detail="Limite de bots atteinte pour votre abonnement")
 
     # Création du bot et conversation
