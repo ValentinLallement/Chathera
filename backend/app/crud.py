@@ -260,7 +260,7 @@ async def update_user_subscription(
     message_limit_provided: bool = False
 ):
     stmt = select(Subscription).where(Subscription.user_id == user_id)
-    result = await db.exe(stmt)
+    result = await db.execute(stmt)
     subscription = result.scalars().first()
 
     if not subscription:

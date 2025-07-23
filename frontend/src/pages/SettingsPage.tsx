@@ -5,6 +5,7 @@ import { changePassword } from "../api/api";
 import { useAuthStore } from "../stores/authStore";
 import { useGetSubscriptionInfos, useOpenCustomerPortal, useCancelSubscription } from "../hooks/useApi";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import axios from "axios";
 
 export default function SettingsPage() {
   const { accessToken } = useAuthStore();
@@ -17,9 +18,40 @@ export default function SettingsPage() {
 
   const { data: subscriptionData, isLoading, error } = useGetSubscriptionInfos();
 
+  const [newMessageLimit, setNewMessageLimit] = useState("");
+  const [isUpdatingLimit, setIsUpdatingLimit] = useState(false);
+
   // Nouveaux hooks mutation
   const openCustomerPortal = useOpenCustomerPortal();
   const cancelSubscription = useCancelSubscription();
+
+  
+
+  const handleUpdateMessageLimit = async () => {
+    setIsUpdatingLimit(true);
+    try {
+      await axios.put(
+        "http://127.0.0.1:8000/api/user/subscription/update",
+        {
+          message_limit: newMessageLimit === "" ? null : Number(newMessageLimit),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      toast.success("Message limit successfully updated!", { style: toastStyle("success") });
+      setNewMessageLimit("");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || "Failed to update limit", {
+        style: toastStyle("error"),
+      });
+    } finally {
+      setIsUpdatingLimit(false);
+    }
+  };
 
   const handlePasswordChange = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -165,6 +197,12 @@ export default function SettingsPage() {
           onCancelClick={handleCancelClick}
           loadingChangeInfo={openCustomerPortal.status === "pending"}
           loadingCancel={cancelSubscription.status === "pending"}
+          newMessageLimit={newMessageLimit}
+          setNewMessageLimit={setNewMessageLimit}
+          isUpdatingLimit={isUpdatingLimit}
+          setIsUpdatingLimit={setIsUpdatingLimit}           // <-- ajouter ceci
+          handleUpdateMessageLimit={handleUpdateMessageLimit}
+          accessToken={accessToken}                           // <-- ajouter ceci
         />
       </div>
     </div>
@@ -198,22 +236,41 @@ function SubscriptionInfoCard({
   onCancelClick,
   loadingChangeInfo,
   loadingCancel,
+  newMessageLimit,
+  setNewMessageLimit,
+  isUpdatingLimit,
+  setIsUpdatingLimit,
+  handleUpdateMessageLimit,
+  accessToken,
 }: any) {
   if (loading) return <p className="text-gray-400">Loading subscription...</p>;
   if (error || !data?.subscriptions) return <p className="text-red-500">Error loading subscription</p>;
 
   const sub = data.subscriptions;
 
-  const startDate = new Date(sub.stripe_current_period_start).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const endDate = new Date(sub.stripe_current_period_end).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const plan = sub?.plan ?? "Unknown";
+  const status = sub?.status ?? "Unknown";
+  const messageLimit = sub?.message_limit ?? "∞";
+  const remaining = sub?.remaining ?? "∞";
+  const startDate = sub?.stripe_current_period_start
+    ? new Date(sub.stripe_current_period_start).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "N/A";
+
+  const endDate = sub?.stripe_current_period_end
+    ? new Date(sub.stripe_current_period_end).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "N/A";
+
+  const isPayg = plan === "payg";
+  const botCount = sub?.bot_count ?? 0;
+  const messageCount = sub?.message_count ?? 0;
 
   return (
     <motion.div
@@ -239,23 +296,128 @@ function SubscriptionInfoCard({
         Your Subscription
       </motion.h2>
 
-      <motion.div
-        className="space-y-6 relative z-10"
-      >
-        <InfoRow label="Plan" value={sub.plan} />
-        <InfoRow label="Status" value={sub.status} />
-        <InfoRow label="Remaining Messages" value={sub.remaining ?? "∞"} />
-        <InfoRow label="Message Limit" value={sub.message_limit} />
-        <InfoRow label="Renewal Price" value={`${sub.stripe_plan_amount_eur} ${sub.stripe_currency.toUpperCase()}`} />
+      <motion.div className="space-y-6 relative z-10">
+        <InfoRow label="Plan" value={plan} />
+        <InfoRow label="Status" value={status} />
+        <InfoRow label="Remaining Messages" value={remaining} />
         <InfoRow label="Period Start" value={startDate} />
         <InfoRow label="Period End" value={endDate} />
+        <InfoRow
+          label="Renewal Price"
+          value={`${sub?.stripe_plan_amount_eur ?? "?"} ${sub?.stripe_currency?.toUpperCase() ?? "EUR"}`}
+        />
+        {isPayg && (
+          <>
+            <div className="flex items-center justify-between group relative">
+              <span className="text-gray-300">Message Limit</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-white">{messageLimit}</span>
+
+                {/* Croix visible seulement si une limite est définie */}
+                {messageLimit !== "∞" && messageLimit !== null && messageLimit !== undefined && (
+                  <button
+                    onClick={async () => {
+                      setNewMessageLimit("");
+                      setIsUpdatingLimit(true);
+                      try {
+                        await axios.put(
+                          "http://127.0.0.1:8000/api/user/subscription/update",
+                          { message_limit: null },
+                          {
+                            headers: { Authorization: `Bearer ${accessToken}` },
+                          }
+                        );
+                        toast.success("Message limit cleared!", { style: toastStyle("success") });
+                      } catch (error: any) {
+                        toast.error(error?.response?.data?.detail || "Failed to clear limit", {
+                          style: toastStyle("error"),
+                        });
+                      } finally {
+                        setIsUpdatingLimit(false);
+                      }
+                    }}
+                    type="button"
+                    aria-label="Clear message limit"
+                    className="text-white/50 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <label className="block text-sm font-medium text-gray-300"></label>
+
+              <div className="relative">
+                <input
+                  type="number"
+                  placeholder="Enter new limit"
+                  value={newMessageLimit}
+                  onChange={(e) => setNewMessageLimit(e.target.value)}
+                  className="w-full pr-10 px-4 py-2 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300"
+                  disabled={isUpdatingLimit}
+                />
+
+                {/* Bouton croix visible uniquement si input non vide */}
+                {newMessageLimit !== "" && (
+                  <button
+                    onClick={() => setNewMessageLimit("")}
+                    type="button"
+                    aria-label="Clear input"
+                    className="
+                      absolute 
+                      top-1/2 
+                      right-3 
+                      -translate-y-1/2 
+                      text-white/80 
+                      hover:text-red-400 
+                      transition-colors 
+                      cursor-pointer
+                      z-10
+                      select-none
+                    "
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={handleUpdateMessageLimit}
+                disabled={isUpdatingLimit}
+                className="w-full px-4 py-2 rounded-lg bg-violet-500/20 text-violet-300 font-medium border border-violet-500/20 hover:bg-violet-500/30 transition-colors disabled:opacity-50"
+              >
+                {isUpdatingLimit ? "Updating..." : "Update Limit"}
+              </button>
+            </div>
+          </>
+        )}
       </motion.div>
+
+      {isPayg && (
+        <motion.div
+          className="mt-10 p-6 rounded-xl bg-black/30 border border-white/10 backdrop-blur-md shadow-inner text-white"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <h3 className="text-xl font-bold mb-4 text-center text-violet-300">Usage (Pay-As-You-Go)</h3>
+          <InfoRow label="Messages Sent" value={`${messageCount} × 0.01€ = ${(messageCount * 0.01).toFixed(2)}€`} />
+          <InfoRow label="Bots Created" value={`${botCount} × 1€ = ${(botCount * 1).toFixed(2)}€`} />
+          <div className="border-t border-white/10 my-4" />
+          <InfoRow
+            label="Estimated Total"
+            value={`${(messageCount * 0.01 + botCount * 1).toFixed(2)} €`}
+          />
+        </motion.div>
+      )}
 
       <motion.div
         className="mt-12 flex justify-center gap-6 relative z-10"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        transition={{ delay: 0.4 }}
       >
         <button
           type="button"
@@ -278,6 +440,8 @@ function SubscriptionInfoCard({
     </motion.div>
   );
 }
+
+
 
 function InfoRow({ label, value }: { label: string; value: string | number }) {
   return (

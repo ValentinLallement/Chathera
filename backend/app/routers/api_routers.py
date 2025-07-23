@@ -11,8 +11,9 @@ from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import StreamingResponse, JSONResponse
 
-from sqlmodel import select, desc,delete
+from sqlmodel import select, desc,delete,func
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -650,7 +651,7 @@ async def update_my_subscription(
     update_data = subscription_update.dict(exclude_unset=True)
 
     try:
-        updated_subscription = crud.update_user_subscription(
+        updated_subscription = await crud.update_user_subscription(
             db=db,
             user_id=user.id,
             new_plan=update_data.get("plan"),
@@ -678,9 +679,21 @@ async def get_user_subscription(
     if not subscription:
         return UserSubscriptionsResponse(subscriptions=None)
 
+    # Compter les bots de l'utilisateur
+    stmt_bot_count = select(func.count()).select_from(models.Bot).where(models.Bot.user_id == user.id)
+    bot_count_result = await db.execute(stmt_bot_count)
+    bot_count = bot_count_result.scalar_one()
+
     # Calcul du message_limit en fonction du plan
     plan = subscription.plan
     message_limit = MESSAGE_LIMITS.get(plan)
+
+    if plan == PlanEnum.PAYG:
+        # Pour PAYG, on utilise le message_limit de l'abonnement s'il est défini
+        if subscription.message_limit is not None:
+            message_limit = subscription.message_limit
+        else:
+            message_limit = MESSAGE_LIMITS.get(PlanEnum.PAYG)
 
     # Création de l’objet de base
     subs_info = SubscriptionInfo(
@@ -691,6 +704,7 @@ async def get_user_subscription(
         message_count=subscription.message_count,
         free_message_count=subscription.free_message_count,
         message_limit=message_limit,
+        bot_count=bot_count,
     )
 
     # 🔁 Ajout des données Stripe si nécessaire

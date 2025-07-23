@@ -18,6 +18,7 @@ class SubscriptionInfo(BaseModel):
 
     plan: str
     message_count: int
+    bot_count: Optional[int] = None
     message_limit: Optional[int]
     free_message_count: int
     status: str
