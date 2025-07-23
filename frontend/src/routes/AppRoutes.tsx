@@ -22,6 +22,7 @@ const Settings = lazy(() => import("../pages/SettingsPage"));
 const UnderConstruction = lazy(() => import("../pages/UnderConstructionPage"));
 const Success = lazy(() => import("../pages/SuccessPage"));
 const Cancel = lazy(() => import("../pages/CancelPage"));
+const VerifyEmailPage = lazy(() => import("../pages/VerifyEmailPage"));
 
 // Wrap lazy components with error boundary
 const withErrorBoundary = (Component: React.ComponentType) => (
@@ -49,6 +50,7 @@ export default function AppRoutes() {
         <Route path="/pricing" element={withErrorBoundary(Pricing)} />
         <Route path="/success" element={withErrorBoundary(Success)} />
         <Route path="/cancel" element={withErrorBoundary(Cancel)} />
+        <Route path="/verify-email" element={withErrorBoundary(VerifyEmailPage)} />
 
         {/* Under construction pages */}
         <Route path="/about" element={withErrorBoundary(UnderConstruction)} />

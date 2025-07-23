@@ -18,7 +18,7 @@ from fastapi import HTTPException
 from . import schemas,auth
 from app.db.models.models import Conversation, Message, FutureAction, Subscription, UserLegalConsent
 from app.utils.payg import PlanEnum
-from app.utils.email import send_email_verification_code
+from app.utils.email import send_email_verification_code,send_account_created_email
 from app.utils.permissions import MESSAGE_LIMITS
 
 
@@ -27,25 +27,12 @@ from app.utils.permissions import MESSAGE_LIMITS
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# create_user async corrigé
-async def create_user(db: AsyncSession, user: schemas.UserCreate):
-    # Vérifier si l'email a déjà été utilisé
-    stmt_email = select(models.User).where(models.User.email == user.email)
-    result_email = await db.execute(stmt_email)
-    if result_email.scalars().first():
-        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
-    
-    # Vérifier si le nom d'utilisateur est déjà pris
-    stmt_username = select(models.User).where(models.User.username == user.username)
-    result_username = await db.execute(stmt_username)
-    if result_username.scalars().first():
-        raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris.")
-
-    # Vérifier si l’email a bien été validé avec un code non utilisé et pas expiré
+async def create_user_from_draft(db: AsyncSession, email: str) -> models.User:
+    # Vérifier que le code email a été validé
     stmt_code = (
         select(models.EmailVerificationCode)
         .where(
-            (models.EmailVerificationCode.email == user.email) &
+            (models.EmailVerificationCode.email == email) &
             (models.EmailVerificationCode.is_used == True) &
             (models.EmailVerificationCode.expires_at > datetime.utcnow())
         )
@@ -54,35 +41,56 @@ async def create_user(db: AsyncSession, user: schemas.UserCreate):
     result_code = await db.execute(stmt_code)
     valid_code = result_code.scalars().first()
     if valid_code is None:
-        raise HTTPException(status_code=400, detail="L'email n'a pas été validé.")
+        raise HTTPException(status_code=400, detail="L'email je te le fous dabs le cul")
 
-    # Hasher le mot de passe
-    hashed_password = await auth.hash_password(user.password)
+    # Récupérer le brouillon d'inscription
+    stmt_draft = select(models.UserDraft).where(models.UserDraft.email == email)
+    result_draft = await db.execute(stmt_draft)
+    draft = result_draft.scalars().first()
+    if not draft:
+        raise HTTPException(status_code=404, detail="Brouillon introuvable.")
 
-    # Créer l'utilisateur
-    db_user = models.User(
-        username=user.username,
-        email=user.email,
-        password=hashed_password,
-        name=user.name,
-        is_verified=True  # ✅ Déjà vérifié
+    # Vérification redondante : username / email pas déjà utilisés
+    stmt_user = select(models.User).where(models.User.email == email)
+    if (await db.execute(stmt_user)).scalars().first():
+        raise HTTPException(status_code=400, detail="Email déjà utilisé")
+
+    stmt_username = select(models.User).where(models.User.username == draft.username)
+    if (await db.execute(stmt_username)).scalars().first():
+        raise HTTPException(status_code=400, detail="Nom d'utilisateur déjà pris")
+
+    # Création de l'utilisateur
+    user = models.User(
+        email=draft.email,
+        username=draft.username,
+        name=draft.name,
+        password=draft.password,
+        is_verified=True
     )
-    db.add(db_user)
-    await db.flush()  # Permet d'obtenir l'ID sans commit
+    db.add(user)
+    await db.flush()
 
-    # Créer une souscription gratuite
-    free_subscription = models.Subscription(
-        user_id=db_user.id,
+    # Souscription gratuite
+    subscription = models.Subscription(
+        user_id=user.id,
         plan=models.PlanEnum.FREE,
         status="active"
     )
-    db.add(free_subscription)
+    db.add(subscription)
 
-    # Commit global
+    # Supprimer le brouillon
+    await db.delete(draft)
     await db.commit()
-    await db.refresh(db_user)
+    await db.refresh(user)
 
-    return db_user
+    # Email de bienvenue
+    try:
+        await send_account_created_email(to_email=user.email, user_first_name=user.name or user.username)
+    except Exception as e:
+        print(f"[create_user_from_draft] Erreur lors de l'envoi du mail de bienvenue : {e}")
+
+    return user
+
 
 
 async def get_user_by_username(db: AsyncSession, username: str):

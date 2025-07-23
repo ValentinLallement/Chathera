@@ -70,39 +70,26 @@ export default function AuthentificationPage() {
     }
   }, [signupError, signupErrorObj]);
 
-  useEffect(() => {
-    if (signupSuccess && signUpResult) {
-      toast.success("Account created successfully!", {
-        style: {
-          borderRadius: "10px",
-          background: "#1f1f1f",
-          border: "1px solid #6b46C1",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-          color: "#fff",
-          padding: "12px 16px",
-          fontSize: "0.95rem",
-        },
-      });
-      toast.success("You can now log in. Redirecting...", {
-        style: {
-          borderRadius: "10px",
-          background: "#1f1f1f",
-          border: "1px solid #6b46C1",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-          color: "#fff",
-          padding: "12px 16px",
-          fontSize: "0.95rem",
-        },
-      });
+useEffect(() => {
+  if (signupSuccess && signUpResult) {
+    toast.success("Code envoyé ! Veuillez vérifier votre email.", {
+      style: {
+        borderRadius: "10px",
+        background: "#1f1f1f",
+        border: "1px solid #6b46C1",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+        color: "#fff",
+        padding: "12px 16px",
+        fontSize: "0.95rem",
+      },
+    });
 
-      setTimeout(() => {
-        setIsSignUp(false);
-        setPassword("");
-        setConfirmationPassword("");
-        setErrors({});
-      }, 1500);
-    }
-  }, [signupSuccess, signUpResult]);
+    // Redirection vers la page de vérification avec l'email en state
+    setTimeout(() => {
+      navigate("/verify-email", { state: { email: email.trim() } });
+    }, 1500);
+  }
+}, [signupSuccess, signUpResult, navigate, email]);
 
   useEffect(() => {
     if (loginError && loginErrorObj instanceof Error) {

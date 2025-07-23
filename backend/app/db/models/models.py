@@ -60,6 +60,16 @@ class User(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
+class UserDraft(SQLModel, table=True):
+    __tablename__ = "user_drafts"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    username: Optional[str] = Field(index=True)
+    email: str = Field(index=True)
+    password: str  # Hashed
+    name: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 class UserLegalConsent(SQLModel, table=True):
     __tablename__ = "user_legal_consent"

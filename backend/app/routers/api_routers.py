@@ -11,7 +11,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import StreamingResponse, JSONResponse
 
-from sqlmodel import select, desc
+from sqlmodel import select, desc,delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jose import JWTError, jwt
@@ -27,9 +27,9 @@ from app.schemas import (
     CreateBotRequest, UserLogin, PromptRequest,
     UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest
     ,UserSubscriptionsResponse,SubscriptionInfo,UserLegalConsentBase, UserLegalConsentRead,
-    AvatarPayload
+    AvatarPayload,EmailSchema
 )
-from app.crud import get_or_create_user_consent
+from app.crud import get_or_create_user_consent,create_user_from_draft
 from app.auth import verify_token, get_user_from_token, create_password_reset_token
 from app.database import get_db
 from app.dependencies import get_db
@@ -57,7 +57,7 @@ api_router = APIRouter()
 
 @api_router.get("/")
 async def read_root():
-    return {"message": "Hello, FastAPI is ready!"}
+    return {"message": "Hello, FastAPI is ready!2"}
 
 # Health check endpoint
 @api_router.get("/health")
@@ -67,109 +67,128 @@ async def health_check():
 
 # ----------------- Register -----------------
 
-@api_router.post("/register", response_model=schemas.User)
-async def register(user: schemas.UserCreate, db: AsyncSession = Depends(dependencies.get_db)):
-    created_user = await crud.create_user(db=db, user=user)
+@api_router.post("/register")
+async def register_draft(user: schemas.UserCreate, db: AsyncSession = Depends(get_db)):
+    # 1. Vérif : email ou username déjà dans User
+    existing_user_email = await db.execute(select(models.User).where(models.User.email == user.email))
+    if existing_user_email.scalars().first():
+        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
 
-    try:
-        await send_account_created_email(to_email=created_user.email, user_first_name=created_user.first_name)
-    except Exception as e:
-        print(f"[register] Erreur lors de l'envoi du mail de bienvenue: {e}")
+    existing_user_username = await db.execute(select(models.User).where(models.User.username == user.username))
+    if existing_user_username.scalars().first():
+        raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris.")
 
-    return created_user
+    # 2. Vérif : email déjà dans UserDraft ? → mettre à jour le brouillon
+    draft_query = await db.execute(select(models.UserDraft).where(models.UserDraft.email == user.email))
+    draft = draft_query.scalars().first()
 
+    hashed_password = await auth.hash_password(user.password)
 
-
-@api_router.post("/request-email-verification")
-async def request_email_verification(
-    payload: EmailRequest,
-    db: AsyncSession = Depends(dependencies.get_db)
-):
-    email = payload.email.lower().strip()
-
-    # Vérifier si un utilisateur avec cet email est déjà vérifié
-    stmt_user = select(models.User).where(models.User.email == email)
-    result = await db.execute(stmt_user)
-    user = result.scalars().first()
-    if user and user.is_verified:
-        raise HTTPException(status_code=400, detail="Cet email est déjà vérifié.")
-
-    # Vérifier s’il existe un code avec is_used=True → bloquer
-    stmt_used_code = (
-        select(models.EmailVerificationCode)
-        .where(
-            (models.EmailVerificationCode.email == email) &
-            (models.EmailVerificationCode.is_used == True)
-        )
-        .limit(1)
-    )
-    result_used_code = await db.execute(stmt_used_code)
-    used_code = result_used_code.scalars().first()
-    if used_code:
-        raise HTTPException(status_code=400, detail="l'email est déja utilisé.")
-
-    # Récupérer les codes non utilisés
-    stmt_unused_codes = (
-        select(models.EmailVerificationCode)
-        .where(
-            (models.EmailVerificationCode.email == email) &
-            (models.EmailVerificationCode.is_used == False)
-        )
-        .order_by(models.EmailVerificationCode.created_at.desc())
-    )
-    result_unused_codes = await db.execute(stmt_unused_codes)
-    unused_codes = result_unused_codes.scalars().all()
-
-    code = ''.join(random.choices(string.digits, k=6))
-
-    if unused_codes:
-        # Mettre à jour le plus récent
-        db_code = unused_codes[0]
-        db_code.code = code
-        db_code.created_at = datetime.utcnow()
-        db_code.expires_at = datetime.utcnow() + timedelta(minutes=10)  # 10 minutes de validité
-        # Invalider les autres
-        for old_code in unused_codes[1:]:
-            old_code.is_used = True
+    if draft:
+        draft.username = user.username
+        draft.name = user.name
+        draft.password = hashed_password
     else:
-        # Pas de code existant, en créer un nouveau
-        db_code = models.EmailVerificationCode(email=email, code=code)
-        db.add(db_code)
+        draft = models.UserDraft(
+            email=user.email,
+            username=user.username,
+            name=user.name,
+            password=hashed_password
+        )
+        db.add(draft)
 
     await db.commit()
 
-    # Envoyer l’email avec le nouveau code
+    # 3. Supprimer les anciens codes non utilisés
+    await db.execute(delete(models.EmailVerificationCode).where(
+        models.EmailVerificationCode.email == user.email,
+        models.EmailVerificationCode.is_used == False
+    ))
+
+    # 4. Générer un nouveau code
+    code = ''.join(random.choices(string.digits, k=6))
+    db_code = models.EmailVerificationCode(
+        email=user.email,
+        code=code,
+        is_used=False,
+        expires_at=datetime.utcnow() + timedelta(minutes=10)
+    )
+    db.add(db_code)
+    await db.commit()
+
+    # 5. Envoyer le code
+    await send_email_verification_code(user.email, code)
+
+    return {"message": "Code envoyé. Veuillez vérifier votre email."}
+
+@api_router.post("/resend-verification")
+async def resend_verification_code(
+    email_data: schemas.EmailSchema,  # simple schéma avec juste email: str
+    db: AsyncSession = Depends(get_db),
+):
+    email = email_data.email
+
+    # 1. Vérifier que l’email existe dans UserDraft (utilisateur en cours d’inscription)
+    draft_query = await db.execute(select(models.UserDraft).where(models.UserDraft.email == email))
+    draft = draft_query.scalars().first()
+    if not draft:
+        raise HTTPException(status_code=404, detail="Aucun brouillon d'inscription trouvé pour cet email.")
+
+    # 2. Supprimer anciens codes non utilisés pour cet email
+    await db.execute(delete(models.EmailVerificationCode).where(
+        models.EmailVerificationCode.email == email,
+        models.EmailVerificationCode.is_used == False
+    ))
+
+    # 3. Générer un nouveau code
+    code = ''.join(random.choices(string.digits, k=6))
+    db_code = models.EmailVerificationCode(
+        email=email,
+        code=code,
+        is_used=False,
+        expires_at=datetime.utcnow() + timedelta(minutes=10)
+    )
+    db.add(db_code)
+    await db.commit()
+
+    # 4. Envoyer le code par mail
     await send_email_verification_code(email, code)
 
-    return {"message": "Un code de vérification a été envoyé."}
-
+    return {"message": "Code de vérification renvoyé avec succès."}
 
 @api_router.post("/verify-email-code")
-async def verify_email_code(
+async def verify_register_code(
     payload: schemas.EmailCodeVerification,
-    db: AsyncSession = Depends(dependencies.get_db)
-):  
+    db: AsyncSession = Depends(get_db)
+):
+    email = payload.email.lower().strip()
+
+    # 1. Vérifier le code (non utilisé et valide)
     stmt_verif = (
         select(models.EmailVerificationCode)
         .where(
-            (models.EmailVerificationCode.email == payload.email) &
+            (models.EmailVerificationCode.email == email) &
             (models.EmailVerificationCode.code == payload.code) &
             (models.EmailVerificationCode.is_used == False) &
             (models.EmailVerificationCode.expires_at > datetime.utcnow())
         )
-        .order_by(models.EmailVerificationCode.created_at.desc())
     )
     result_verif = await db.execute(stmt_verif)
-    verification = result_verif.scalars().first()
-    print(f"Vérification pour {payload.email} avec code {payload.code}: {verification}")
-    if not verification:
+    code_entry = result_verif.scalars().first()
+
+    if not code_entry:
         raise HTTPException(status_code=400, detail="Code invalide ou expiré.")
 
-    verification.is_used = True
+    # 2. Marquer le code comme utilisé
+    code_entry.is_used = True
     await db.commit()
+    
+    # 3. Créer l'utilisateur final depuis le brouillon
+    user = await create_user_from_draft(db, email=email)
+    
 
-    # Stocker un jeton temporaire en base ou signer un token
-    return {"message": "Code vérifié avec succès", "email": payload.email}
+    return {"message": "Inscription confirmée", "user_id": str(user.id)}
+
 
 # ----------------- Tokens -----------------
 

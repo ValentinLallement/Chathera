@@ -8,7 +8,7 @@ import {
   faPlus,
   faPaperPlane,
 } from "@fortawesome/free-solid-svg-icons";
-import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, Suspense } from "react";
 import {
   useGetBots,
   useGetConversations,
@@ -20,12 +20,159 @@ import { useSidebarStore } from "../stores/sidebarStore";
 import { useAuthStore } from "../stores/authStore";
 import toast from "react-hot-toast";
 
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useGLTF, Environment } from "@react-three/drei";
+import * as THREE from "three";
 interface Message {
   id: string;
   content: string;
   user_id: string;
   conversation_id: string;
   created_at: string;
+}
+
+// Composant Avatar animé 3D
+function AnimatedAvatar() {
+  const url = "https://models.readyplayer.me/6872928b5e5a7538f697621e.glb";
+  const group = useRef<any>(null);
+
+  const { scene, nodes } = useGLTF(url);
+
+  const head = nodes.Head;
+  const leftArm = nodes.LeftArm;
+  const rightArm = nodes.RightArm;
+
+  const leftEyeLid = nodes.LeftEyeLid as THREE.Mesh | undefined;
+  const rightEyeLid = nodes.RightEyeLid as THREE.Mesh | undefined;
+
+  // --- Morph target sourire ---
+  const faceMesh = nodes.FaceMesh as THREE.Mesh | undefined; // ADAPTE ICI le nom exact de ton mesh
+  const smileIndex = faceMesh?.morphTargetDictionary?.Smile;
+  const smileInfluences = faceMesh?.morphTargetInfluences;
+
+  // Blink params
+  const blinkDuration = 0.1;
+  const blinkInterval = 4;
+  const lastBlink = useRef(0);
+
+  // Smile state
+  const [isSmiling, setIsSmiling] = useState(false);
+  const smileProgress = useRef(0); // entre 0 et 1
+
+  useEffect(() => {
+    // Toutes 8-15 secondes, déclenche un sourire de 2-4 secondes
+    const interval = setInterval(() => {
+      setIsSmiling(true);
+      setTimeout(() => setIsSmiling(false), 2500 + Math.random() * 1500);
+    }, 10000 + Math.random() * 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Store previous time for delta calculation
+  const prevTime = useRef<number>(0);
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    const delta = t - prevTime.current;
+    prevTime.current = t;
+
+    if (group.current) {
+      // --- Mouvements tête ---
+      if (head) {
+        head.rotation.y = 0.1 * Math.sin(t * 0.7);
+        head.rotation.x = 0.07 * Math.sin(t * 0.5);
+        head.rotation.z = 0.03 * Math.sin(t * 0.3);
+      }
+
+      // --- Balancement bras ---
+      if (leftArm) {
+        const baseRotationX = 1;
+        const amplitude = 0.04;
+        const frequency = 1;
+        const phaseLeft = 0; // phase du bras gauche
+
+        leftArm.rotation.y = THREE.MathUtils.lerp(leftArm.rotation.y, 0, 0.02);
+        leftArm.rotation.z = THREE.MathUtils.lerp(leftArm.rotation.z, 0, 0.02);
+        leftArm.rotation.x = baseRotationX + amplitude * Math.sin(t * frequency + phaseLeft);
+      }
+      if (rightArm) {
+        const baseRotationX = 1;
+        const amplitude = 0.04;
+        const frequency = 1;
+        const phaseRight = 0.9; // phase du bras droit (ex: 1.2 radian, différent de Math.PI)
+
+        rightArm.rotation.y = THREE.MathUtils.lerp(rightArm.rotation.y, 0, 0.02);
+        rightArm.rotation.z = THREE.MathUtils.lerp(rightArm.rotation.z, 0, 0.02);
+        rightArm.rotation.x = baseRotationX + amplitude * Math.sin(t * frequency + phaseRight);
+      }
+
+      // --- Clignement yeux ---
+      if (leftEyeLid && rightEyeLid) {
+        const timeSinceLastBlink = t - lastBlink.current;
+
+        if (timeSinceLastBlink > blinkInterval + Math.random() * 2) {
+          lastBlink.current = t;
+        }
+
+        const blinkProgress = (t - lastBlink.current) / blinkDuration;
+
+        if (blinkProgress >= 0 && blinkProgress <= 1) {
+          const opacity = blinkProgress <= 0.5
+            ? THREE.MathUtils.lerp(1, 0, blinkProgress * 2)
+            : THREE.MathUtils.lerp(0, 1, (blinkProgress - 0.5) * 2);
+
+          if (!Array.isArray(leftEyeLid.material) && "opacity" in leftEyeLid.material) {
+            (leftEyeLid.material as any).opacity = opacity;
+            (leftEyeLid.material as any).transparent = true;
+          }
+          if (!Array.isArray(rightEyeLid.material) && "opacity" in rightEyeLid.material) {
+            (rightEyeLid.material as any).opacity = opacity;
+            (rightEyeLid.material as any).transparent = true;
+          }
+        } else {
+          if (!Array.isArray(leftEyeLid.material) && "opacity" in leftEyeLid.material) {
+            (leftEyeLid.material as any).opacity = 1;
+          }
+          if (!Array.isArray(rightEyeLid.material) && "opacity" in rightEyeLid.material) {
+            (rightEyeLid.material as any).opacity = 1;
+          }
+        }
+      }
+
+      // --- Animation sourire ---
+      if (smileInfluences && typeof smileIndex === "number") {
+        if (isSmiling) {
+          smileProgress.current = Math.min(smileProgress.current + delta, 1);
+        } else {
+          smileProgress.current = Math.max(smileProgress.current - delta, 0);
+        }
+        smileInfluences[smileIndex] = smileProgress.current;
+      }
+    }
+  });
+
+  return (
+    <group ref={group} position={[0, 0, 0]}>
+      <primitive object={scene} dispose={null} />
+    </group>
+  );
+}
+
+function FixedCamera({ position }: { position: [number, number, number] }) {
+  const ref = useRef<any>(null);
+  const { camera } = useThree();
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.position.set(...position);
+      ref.current.lookAt(0, 0, 0);
+      camera.position.copy(ref.current.position);
+      camera.lookAt(0, 0.9, 0.1);
+    }
+  }, [position, camera]);
+
+  return <perspectiveCamera ref={ref} fov={50} />;
 }
 
 export default function ChatPage() {
@@ -43,6 +190,13 @@ export default function ChatPage() {
   const bots = useGetBots();
   const conversations = useGetConversations();
   const { selectedBotId, setSelectedBotId } = useConversationStore();
+
+
+  const step = 2;
+  const gridX = 0; 
+  const gridY = 0.5;
+  const cameraPosition: [number, number, number] = [gridX * step, gridY * step, 2];
+
 
   const currentConversation = conversations.data?.find(
     (conv) => conv.bot_id === selectedBotId
@@ -107,23 +261,20 @@ export default function ChatPage() {
         }
       } else if (data.type === "reponse") {
         messagesQuery.refetch();
-        setTimeout(scrollToBottom, 100); // Add scroll after message received
+        setTimeout(scrollToBottom, 100);
       }
     };
 
     ws.onerror = async (error) => {
       console.error("WebSocket error:", error);
 
-      // Only attempt refresh once
       if (!hasRetried) {
         try {
           const refreshResponse = await refreshToken();
           setHasRetried(true);
-          // Close existing connection if any
           if (websocketRef.current) {
             websocketRef.current.close();
           }
-          // Retry connection with new token
           connectWebSocket(refreshResponse.access_token);
         } catch (refreshError) {
           console.error("Token refresh failed:", refreshError);
@@ -197,9 +348,8 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messagesQuery.data, localMessages]); // Update dependencies to include localMessages
+  }, [messagesQuery.data, localMessages]);
 
-  // Add useLayoutEffect for immediate scroll on local messages
   useLayoutEffect(() => {
     scrollToBottom();
   }, [localMessages]);
@@ -218,8 +368,10 @@ export default function ChatPage() {
   }, [messagesQuery.data]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5">
-      <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar">
+  <div className="h-full w-full flex bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5">
+    {/* Chat zone 70% */}
+    <div className="flex flex-col w-[70%] h-full overflow-hidden">
+      <div className="flex flex-col h-full overflow-y-auto no-scrollbar">
         {/* Dropdown header */}
         <div className="relative p-4 border-b border-white/5">
           <button
@@ -256,9 +408,7 @@ export default function ChatPage() {
                       />
                     )}
                   </div>
-                  <span className="text-white font-medium">
-                    {selectedBot.name}
-                  </span>
+                  <span className="text-white font-medium">{selectedBot.name}</span>
                 </>
               )}
             </div>
@@ -288,9 +438,7 @@ export default function ChatPage() {
                         setIsDropDownOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                        selectedBotId === bot.bot_id
-                          ? "bg-violet-500/20"
-                          : "hover:bg-white/5"
+                        selectedBotId === bot.bot_id ? "bg-violet-500/20" : "hover:bg-white/5"
                       }`}
                     >
                       <div
@@ -323,7 +471,6 @@ export default function ChatPage() {
                     </button>
                   ))}
 
-                  {/* Create new companion button */}
                   <button
                     onClick={() => {
                       navigate("/dashboard/partners");
@@ -332,14 +479,9 @@ export default function ChatPage() {
                     className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors border-t border-white/5"
                   >
                     <div className="h-8 w-8 rounded-full bg-emerald-500/10 border-emerald-500/20 flex items-center justify-center border">
-                      <FontAwesomeIcon
-                        icon={faPlus}
-                        className="text-emerald-400"
-                      />
+                      <FontAwesomeIcon icon={faPlus} className="text-emerald-400" />
                     </div>
-                    <span className="text-white font-medium">
-                      Create New Companion
-                    </span>
+                    <span className="text-white font-medium">Create New Companion</span>
                   </button>
                 </div>
               </motion.div>
@@ -405,5 +547,21 @@ export default function ChatPage() {
         </form>
       </div>
     </div>
-  );
+
+    {/* Avatar 3D à droite 30% */}
+    <div className="hidden md:flex w-[30%] h-full border-l border-white/5 relative items-center justify-center">
+      <Canvas>
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[0, 5, 5]} intensity={3} />
+        <Suspense fallback={null}>
+          <AnimatedAvatar />
+        </Suspense>
+        <FixedCamera position={cameraPosition} />
+        <Environment preset="city" />
+      </Canvas>
+    </div>
+  </div>
+);
+
+
 }

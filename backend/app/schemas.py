@@ -36,7 +36,8 @@ class SubscriptionUpdate(BaseModel):
     plan: Optional[PlanEnum] = None
     message_limit: Optional[int] = None
 
-
+class EmailSchema(BaseModel):
+    email: EmailStr
 class CheckoutRequest(BaseModel):
     plan: str 
 
