@@ -21,8 +21,13 @@ import { useAuthStore } from "../stores/authStore";
 import toast from "react-hot-toast";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useGLTF, Environment } from "@react-three/drei";
+import { useGLTF, Environment, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
+
+interface AnimatedAvatarProps {
+  url: string;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -32,8 +37,7 @@ interface Message {
 }
 
 // Composant Avatar animé 3D
-function AnimatedAvatar() {
-  const url = "https://models.readyplayer.me/6872928b5e5a7538f697621e.glb";
+function AnimatedAvatar({ url }: AnimatedAvatarProps) {
   const group = useRef<any>(null);
 
   const { scene, nodes } = useGLTF(url);
@@ -172,7 +176,7 @@ function FixedCamera({ position }: { position: [number, number, number] }) {
     }
   }, [position, camera]);
 
-  return <perspectiveCamera ref={ref} fov={50} />;
+  return <PerspectiveCamera ref={ref} fov={65} makeDefault />;
 }
 
 export default function ChatPage() {
@@ -554,7 +558,12 @@ export default function ChatPage() {
         <ambientLight intensity={0.6} />
         <directionalLight position={[0, 5, 5]} intensity={3} />
         <Suspense fallback={null}>
-          <AnimatedAvatar />
+          {selectedBot?.url ? (
+            <AnimatedAvatar url={selectedBot.url} />
+          ) : (
+            // Optionnel : un avatar par défaut ou rien
+            <></>
+          )}
         </Suspense>
         <FixedCamera position={cameraPosition} />
         <Environment preset="city" />

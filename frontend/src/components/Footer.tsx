@@ -30,26 +30,10 @@ export default function Footer() {
               <ul className="space-y-3">
                 <li>
                   <a
-                    href="/features"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
-                  >
-                    Features
-                  </a>
-                </li>
-                <li>
-                  <a
                     href="/pricing"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
                     Pricing
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/ai-models"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
-                  >
-                    AI Models
                   </a>
                 </li>
                 <li>
@@ -68,14 +52,6 @@ export default function Footer() {
               <ul className="space-y-3">
                 <li>
                   <a
-                    href="/blog"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
-                  >
-                    Blog
-                  </a>
-                </li>
-                <li>
-                  <a
                     href="/help"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
@@ -84,18 +60,10 @@ export default function Footer() {
                 </li>
                 <li>
                   <a
-                    href="/docs"
+                    href="/contact"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
-                    Documentation
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/changelog"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
-                  >
-                    Changelog
+                    Contact Support
                   </a>
                 </li>
               </ul>
@@ -149,22 +117,12 @@ export default function Footer() {
                 </li>
                 <li>
                   <a
-                    href="https://discord.com"
+                    href="https://x.com/ChatheraAI"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
-                    Discord
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://github.com/ValentinLallement"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
-                  >
-                    GitHub
+                    X (twitter)
                   </a>
                 </li>
               </ul>

@@ -589,6 +589,7 @@ async def get_my_bots(token: str = Depends(dependencies.oauth2_scheme), db: Asyn
             "name": bot.name,
             "gender": bot.gender if bot.gender else None,
             "avatar_url": bot.avatar_url,
+            "url": bot.url,
             "last_message": last_message_info,
         })
 

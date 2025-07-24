@@ -289,6 +289,7 @@ interface getBotsResponse {
   name: string;
   gender: "Male" | "Female";
   avatar_url: string | null;
+  url: string | null; // URL du modèle 3D
   last_message?: LastMessage | null; // facultatif ou null si pas de message
 }
   
