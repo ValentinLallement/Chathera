@@ -5,7 +5,8 @@ import LoadingIndicator from "../components/LoadingIndicator";
 import ErrorBoundary from "../components/ErrorBoundary";
 import DashBoardLayout from "../layouts/DashBoardLayout";
 import { ProtectedRoute } from "../components/ProtectedRoute";
-import SettingsPage from "../pages/SettingsPage";
+
+
 
 // Lazy-load comme ca ya du code splitting bg :)
 const LandingPage = lazy(() => import("../pages/LandingPage"));
@@ -23,8 +24,12 @@ const UnderConstruction = lazy(() => import("../pages/UnderConstructionPage"));
 const Success = lazy(() => import("../pages/SuccessPage"));
 const Cancel = lazy(() => import("../pages/CancelPage"));
 const VerifyEmailPage = lazy(() => import("../pages/VerifyEmailPage"));
+const PrivacyPage = lazy(() => import("../pages/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("../pages/TermsOfServices"));
+const CookiesPage = lazy(() => import("../pages/Cookies"));
+const LegalNoticesPage = lazy(() => import("../pages/LegalNotices"));
 
-// Wrap lazy components with error boundary
+// Wrap lazy components with error boundaryx
 const withErrorBoundary = (Component: React.ComponentType) => (
   <ErrorBoundary>
     <Suspense fallback={<LoadingIndicator />}>
@@ -68,8 +73,10 @@ export default function AppRoutes() {
           element={withErrorBoundary(UnderConstruction)}
         />
         <Route path="/contact" element={withErrorBoundary(UnderConstruction)} />
-        <Route path="/privacy" element={withErrorBoundary(UnderConstruction)} />
-        <Route path="/terms" element={withErrorBoundary(UnderConstruction)} />
+        <Route path="/PrivacyPolicy" element={withErrorBoundary(PrivacyPage)} />
+        <Route path="/TermsOfServices" element={withErrorBoundary(TermsPage)} />
+        <Route path="/cookies" element={withErrorBoundary(CookiesPage)} />
+        <Route path="/LegalNotices" element={withErrorBoundary(LegalNoticesPage)} />
         <Route path="/blog" element={withErrorBoundary(UnderConstruction)} />
         <Route path="/help" element={withErrorBoundary(UnderConstruction)} />
         <Route

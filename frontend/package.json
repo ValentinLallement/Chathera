@@ -23,6 +23,7 @@
     "framer-motion": "^12.16.0",
     "install": "^0.13.0",
     "lucide-react": "^0.525.0",
+    "next": "^15.4.3",
     "nprogress": "^0.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -37,6 +38,7 @@
   "devDependencies": {
     "@eslint/js": "^9.25.0",
     "@tanstack/eslint-plugin-query": "^5.78.0",
+    "@types/next": "^8.0.7",
     "@types/node": "^22.15.29",
     "@types/nprogress": "^0.2.3",
     "@types/react": "^19.1.2",

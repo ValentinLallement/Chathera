@@ -178,23 +178,17 @@ export default function Footer() {
               &copy; {new Date().getFullYear()} ChatHera. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
-              <a
-                href="/privacy"
-                className="text-sm text-gray-400 hover:text-white transition-colors"
-              >
+              <a href="/PrivacyPolicy" className="text-sm text-gray-400 hover:text-white transition-colors">
                 Privacy Policy
               </a>
-              <a
-                href="/terms"
-                className="text-sm text-gray-400 hover:text-white transition-colors"
-              >
+              <a href="/TermsOfServices" className="text-sm text-gray-400 hover:text-white transition-colors">
                 Terms of Service
               </a>
-              <a
-                href="/security"
-                className="text-sm text-gray-400 hover:text-white transition-colors"
-              >
-                Security
+              <a href="/Cookies" className="text-sm text-gray-400 hover:text-white transition-colors">
+                Cookies
+              </a>
+              <a href="/LegalNotices" className="text-sm text-gray-400 hover:text-white transition-colors">
+                Legal Notices
               </a>
             </div>
           </div>
