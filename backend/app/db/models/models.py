@@ -50,7 +50,10 @@ class User(SQLModel, table=True):
 
     subscriptions: List["Subscription"] = Relationship(
         back_populates="user",
-        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "lazy": "selectin"
+        }
     )
 
     stripe_customer_id: Optional[str] = Field(default=None, index=True, nullable=True)

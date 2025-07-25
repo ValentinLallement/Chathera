@@ -28,6 +28,7 @@ const PrivacyPage = lazy(() => import("../pages/PrivacyPolicyPage"));
 const TermsPage = lazy(() => import("../pages/TermsOfServices"));
 const CookiesPage = lazy(() => import("../pages/Cookies"));
 const LegalNoticesPage = lazy(() => import("../pages/LegalNotices"));
+const ResetPasswordPage = lazy(() => import("../pages/ResetPasswordPage"));
 
 // Wrap lazy components with error boundaryx
 const withErrorBoundary = (Component: React.ComponentType) => (
@@ -79,6 +80,7 @@ export default function AppRoutes() {
         <Route path="/LegalNotices" element={withErrorBoundary(LegalNoticesPage)} />
         <Route path="/blog" element={withErrorBoundary(UnderConstruction)} />
         <Route path="/help" element={withErrorBoundary(UnderConstruction)} />
+        <Route path="/reset-password" element={withErrorBoundary(ResetPasswordPage)} />
         <Route
           path="/changelog"
           element={withErrorBoundary(UnderConstruction)}

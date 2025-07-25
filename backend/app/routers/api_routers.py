@@ -312,7 +312,7 @@ async def change_password(
     await db.commit()
 
     await send_password_changed_email(
-        to=user.email,
+        to_email=user.email,
         user_name=user.first_name or user.username
     )
 
@@ -351,8 +351,9 @@ async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depen
     except JWTError:
         raise HTTPException(status_code=401, detail="Token invalide ou expiré.")
 
+    # On retire le int() car user_id est un UUID en string
     stmt = select(User).where(User.id == user_id)
-    result = await db.execute(stmt)            # await obligatoire
+    result = await db.execute(stmt)
     user = result.scalars().first()
 
     if not user:
@@ -363,8 +364,8 @@ async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depen
     await db.commit()
 
     await send_password_changed_email(
-        to=user.email,
-        user_name=user.first_name or user.username
+        to_email=user.email,
+        user_name=user.name or user.username
     )
 
     return {"detail": "Mot de passe réinitialisé avec succès."}

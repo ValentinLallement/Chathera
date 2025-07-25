@@ -55,7 +55,7 @@ export default function GoogleCallback() {
         setTokens({ id_token, access_token });
 
         const appRes = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/auth/google`,
+          `${import.meta.env.VITE_BACKEND_URL}auth/google`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

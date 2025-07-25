@@ -46,7 +46,7 @@ oauth.register(
 
 router = APIRouter()
 
-@router.get('/auth/google/login')
+@router.get('/auth/google')
 async def google_login(request: Request):
     redirect_uri = config('GOOGLE_REDIRECT_URI')
     return await oauth.google.authorize_redirect(request, redirect_uri)
@@ -70,7 +70,7 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email or sub not available from Google")
 
     # Utilise la fonction unifiée
-    user_from_db = create_or_update_user_google(db, email=email, name=name, google_sub=google_sub,picture=picture)
+    user_from_db = await create_or_update_user_google(db, email=email, name=name, google_sub=google_sub,picture=picture)
 
     access_token = await auth.create_access_token(data={"sub": str(user_from_db.id)})
     refresh_token = await auth.create_refresh_token(data={"sub": str(user_from_db.id)})
@@ -83,7 +83,7 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/auth/google")
-def login_google(google_login: GoogleLogin, db: AsyncSession = Depends(get_db)):
+async def login_google(google_login: GoogleLogin, db: AsyncSession = Depends(get_db)):
     try:
         # Vérifier le id_token (identité)
         idinfo = google_id_token.verify_oauth2_token(
@@ -110,15 +110,15 @@ def login_google(google_login: GoogleLogin, db: AsyncSession = Depends(get_db)):
         name = userinfo.get("name")
         picture = userinfo.get("picture")
 
-        user = get_user_by_google_sub(db, google_sub)
+        user = await get_user_by_google_sub(db, google_sub)
        
-        user = create_or_update_user_google(
-            db, email=email,name=name, google_sub=google_sub, picture=picture
+        user = await create_or_update_user_google(
+            db, email=email, name=name, google_sub=google_sub, picture=picture
         )
 
         # Génère token JWT local
-        access_token_local = create_access_token(data={"sub": str(user.id)})
-        refresh_token_local = create_refresh_token(data={"sub": str(user.id)})
+        access_token_local = await create_access_token(data={"sub": str(user.id)})
+        refresh_token_local = await create_refresh_token(data={"sub": str(user.id)})
 
         return {
             "access_token": access_token_local,

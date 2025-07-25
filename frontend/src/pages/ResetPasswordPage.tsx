@@ -1,107 +1,55 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { HiChevronLeft } from "react-icons/hi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import StarLogo from "../assets/images/StarLogo.webp";
 import Title from "../components/Title";
-import { changePassword } from "../api/api";
+import { resetPassword } from "../api/api";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const token = new URLSearchParams(location.search).get("token");
-  const [oldPassword, setOldPassword] = useState("");
+
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!token) {
-    navigate("/auth");
-    return null;
-  }
+  // Redirection si pas de token valide
+  useEffect(() => {
+    if (!token) {
+      navigate("/auth");
+    }
+  }, [token, navigate]);
+
+  if (!token) return null; // Evite rendu si pas de token
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     if (!newPassword || !confirmPassword) {
-      toast.error("Please fill in all fields", {
-        style: {
-          borderRadius: "10px",
-          background: "#1f1f1f",
-          border: "1px solid #e53e3e",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-          color: "#fff",
-          padding: "12px 16px",
-          fontSize: "0.95rem",
-        },
-      });
+      toast.error("Please fill in all fields");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match", {
-        style: {
-          borderRadius: "10px",
-          background: "#1f1f1f",
-          border: "1px solid #e53e3e",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-          color: "#fff",
-          padding: "12px 16px",
-          fontSize: "0.95rem",
-        },
-      });
+      toast.error("Passwords do not match");
       return;
     }
 
     if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters long", {
-        style: {
-          borderRadius: "10px",
-          background: "#1f1f1f",
-          border: "1px solid #e53e3e",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-          color: "#fff",
-          padding: "12px 16px",
-          fontSize: "0.95rem",
-        },
-      });
+      toast.error("Password must be at least 8 characters long");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await changePassword(token, {
-        old_password: oldPassword,
-        new_password: newPassword,
-      });
-      
-      toast.success("Password successfully reset!", {
-        style: {
-          borderRadius: "10px",
-          background: "#1f1f1f",
-          border: "1px solid #6b46C1",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-          color: "#fff",
-          padding: "12px 16px",
-          fontSize: "0.95rem",
-        },
-      });
-      
-      // Navigate to login page after successful password reset
+      await resetPassword(token, { new_password: newPassword });
+      toast.success("Password successfully reset!");
       setTimeout(() => navigate("/auth"), 2000);
     } catch (error: any) {
-      toast.error(error.message || "An error occurred", {
-        style: {
-          borderRadius: "10px",
-          background: "#1f1f1f",
-          border: "1px solid #e53e3e",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-          color: "#fff",
-          padding: "12px 16px",
-          fontSize: "0.95rem",
-        },
-      });
+      toast.error(error.message || "An error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -143,9 +91,7 @@ export default function ResetPasswordPage() {
             <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-200 to-white">
               Reset Your Password
             </h2>
-            <p className="text-gray-400">
-              Enter your new password below
-            </p>
+            <p className="text-gray-400">Enter your new password below</p>
           </motion.div>
 
           <motion.form
@@ -155,22 +101,6 @@ export default function ResetPasswordPage() {
             className="space-y-4"
             onSubmit={handleSubmit}
           >
-            <div className="group">
-              <label htmlFor="oldPassword" className="sr-only">
-                Current Password
-              </label>
-              <input
-                id="oldPassword"
-                name="oldPassword"
-                type="password"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-transparent transition-all duration-300"
-                placeholder="Current Password"
-                disabled={isSubmitting}
-              />
-            </div>
-
             <div className="group">
               <label htmlFor="newPassword" className="sr-only">
                 New Password

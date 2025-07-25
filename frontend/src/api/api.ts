@@ -555,3 +555,16 @@ export async function changePassword(token: string, { old_password, new_password
     }
   }
 }
+
+
+import axios from "axios";
+export async function resetPassword(token: string, data: { new_password: string }) {
+  // L’URL doit correspondre à celle de ton backend (port + chemin)
+  return axios.post(
+    `http://localhost:8000/api/user/reset-password`,
+    {
+      new_password: data.new_password,
+      token: token,       // token envoyé dans le body aussi
+    }
+  );
+}
