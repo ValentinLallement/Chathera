@@ -108,7 +108,9 @@ class RefreshTokenRequest(BaseModel):
 
 class MessageBase(BaseModel):
     content: str
-    created_at: datetime  
+    created_at: datetime
+    id: UUID
+    user_id: UUID
 
 class Message(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -118,6 +120,10 @@ class Message(BaseModel):
     
 class ConversationRequest(BaseModel):
     conversation_id: UUID
+
+class ConversationMessagesResponse(BaseModel):
+    messages: List[MessageBase]
+    has_access: bool
 
 # ----------------------------- IA & Prompts -----------------------------
 

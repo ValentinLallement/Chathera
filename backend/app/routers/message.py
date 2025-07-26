@@ -8,12 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from uuid import UUID
 
-from app.db.models.models import Message, Conversation, User
+from app.db.models.models import Message, Conversation, User, Bot, Subscription
 from app.auth import get_user_from_token  # ta fonction d’authentification
 from app.schemas import Message as MessageSchema
-from app.schemas import ConversationRequest
+from app.schemas import ConversationRequest, ConversationMessagesResponse
 from app.crud import get_messages_by_user
 from app.dependencies import get_db
+from app.utils.permissions import check_bot_access
 
 router = APIRouter()
 
@@ -28,7 +29,7 @@ async def read_user_messages(user_id: UUID, db: AsyncSession = Depends(get_db)):
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  # adapte l’URL selon ta config
 
-@router.post("/conversations/messages", response_model=List[Message])
+@router.post("/conversations/messages", response_model=ConversationMessagesResponse)
 async def read_conversation_messages(
     request: ConversationRequest,
     token: str = Depends(oauth2_scheme),
@@ -54,7 +55,28 @@ async def read_conversation_messages(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation introuvable pour cet utilisateur.")
 
-    # Récupère les messages associés
+    # Récupère le bot lié à la conversation
+    result = await db.execute(
+        select(Bot).where(Bot.id == conversation.bot_id)
+    )
+    bot = result.scalars().first()
+
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot lié à la conversation introuvable.")
+
+    # Récupère le plan de l'utilisateur
+    result = await db.execute(
+        select(Subscription).where(Subscription.user_id == user.id)
+    )
+    subscription = result.scalars().first()
+
+    if not subscription:
+        raise HTTPException(status_code=403, detail="Aucun abonnement trouvé.")
+
+    # Vérifie si ce bot est encore accessible
+    has_access = await check_bot_access(db, user_id=user.id, bot_id=bot.id, plan=subscription.plan)
+
+    # Récupère les messages associés à la conversation
     result = await db.execute(
         select(Message)
         .where(Message.conversation_id == request.conversation_id)
@@ -65,8 +87,11 @@ async def read_conversation_messages(
     if not messages:
         raise HTTPException(status_code=404, detail="Aucun message trouvé pour cette conversation.")
 
-    return messages
-
+    # Retourne messages + accès
+    return {
+        "messages": messages,
+        "has_access": has_access
+    }
 
 @router.get("/conversations", response_model=List[Conversation])
 async def read_user_conversations(

@@ -20,7 +20,7 @@ from app.utils.websocket_registry import register_websocket, unregister_websocke
 from app.utils.mem0 import mem0_add_memory , search_memory
 from app.utils.permissions import check_message_limit
 from app.utils.payg import PlanEnum, report_usage
-from app.utils.permissions import increment_message_count, check_message_limit
+from app.utils.permissions import check_message_limit,check_bot_access
 
 websocket_router = APIRouter()
 
@@ -95,6 +95,17 @@ async def chat(websocket: WebSocket):
                     await websocket.close(code=1008)
                     break
 
+                has_access = await check_bot_access(db, user.id, bot_id, subscription.plan)
+
+                if not has_access:
+                    await websocket.send_json({
+                        "type": "access_denied",
+                        "message": "Accès refusé : votre abonnement ne permet plus d'utiliser ce bot.",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    continue
+                    
+                
                 subscription.message_count += 1
                 if subscription.plan == PlanEnum.FREE:
                     subscription.free_message_count += 1

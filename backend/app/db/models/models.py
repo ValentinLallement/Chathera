@@ -181,6 +181,11 @@ class GenderEnum(str, Enum):
     male = "Male"
     female = "Female"
 
+class TypeEnum(str, Enum):
+    free = "Free"
+    premium = "Premium"
+    payg = "Payg"
+
 
 class Bot(SQLModel, table=True):
     __tablename__ = "bot"
@@ -207,6 +212,8 @@ class Bot(SQLModel, table=True):
 
     avatar_url: Optional[str] = Field(default=None, max_length=300)
     url : Optional[str] = Field(default=None, max_length=300)
+
+    type: TypeEnum = Field(default=TypeEnum.free, nullable=True)
 
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=True)
 

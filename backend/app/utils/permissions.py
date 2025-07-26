@@ -1,11 +1,11 @@
 from datetime import datetime
-from sqlmodel import Session
+from sqlmodel import Session,select, asc
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models.models import PlanEnum, Subscription
+from app.db.models.models import PlanEnum, Subscription,Bot
 
 BOT_LIMITS = {
     PlanEnum.FREE: 1,
-    PlanEnum.PREMIUM: 2,
+    PlanEnum.PREMIUM: 3,
     PlanEnum.PAYG: None, 
 }
 
@@ -56,10 +56,36 @@ async def check_message_limit(subscription: Subscription, db: AsyncSession) -> b
 
     return True
 
-def increment_message_count(subscription: Subscription):
-    today = datetime.utcnow().date()
-    if subscription.last_reset < today.replace(day=1):
-        subscription.message_count = 0
-        subscription.last_reset = today
+async def check_bot_access(
+    db: AsyncSession,
+    user_id: int,
+    bot_id: int,
+    plan: PlanEnum
+) -> bool:
+    """
+    Vérifie si le bot_id fait partie des X premiers bots créés par l'utilisateur
+    (X dépend du plan : 1 pour Free, 3 pour Premium, illimité pour Payg).
+    Retourne True si l'accès est autorisé, sinon False.
+    """
+    if plan == PlanEnum.PAYG:
+        return True  # accès illimité
 
-    subscription.message_count += 1
+    # Détermine la limite autorisée selon le plan
+    if plan == PlanEnum.FREE:
+        max_allowed = 1
+    elif plan == PlanEnum.PREMIUM:
+        max_allowed = 3
+    else:
+        max_allowed = 1  # fallback de sécurité
+
+    # Récupère les X premiers bots créés par l'utilisateur
+    result = await db.execute(
+        select(Bot.id)
+        .where(Bot.user_id == user_id)
+        .order_by(asc(Bot.created_at))
+        .limit(max_allowed)
+    )
+    allowed_bot_ids = [row[0] for row in result.fetchall()]
+
+    # Retourne True si le bot fait partie des bots autorisés
+    return bot_id in allowed_bot_ids

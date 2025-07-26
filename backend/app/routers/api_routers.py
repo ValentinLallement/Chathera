@@ -23,7 +23,7 @@ from uuid import UUID
 from google.auth.transport import requests as google_requests
 
 from app import crud, schemas, dependencies, auth
-from app.db.models.models import Conversation, Bot, User, PlanEnum, SubscriptionStatus,Message
+from app.db.models.models import Conversation, Bot, User, PlanEnum, SubscriptionStatus,Message,TypeEnum
 from app.schemas import (
     CreateBotRequest, UserLogin, PromptRequest,
     UserDeleteRequest, ChangePasswordRequest, PasswordResetRequest, ResetPasswordRequest,EmailRequest
@@ -446,13 +446,23 @@ async def create_bot_and_conversation(
     if not await check_bot_limit(subscription, existing_bot_count):
         raise HTTPException(status_code=403, detail="Limite de bots atteinte pour votre abonnement")
 
+    if subscription.plan == PlanEnum.FREE:
+        bot_type = TypeEnum.free
+    elif subscription.plan == PlanEnum.PREMIUM:
+        bot_type = TypeEnum.premium
+    elif subscription.plan == PlanEnum.PAYG:
+        bot_type = TypeEnum.payg
+    else:
+        bot_type = TypeEnum.free  # fallback de sécurité
+
     # Création du bot et conversation
     try:
         new_bot = models.Bot(
             name=request.name,
             user_id=user.id,
             gender=request.gender,
-            personality=request.personality
+            personality=request.personality,
+            type=bot_type
         )
         db.add(new_bot)
         await db.commit()
