@@ -26,6 +26,8 @@ import type {
 } from "../api/api";
 import { useAuthStore } from "../stores/authStore";
 import toast from "react-hot-toast";
+import type { getMessagesInConversationResponse } from "../api/api";
+import type { Message } from "../types/conversationTypes";
 
 export function useSignUp(): UseMutationResult<
   SignUpResponse,
@@ -178,12 +180,15 @@ export function useCreateBot(): UseMutationResult<
   });
 }
 
+
+
 export function useGetMessagesInConversation(conversationId: string) {
   const { accessToken, setToken } = useAuthStore();
 
-  return useQuery({
+  // Ici on retourne l'objet complet pour garder has_access
+  return useQuery<getMessagesInConversationResponse, Error>({
     queryKey: ["useGetMessagesInConversation", conversationId],
-    queryFn: () => {
+    queryFn: async (): Promise<getMessagesInConversationResponse> => {
       if (!accessToken) {
         toast.error("Not authenticated", {
           style: {
@@ -198,7 +203,8 @@ export function useGetMessagesInConversation(conversationId: string) {
         });
         throw new Error("Not authenticated");
       }
-      return apiCallWithRefresh(
+
+      return await apiCallWithRefresh<getMessagesInConversationResponse>(
         () => getMessagesInConversation(accessToken, conversationId),
         setToken
       );

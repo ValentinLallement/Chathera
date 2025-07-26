@@ -4,7 +4,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLock } from "@fortawesome/free-solid-svg-icons";
-import { useCreateCheckoutSession, useRefreshToken } from "../hooks/useApi";
+import { useCreateCheckoutSession, useRefreshToken,useGetSubscriptionInfos } from "../hooks/useApi";
 import toast from "react-hot-toast";
 
 interface PricingFeature {
@@ -53,8 +53,9 @@ const CrossIcon = ({ className }: { className?: string }) => (
 );
 
 export default function PricingPage() {
+  const subscriptionInfo = useGetSubscriptionInfos();
   const { user } = useAuthStore();
-  const currentPlan = user?.subscription || "free";
+  const currentPlan = subscriptionInfo.data?.subscriptions?.plan || "free";
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const { mutate: refreshToken } = useRefreshToken();
   const [hasRetried, setHasRetried] = useState(false);
@@ -150,12 +151,12 @@ export default function PricingPage() {
       period: "month",
       description: "Most popular for personal use",
       messageLimit: "600 messages/month",
-      companionLimit: "2 companions",
+      companionLimit: "3 companions",
       buttonText: "Upgrade Now",
       highlighted: true,
       features: [
         { included: true, text: "600 messages per month" },
-        { included: true, text: "2 AI companions" },
+        { included: true, text: "3 AI companions" },
         { included: true, text: "Advanced memory system" },
         { included: true, text: "Companion-initiated messages" },
         { included: true, text: "Event reminders" },
@@ -268,7 +269,7 @@ export default function PricingPage() {
             initial="hidden"
             animate="visible"
           >
-            {plans.map((plan) => (
+            {plans.map((plan) => (  
               <motion.div
                 key={plan.name}
                 variants={cardVariants}
@@ -288,34 +289,24 @@ export default function PricingPage() {
                     : ""
                 }`}
               >
-                <AnimatePresence>
-                  {plan.name === "Full Access" && (
-                    <motion.span
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      className="absolute -top-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-violet-500 rounded-full text-xs font-medium text-white"
-                    >
-                      Smart Choice
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-
-                {plan.name === "Premium" && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-violet-500 text-white px-4 py-1 rounded-full text-sm font-medium">
-                    Most Popular
-                  </div>
-                )}
-
-                {plan.name.toLowerCase() === currentPlan && (
-                  <motion.span
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="absolute -top-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-violet-500 rounded-full text-xs font-medium text-white"
-                  >
-                    Current Plan
-                  </motion.span>
-                )}
+              <AnimatePresence>
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className={`absolute -top-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-medium text-white ${
+                    plan.name.toLowerCase() === currentPlan ? "bg-violet-500" : "bg-violet-500/80"
+                  }`}
+                >
+                  {plan.name.toLowerCase() === currentPlan
+                    ? "Current Plan"
+                    : plan.name === "Free"
+                    ? "Free Trial"
+                    : plan.name === "Premium"
+                    ? "Most Popular"
+                    : "Smart Choice"}
+                </motion.span>
+              </AnimatePresence>
 
                 <motion.div
                   className="text-center relative z-10"
@@ -369,35 +360,38 @@ export default function PricingPage() {
                     </p>
                   </div>
 
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handlePlanClick(plan.name)}
-                    disabled={loadingPlan === plan.name.toLowerCase()}
-                    className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-300 ${
-                      plan.highlighted
-                        ? "bg-violet-500 text-white hover:bg-violet-600 shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30"
-                        : plan.name === "Full Access"
-                        ? "bg-violet-500/90 text-white hover:bg-violet-600 shadow-md shadow-violet-500/10 hover:shadow-lg hover:shadow-violet-500/20"
-                        : "bg-white/10 text-white hover:bg-white/20 hover:shadow-md hover:shadow-white/5"
-                    } relative ${
-                      loadingPlan === plan.name.toLowerCase()
-                        ? "cursor-not-allowed opacity-80"
-                        : ""
-                    }`}
-                  >
-                    {loadingPlan === plan.name.toLowerCase() ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <FontAwesomeIcon
-                          icon={faLock}
-                          className="animate-bounce"
-                        />
-                        <span>Redirecting to checkout...</span>
-                      </div>
-                    ) : (
-                      plan.buttonText
-                    )}
-                  </motion.button>
+                  {plan.name.toLowerCase() === currentPlan ? (
+                    <motion.div
+                      className="w-full py-3 px-6 rounded-lg font-medium text-center bg-gray-600/50 text-gray-300 cursor-not-allowed"
+                    >
+                      Current Plan
+                    </motion.div>
+                  ) : (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handlePlanClick(plan.name)}
+                      disabled={loadingPlan === plan.name.toLowerCase()}
+                      className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-300 ${
+                        plan.highlighted
+                          ? "bg-violet-500 text-white hover:bg-violet-600 shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30"
+                          : plan.name === "Full Access"
+                          ? "bg-violet-500/90 text-white hover:bg-violet-600 shadow-md shadow-violet-500/10 hover:shadow-lg hover:shadow-violet-500/20"
+                          : "bg-white/10 text-white hover:bg-white/20 hover:shadow-md hover:shadow-white/5"
+                      } relative ${
+                        loadingPlan === plan.name.toLowerCase() ? "cursor-not-allowed opacity-80" : ""
+                      }`}
+                    >
+                      {loadingPlan === plan.name.toLowerCase() ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <FontAwesomeIcon icon={faLock} className="animate-bounce" />
+                          <span>Redirecting to checkout...</span>
+                        </div>
+                      ) : (
+                        plan.buttonText
+                      )}
+                    </motion.button>
+                  )}
                 </motion.div>
 
                 <div className="mt-8 space-y-4">

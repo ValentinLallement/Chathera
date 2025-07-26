@@ -14,7 +14,7 @@ import toast from "react-hot-toast";
 import { useSidebarStore } from "../stores/sidebarStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { faTrash } from "@fortawesome/free-solid-svg-icons";
-
+import { useGetSubscriptionInfos } from "../hooks/useApi";
 type Gender = "Male" | "Female";
 type Personality = "Friendly" | "Professional" | "Casual" | "Serious" | "Sweet";
 
@@ -465,6 +465,7 @@ const LoadingStep = ({
 };
 
 export default function PartnersPage() {
+  const subscriptionInfo = useGetSubscriptionInfos();
   const bots = useGetBots();
   const { mutate: refreshToken } = useRefreshToken();
   const deleteBot = useDeleteBot();
@@ -479,6 +480,8 @@ export default function PartnersPage() {
     name: "",
     personality: null,
   });
+
+const userPlan = subscriptionInfo.data?.subscriptions?.plan || "free";
 
   useEffect(() => {
     if (bots.isError) {
@@ -676,40 +679,25 @@ export default function PartnersPage() {
                                 />
                               )}
                             </div>
-                            <div>
-                              <div className="flex items-center gap-3 mb-1">
-                                <h3 className="text-white text-lg font-medium">
-                                  {bot.name}
-                                </h3>
-                                <span className="inline-block px-3 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/10">
-                                  Free companion
-                                </span>
-                              </div>
-                              <p className="text-white/60 text-sm">
-                                {bot.last_message ? (
-                                  <>
-                                    <span className="font-semibold">
-                                      {bot.last_message.sender === "user"
-                                        ? "You - "
-                                        : `${bot.name} - `}
-                                    </span>
-                                    <span>
-                                      {bot.last_message.content.length > 40
-                                        ? bot.last_message.content.slice(0, 40) + "…"
-                                        : bot.last_message.content}
-                                    </span>
-                                    <br />
-                                    <small className="text-xs text-white/40">
-                                      {new Date(bot.last_message.created_at).toLocaleString(undefined, {
-                                        dateStyle: "short",
-                                        timeStyle: "short",
-                                      })}
-                                    </small>
-                                  </>
-                                ) : (
-                                  "Click to start chatting"
-                                )}
-                              </p>
+                            <div className="flex items-center gap-3 mb-1">
+                              <h3 className="text-white text-lg font-medium">
+                                {bot.name}
+                              </h3>
+                              <span
+                                className={`inline-block px-3 py-0.5 rounded-full text-xs font-medium ${
+                                  bot.type === "premium" || bot.type === "payg"
+                                    ? "bg-violet-500/20 text-violet-400 border border-violet-500/20"
+                                    : "bg-green-500/10 text-green-400 border border-green-500/10"
+                                }`}
+                              >
+                                {userPlan === "free"
+                                  ? bot.type === "payg"
+                                    ? "Free companion"
+                                    : bot.type
+                                  : bot.type === "premium" || bot.type === "payg"
+                                  ? "Premium companion"
+                                  : "Free companion"}
+                              </span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">

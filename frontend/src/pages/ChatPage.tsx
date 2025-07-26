@@ -194,7 +194,7 @@ export default function ChatPage() {
   const bots = useGetBots();
   const conversations = useGetConversations();
   const { selectedBotId, setSelectedBotId } = useConversationStore();
-
+  const [hasAccess, setHasAccess] = useState(true);
 
   const step = 2;
   const gridX = 0; 
@@ -309,6 +309,10 @@ export default function ChatPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!hasAccess) {
+      toast.error("Vous n'avez plus accès à cette conversation.");
+      return;
+    }
     if (
       !message.trim() ||
       !selectedBotId ||
@@ -366,11 +370,11 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (messagesQuery.data) {
-      setLocalMessages([]);
+      setLocalMessages(messagesQuery.data.messages); // Le tableau messages
       setIsTyping(false);
+      setHasAccess(messagesQuery.data.has_access); // L'accès
     }
   }, [messagesQuery.data]);
-
   return (
   <div className="h-full w-full flex bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5">
     {/* Chat zone 70% */}
@@ -495,7 +499,7 @@ export default function ChatPage() {
 
         {/* Chat content area */}
         <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
-          {[...(messagesQuery.data || []), ...localMessages].map((msg) => (
+          {localMessages.map((msg) => (
             <div
               key={msg.id}
               className={`flex ${
@@ -526,6 +530,13 @@ export default function ChatPage() {
               </div>
             </div>
           )}
+          {!hasAccess && (
+            <div className="flex justify-center my-4">
+              <div className="max-w-[70%] p-3 rounded-xl bg-red-500/10 text-red-400 text-sm text-center">
+                You no longer have access to this conversation. Please upgrade to a higher plan to continue chatting.
+              </div>
+            </div>
+          )}
 
           <div ref={messagesEndRef} />
         </div>
@@ -542,7 +553,7 @@ export default function ChatPage() {
             />
             <button
               type="submit"
-              disabled={!message.trim() || !currentConversation?.id}
+              disabled={!message.trim() || !currentConversation?.id || !hasAccess}
               className="p-3 rounded-xl bg-violet-500 hover:bg-violet-600 disabled:opacity-50 disabled:hover:bg-violet-500 transition-colors"
             >
               <FontAwesomeIcon icon={faPaperPlane} className="text-white" />

@@ -291,6 +291,7 @@ interface getBotsResponse {
   avatar_url: string | null;
   url: string | null; // URL du modèle 3D
   last_message?: LastMessage | null; // facultatif ou null si pas de message
+  type: "free" | "premium" | "payg"; // type de bot
 }
   
 
@@ -383,17 +384,20 @@ export async function getConversations(token: string): Promise<getConversationsR
 }
 
 export interface getMessagesInConversationResponse {
-  content: string;
-  user_id: string;
-  conversation_id: string;
-  id: string;
-  created_at: string;
+  messages: {
+    content: string;
+    user_id: string;
+    conversation_id: string;
+    id: string;
+    created_at: string;
+  }[];
+  has_access: boolean;
 }
 
 export async function getMessagesInConversation(
   token: string,
   conversationId: string
-): Promise<getMessagesInConversationResponse[]> {
+): Promise<getMessagesInConversationResponse> {
   const res = await fetch(`${urls.messages}?conversation_id=${conversationId}`, {
     method: "POST",
     headers: { 
@@ -417,7 +421,8 @@ export async function getMessagesInConversation(
       throw new Error(`Erreur inconnue (status ${res.status})`);
     }
   }
-  return res.json();
+
+  return res.json(); 
 }
 
 /***************************** Tests *****************************/
