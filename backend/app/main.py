@@ -54,12 +54,14 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(SessionMiddleware, secret_key="une_clef_secrete_pour_session")
 
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://chathera.com"],  # Explicitly allow the frontend origin
+    allow_origins=["https://www.chathera.com"],  # ❌ NE PAS inclure "*"
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=3600,
 )
 
 
