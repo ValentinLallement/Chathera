@@ -37,7 +37,7 @@ export default function SettingsPage() {
     setIsUpdatingLimit(true);
     try {
       await axios.put(
-        "http://127.0.0.1:8000/api/user/subscription/update",
+        "https://api.chathera.com/api/user/subscription/update",
         {
           message_limit:
             newMessageLimit === "" ? null : Number(newMessageLimit),
@@ -348,7 +348,7 @@ function SubscriptionInfoCard({
                         setIsUpdatingLimit(true);
                         try {
                           await axios.put(
-                            "http://127.0.0.1:8000/api/user/subscription/update",
+                            "https://api.chathera.com/api/user/subscription/update",
                             { message_limit: null },
                             {
                               headers: {

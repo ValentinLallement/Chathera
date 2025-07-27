@@ -10,7 +10,14 @@ export default function VerifyEmailPage() {
   const email = (location.state as { email?: string })?.email || "";
 
   // Tableau pour les 6 chiffres du code
-  const [codeDigits, setCodeDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const [codeDigits, setCodeDigits] = useState<string[]>([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
@@ -58,11 +65,14 @@ export default function VerifyEmailPage() {
 
     setIsLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/verify-email-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
-      });
+      const res = await fetch(
+        "https://api.chathera.com/api/verify-email-code",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, code }),
+        }
+      );
 
       if (!res.ok) {
         const errorData = await res.json();
@@ -90,7 +100,7 @@ export default function VerifyEmailPage() {
     }
     setIsResending(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/register", {
+      const res = await fetch("https://api.chathera.com/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }), // envoyer au minimum l'email, ajouter autres champs si besoin
@@ -111,9 +121,12 @@ export default function VerifyEmailPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6 text-white">Vérification de l'email</h1>
+      <h1 className="text-3xl font-bold mb-6 text-white">
+        Vérification de l'email
+      </h1>
       <p className="text-gray-400 mb-8 text-center max-w-sm">
-        Un code à 6 chiffres a été envoyé à <strong>{email}</strong>. Merci de le saisir ci-dessous.
+        Un code à 6 chiffres a été envoyé à <strong>{email}</strong>. Merci de
+        le saisir ci-dessous.
       </p>
 
       <form

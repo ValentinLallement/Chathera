@@ -21,6 +21,7 @@ export const urls = {
     "requestPasswordReset": `${BASE_URL}/user/request-password-reset`,
     "changePassword": `${BASE_URL}/user/change-password`,
     "saveAvatar": `${BASE_URL}/save-avatar`,
+    "resetPassword": `${BASE_URL}/user/reset-password`,
 }
 
 
@@ -567,7 +568,7 @@ import axios from "axios";
 export async function resetPassword(token: string, data: { new_password: string }) {
   // L’URL doit correspondre à celle de ton backend (port + chemin)
   return axios.post(
-    `http://localhost:8000/api/user/reset-password`,
+    urls.resetPassword,
     {
       new_password: data.new_password,
       token: token,       // token envoyé dans le body aussi

@@ -1,4 +1,0 @@
-# Ce fichier force l'import de tous les modèles pour Alembic
-# Il est utilisé uniquement dans alembic/env.py
-from app.db.models.models import *
-from app.db.models.models import EmailVerificationCode

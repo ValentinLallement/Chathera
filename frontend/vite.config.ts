@@ -10,9 +10,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Any request starting with /api will be forwarded as-is to http://127.0.0.1:8000
+      // Any request starting with /api will be forwarded as-is to https://api.chathera.com
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: 'https://api.chathera.com',
         changeOrigin: true,
         secure: false,
         // no rewrite needed, since your backend routes are /api/auth/…

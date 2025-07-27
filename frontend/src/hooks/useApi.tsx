@@ -327,7 +327,7 @@ export function useOpenCustomerPortal() {
       }
       return apiCallWithRefresh(
         () =>
-          fetch("http://127.0.0.1:8000/api/stripe/customer-portal", {
+          fetch("https://api.chathera.com/api/stripe/customer-portal", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -358,7 +358,7 @@ export function useCancelSubscription() {
 
       return apiCallWithRefresh(
         () =>
-          fetch("http://127.0.0.1:8000/api/stripe/subscription", {
+          fetch("https://api.chathera.com/api/stripe/subscription", {
             method: "DELETE", // ✅ CORRECTION ICI
             headers: {
               Authorization: `Bearer ${accessToken}`,
