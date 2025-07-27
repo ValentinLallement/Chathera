@@ -20,6 +20,7 @@ export const urls = {
     "subscriptionInfo": `${BASE_URL}/user/subscription/infos`,
     "requestPasswordReset": `${BASE_URL}/user/request-password-reset`,
     "changePassword": `${BASE_URL}/user/change-password`,
+    "saveAvatar": `${BASE_URL}/save-avatar`,
 }
 
 
@@ -572,4 +573,46 @@ export async function resetPassword(token: string, data: { new_password: string 
       token: token,       // token envoyé dans le body aussi
     }
   );
+}
+
+export interface SaveAvatarParams {
+  bot_id: string;
+  glb_url: string;
+}
+
+export interface SaveAvatarResponse {
+  message: string;
+  bot_id: string;
+  avatar_url: string;
+}
+
+export async function saveAvatar(
+  token: string,
+  params: SaveAvatarParams
+): Promise<SaveAvatarResponse> {
+  const res = await fetch(urls.saveAvatar, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify(params),
+  });
+  
+  if (!res.ok) {
+    let payload: { detail?: string; [key: string]: any } = { detail: "" };
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("Une erreur inattendue est survenue.");
+    }
+
+    if (payload.detail) {
+      throw new Error(payload.detail);
+    } else {
+      throw new Error(`Erreur inconnue (status ${res.status})`);
+    }
+  }
+  return res.json();
 }

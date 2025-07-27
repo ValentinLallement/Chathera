@@ -127,11 +127,6 @@ export default function NavBar() {
               {isAuthenticated ? (
                 <>
                   <li className="flex items-center gap-2">
-                    <Link to="/profile">
-                      <span className="text-sm text-gray-300 hover:text-white transition-colors">
-                        {user?.name || "Profile"}
-                      </span>
-                    </Link>
                     <button
                       onClick={handleLogout}
                       className="flex-shrink-0 whitespace-nowrap text-center rounded-lg border border-white/10 bg-black/20 text-white text-sm font-medium py-1.5 px-3.5 cursor-pointer hover:bg-black/40 transition-colors"
@@ -192,7 +187,7 @@ export default function NavBar() {
                   className="w-full h-[2px] bg-white mt-1.5 block"
                   variants={{
                     closed: { rotate: 0, y: 0 },
-                    open: { rotate: -45, y: -6 },
+                    open: { rotate: -45, y: -10 },
                   }}
                   transition={{ duration: 0.3 }}
                 />

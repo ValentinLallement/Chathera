@@ -3,7 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import { changePassword } from "../api/api";
 import { useAuthStore } from "../stores/authStore";
-import { useGetSubscriptionInfos, useOpenCustomerPortal, useCancelSubscription } from "../hooks/useApi";
+import {
+  useGetSubscriptionInfos,
+  useOpenCustomerPortal,
+  useCancelSubscription,
+} from "../hooks/useApi";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import axios from "axios";
 
@@ -16,7 +20,11 @@ export default function SettingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
 
-  const { data: subscriptionData, isLoading, error } = useGetSubscriptionInfos();
+  const {
+    data: subscriptionData,
+    isLoading,
+    error,
+  } = useGetSubscriptionInfos();
 
   const [newMessageLimit, setNewMessageLimit] = useState("");
   const [isUpdatingLimit, setIsUpdatingLimit] = useState(false);
@@ -25,15 +33,14 @@ export default function SettingsPage() {
   const openCustomerPortal = useOpenCustomerPortal();
   const cancelSubscription = useCancelSubscription();
 
-  
-
   const handleUpdateMessageLimit = async () => {
     setIsUpdatingLimit(true);
     try {
       await axios.put(
         "http://127.0.0.1:8000/api/user/subscription/update",
         {
-          message_limit: newMessageLimit === "" ? null : Number(newMessageLimit),
+          message_limit:
+            newMessageLimit === "" ? null : Number(newMessageLimit),
         },
         {
           headers: {
@@ -42,7 +49,9 @@ export default function SettingsPage() {
         }
       );
 
-      toast.success("Message limit successfully updated!", { style: toastStyle("success") });
+      toast.success("Message limit successfully updated!", {
+        style: toastStyle("success"),
+      });
       setNewMessageLimit("");
     } catch (error: any) {
       toast.error(error?.response?.data?.detail || "Failed to update limit", {
@@ -65,7 +74,9 @@ export default function SettingsPage() {
       return;
     }
     if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters long", { style: toastStyle("error") });
+      toast.error("Password must be at least 8 characters long", {
+        style: toastStyle("error"),
+      });
       return;
     }
 
@@ -75,14 +86,18 @@ export default function SettingsPage() {
         old_password: oldPassword,
         new_password: newPassword,
       });
-      toast.success("Password successfully changed!", { style: toastStyle("success") });
+      toast.success("Password successfully changed!", {
+        style: toastStyle("success"),
+      });
 
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setShowPasswordForm(false);
     } catch (error: any) {
-      toast.error(error.message || "An error occurred", { style: toastStyle("error") });
+      toast.error(error.message || "An error occurred", {
+        style: toastStyle("error"),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -119,12 +134,16 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="h-full w-full flex bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5">
-      {/* Colonne gauche : paramètres */}
-      <div className="flex-1 flex flex-col p-8 space-y-8 max-w-xl">
+    <div className="h-full w-full flex flex-col lg:flex-row bg-gradient-to-b to-[#050505] from-[#050505] rounded-3xl overflow-hidden border border-white/5 overflow-scroll no-scrollbar">
+      {/* Left column: settings - Make it more responsive */}
+      <div className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8 w-full lg:max-w-2xl xl:max-w-3xl">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-2">Settings</h1>
-          <p className="text-gray-400">Manage your account settings and preferences</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+            Settings
+          </h1>
+          <p className="text-gray-400">
+            Manage your account settings and preferences
+          </p>
         </div>
 
         <div className="w-full">
@@ -188,7 +207,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Colonne droite : abonnement stylée et animée */}
-      <div className="hidden lg:flex flex-1 p-8">
+      <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
         <SubscriptionInfoCard
           data={subscriptionData}
           loading={isLoading}
@@ -200,9 +219,9 @@ export default function SettingsPage() {
           newMessageLimit={newMessageLimit}
           setNewMessageLimit={setNewMessageLimit}
           isUpdatingLimit={isUpdatingLimit}
-          setIsUpdatingLimit={setIsUpdatingLimit}           // <-- ajouter ceci
+          setIsUpdatingLimit={setIsUpdatingLimit}
           handleUpdateMessageLimit={handleUpdateMessageLimit}
-          accessToken={accessToken}                           // <-- ajouter ceci
+          accessToken={accessToken}
         />
       </div>
     </div>
@@ -212,7 +231,10 @@ export default function SettingsPage() {
 function InputField({ id, label, value, onChange, disabled }: any) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-400 mb-1">
+      <label
+        htmlFor={id}
+        className="block text-sm font-medium text-gray-400 mb-1"
+      >
         {label}
       </label>
       <input
@@ -244,7 +266,8 @@ function SubscriptionInfoCard({
   accessToken,
 }: any) {
   if (loading) return <p className="text-gray-400">Loading subscription...</p>;
-  if (error || !data?.subscriptions) return <p className="text-red-500">Error loading subscription</p>;
+  if (error || !data?.subscriptions)
+    return <p className="text-red-500">Error loading subscription</p>;
 
   const sub = data.subscriptions;
 
@@ -304,7 +327,9 @@ function SubscriptionInfoCard({
         <InfoRow label="Period End" value={endDate} />
         <InfoRow
           label="Renewal Price"
-          value={`${sub?.stripe_plan_amount_eur ?? "?"} ${sub?.stripe_currency?.toUpperCase() ?? "EUR"}`}
+          value={`${sub?.stripe_plan_amount_eur ?? "?"} ${
+            sub?.stripe_currency?.toUpperCase() ?? "EUR"
+          }`}
         />
         {isPayg && (
           <>
@@ -314,35 +339,45 @@ function SubscriptionInfoCard({
                 <span className="text-white">{messageLimit}</span>
 
                 {/* Croix visible seulement si une limite est définie */}
-                {messageLimit !== "∞" && messageLimit !== null && messageLimit !== undefined && (
-                  <button
-                    onClick={async () => {
-                      setNewMessageLimit("");
-                      setIsUpdatingLimit(true);
-                      try {
-                        await axios.put(
-                          "http://127.0.0.1:8000/api/user/subscription/update",
-                          { message_limit: null },
-                          {
-                            headers: { Authorization: `Bearer ${accessToken}` },
-                          }
-                        );
-                        toast.success("Message limit cleared!", { style: toastStyle("success") });
-                      } catch (error: any) {
-                        toast.error(error?.response?.data?.detail || "Failed to clear limit", {
-                          style: toastStyle("error"),
-                        });
-                      } finally {
-                        setIsUpdatingLimit(false);
-                      }
-                    }}
-                    type="button"
-                    aria-label="Clear message limit"
-                    className="text-white/50 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  >
-                    ✕
-                  </button>
-                )}
+                {messageLimit !== "∞" &&
+                  messageLimit !== null &&
+                  messageLimit !== undefined && (
+                    <button
+                      onClick={async () => {
+                        setNewMessageLimit("");
+                        setIsUpdatingLimit(true);
+                        try {
+                          await axios.put(
+                            "http://127.0.0.1:8000/api/user/subscription/update",
+                            { message_limit: null },
+                            {
+                              headers: {
+                                Authorization: `Bearer ${accessToken}`,
+                              },
+                            }
+                          );
+                          toast.success("Message limit cleared!", {
+                            style: toastStyle("success"),
+                          });
+                        } catch (error: any) {
+                          toast.error(
+                            error?.response?.data?.detail ||
+                              "Failed to clear limit",
+                            {
+                              style: toastStyle("error"),
+                            }
+                          );
+                        } finally {
+                          setIsUpdatingLimit(false);
+                        }
+                      }}
+                      type="button"
+                      aria-label="Clear message limit"
+                      className="text-white/50 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    >
+                      ✕
+                    </button>
+                  )}
               </div>
             </div>
 
@@ -402,9 +437,19 @@ function SubscriptionInfoCard({
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
         >
-          <h3 className="text-xl font-bold mb-4 text-center text-violet-300">Usage (Pay-As-You-Go)</h3>
-          <InfoRow label="Messages Sent" value={`${messageCount} × 0.01€ = ${(messageCount * 0.01).toFixed(2)}€`} />
-          <InfoRow label="Bots Created" value={`${botCount} × 1€ = ${(botCount * 1).toFixed(2)}€`} />
+          <h3 className="text-xl font-bold mb-4 text-center text-violet-300">
+            Usage (Pay-As-You-Go)
+          </h3>
+          <InfoRow
+            label="Messages Sent"
+            value={`${messageCount} × 0.01€ = ${(messageCount * 0.01).toFixed(
+              2
+            )}€`}
+          />
+          <InfoRow
+            label="Bots Created"
+            value={`${botCount} × 1€ = ${(botCount * 1).toFixed(2)}€`}
+          />
           <div className="border-t border-white/10 my-4" />
           <InfoRow
             label="Estimated Total"
@@ -440,8 +485,6 @@ function SubscriptionInfoCard({
     </motion.div>
   );
 }
-
-
 
 function InfoRow({ label, value }: { label: string; value: string | number }) {
   return (

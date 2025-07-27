@@ -14,6 +14,7 @@ import {
   createCheckoutSession,
   getSubscriptionInfo,
   deleteBot,
+  saveAvatar,
 } from "../api/api";
 import type {
   CreateBotParams,
@@ -23,6 +24,8 @@ import type {
   SignUpParams,
   SignUpResponse,
   CreateCheckoutSessionParams,
+  SaveAvatarParams,
+  SaveAvatarResponse,
 } from "../api/api";
 import { useAuthStore } from "../stores/authStore";
 import toast from "react-hot-toast";
@@ -180,8 +183,6 @@ export function useCreateBot(): UseMutationResult<
   });
 }
 
-
-
 export function useGetMessagesInConversation(conversationId: string) {
   const { accessToken, setToken } = useAuthStore();
 
@@ -315,7 +316,6 @@ export function useDeleteBot() {
   });
 }
 
-
 export function useOpenCustomerPortal() {
   const { accessToken, setToken } = useAuthStore();
 
@@ -325,17 +325,18 @@ export function useOpenCustomerPortal() {
         toast.error("Not authenticated");
         throw new Error("Not authenticated");
       }
-      return apiCallWithRefresh(() =>
-        fetch("http://127.0.0.1:8000/api/stripe/customer-portal", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }).then((res) => {
-          if (!res.ok) throw new Error("Failed to open customer portal");
-          return res.json();
-        }),
+      return apiCallWithRefresh(
+        () =>
+          fetch("http://127.0.0.1:8000/api/stripe/customer-portal", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }).then((res) => {
+            if (!res.ok) throw new Error("Failed to open customer portal");
+            return res.json();
+          }),
         setToken
       );
     },
@@ -355,22 +356,54 @@ export function useCancelSubscription() {
         throw new Error("Not authenticated");
       }
 
-      return apiCallWithRefresh(() =>
-        fetch("http://127.0.0.1:8000/api/stripe/subscription", {
-          method: "DELETE", // ✅ CORRECTION ICI
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }).then((res) => {
-          if (!res.ok) throw new Error("Failed to cancel subscription");
-          return res.json();
-        }),
+      return apiCallWithRefresh(
+        () =>
+          fetch("http://127.0.0.1:8000/api/stripe/subscription", {
+            method: "DELETE", // ✅ CORRECTION ICI
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }).then((res) => {
+            if (!res.ok) throw new Error("Failed to cancel subscription");
+            return res.json();
+          }),
         setToken
       );
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to cancel subscription");
+    },
+  });
+}
+
+export function useSaveAvatar(): UseMutationResult<
+  SaveAvatarResponse,
+  Error,
+  SaveAvatarParams
+> {
+  const { accessToken, setToken } = useAuthStore();
+
+  return useMutation<SaveAvatarResponse, Error, SaveAvatarParams>({
+    mutationFn: async (params: SaveAvatarParams) => {
+      if (!accessToken) {
+        toast.error("Not authenticated", {
+          style: {
+            borderRadius: "10px",
+            background: "#1f1f1f",
+            border: "1px solid #e53e3e",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: "0.95rem",
+          },
+        });
+        throw new Error("Not authenticated");
+      }
+      return apiCallWithRefresh(
+        () => saveAvatar(accessToken, params),
+        setToken
+      );
     },
   });
 }

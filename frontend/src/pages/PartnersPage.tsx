@@ -4,6 +4,7 @@ import {
   useGetBots,
   useRefreshToken,
   useDeleteBot,
+  useSaveAvatar,
 } from "../hooks/useApi";
 import { motion, AnimatePresence } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -15,14 +16,28 @@ import { useSidebarStore } from "../stores/sidebarStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { faTrash } from "@fortawesome/free-solid-svg-icons";
 import { useGetSubscriptionInfos } from "../hooks/useApi";
+import {
+  AvatarCreator,
+  type AvatarCreatorConfig,
+  type AvatarExportedEvent,
+} from "@readyplayerme/react-avatar-creator";
 type Gender = "Male" | "Female";
 type Personality = "Friendly" | "Professional" | "Casual" | "Serious" | "Sweet";
 
-interface CompanionForm {
-  gender: Gender | null;
+type CompanionForm = {
+  gender: "Male" | "Female" | null;
   name: string;
-  personality: Personality | null;
-}
+  personality:
+    | "Friendly"
+    | "Professional"
+    | "Casual"
+    | "Serious"
+    | "Sweet"
+    | null;
+  avatarUrl?: string;
+  botId?: string;
+  conversationId?: string;
+};
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -312,6 +327,48 @@ const PersonalityStep = ({
   );
 };
 
+const AvatarStep = ({
+  formData,
+  setFormData,
+  onNext,
+}: {
+  formData: CompanionForm;
+  setFormData: (data: CompanionForm) => void;
+  onNext: () => void;
+}) => {
+  const config: AvatarCreatorConfig = {
+    clearCache: true,
+    bodyType: "fullbody",
+    quickStart: true,
+  };
+
+  const handleAvatarExported = (event: AvatarExportedEvent) => {
+    console.log("Avatar exported:", event.data);
+    setFormData({ ...formData, avatarUrl: event.data.url });
+    onNext();
+  };
+
+  return (
+    <motion.div
+      variants={stepVariants}
+      initial="enter"
+      animate="center"
+      exit="exit"
+      transition={{ duration: 0.2 }}
+      className="space-y-6"
+    >
+      <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden">
+        <AvatarCreator
+          subdomain="chathera"
+          config={config}
+          className="absolute inset-0 w-full h-full"
+          onAvatarExported={handleAvatarExported}
+        />
+      </div>
+    </motion.div>
+  );
+};
+
 const LoadingStep = ({
   formData,
   setFormData,
@@ -326,17 +383,34 @@ const LoadingStep = ({
   bots: any;
 }) => {
   const createBotMutation = useCreateBot();
+  const saveAvatarMutation = useSaveAvatar();
   const { mutate: refreshToken } = useRefreshToken();
   const [hasRetried, setHasRetried] = useState(false);
 
   useEffect(() => {
     const createBot = async () => {
       try {
-        await createBotMutation.mutateAsync({
+        // First create the bot
+        const response = await createBotMutation.mutateAsync({
           name: formData.name,
           gender: formData.gender!,
           personality: formData.personality!,
         });
+
+        // Save the bot and conversation IDs
+        setFormData({
+          ...formData,
+          botId: response.bot_id,
+          conversationId: response.conversation_id,
+        });
+
+        // If we have an avatar URL, save it
+        if (formData.avatarUrl && response.bot_id) {
+          await saveAvatarMutation.mutateAsync({
+            bot_id: response.bot_id,
+            glb_url: formData.avatarUrl,
+          });
+        }
 
         toast.success("Companion created successfully!", {
           style: {
@@ -481,7 +555,7 @@ export default function PartnersPage() {
     personality: null,
   });
 
-const userPlan = subscriptionInfo.data?.subscriptions?.plan || "free";
+  const userPlan = subscriptionInfo.data?.subscriptions?.plan || "free";
 
   useEffect(() => {
     if (bots.isError) {
@@ -503,7 +577,7 @@ const userPlan = subscriptionInfo.data?.subscriptions?.plan || "free";
   };
 
   const nextStep = () => {
-    if (currentStep < 4) {
+    if (currentStep < 5) {
       setCurrentStep((prev) => prev + 1);
     }
   };
@@ -664,12 +738,16 @@ const userPlan = subscriptionInfo.data?.subscriptions?.plan || "free";
                                   alt={`${bot.name} avatar`}
                                   className="object-cover w-full h-full"
                                   onError={(e) => {
-                                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                                    (
+                                      e.currentTarget as HTMLImageElement
+                                    ).style.display = "none";
                                   }}
                                 />
                               ) : (
                                 <FontAwesomeIcon
-                                  icon={bot.gender === "Female" ? faVenus : faMars}
+                                  icon={
+                                    bot.gender === "Female" ? faVenus : faMars
+                                  }
                                   size="xl"
                                   className={
                                     bot.gender === "Female"
@@ -694,7 +772,8 @@ const userPlan = subscriptionInfo.data?.subscriptions?.plan || "free";
                                   ? bot.type === "payg"
                                     ? "Free companion"
                                     : bot.type
-                                  : bot.type === "premium" || bot.type === "payg"
+                                  : bot.type === "premium" ||
+                                    bot.type === "payg"
                                   ? "Premium companion"
                                   : "Free companion"}
                               </span>
@@ -838,6 +917,14 @@ const userPlan = subscriptionInfo.data?.subscriptions?.plan || "free";
                           />
                         )}
                         {currentStep === 2 && (
+                          <AvatarStep
+                            key="avatar"
+                            formData={formData}
+                            setFormData={setFormData}
+                            onNext={nextStep}
+                          />
+                        )}
+                        {currentStep === 3 && (
                           <NameStep
                             key="name"
                             formData={formData}
@@ -845,7 +932,7 @@ const userPlan = subscriptionInfo.data?.subscriptions?.plan || "free";
                             onNext={nextStep}
                           />
                         )}
-                        {currentStep === 3 && (
+                        {currentStep === 4 && (
                           <PersonalityStep
                             key="personality"
                             formData={formData}
@@ -853,21 +940,22 @@ const userPlan = subscriptionInfo.data?.subscriptions?.plan || "free";
                             onNext={nextStep}
                           />
                         )}
-                        {currentStep === 4 && (
-                          <LoadingStep
-                            key="loading"
-                            formData={formData}
-                            setFormData={setFormData}
-                            setCurrentStep={setCurrentStep}
-                            handleBackToList={handleBackToList}
-                            bots={bots}
-                          />
-                        )}
                       </AnimatePresence>
                     </div>
                   </motion.div>
                 </div>
               </motion.div>
+            )}
+
+            {currentStep === 5 && (
+              <LoadingStep
+                key="loading"
+                formData={formData}
+                setFormData={setFormData}
+                setCurrentStep={setCurrentStep}
+                handleBackToList={handleBackToList}
+                bots={bots}
+              />
             )}
           </AnimatePresence>
         </div>
