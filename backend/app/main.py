@@ -54,32 +54,13 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(SessionMiddleware, secret_key="une_clef_secrete_pour_session")
 
-if PRODUCTION: 
-    print("Production mode: CORS configured for production origin")
-    origins = [
-        "https://chathera.com",  # front-end origin
-    ]
-    # CORS middleware configuration
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["https://chathera.com"],  # Explicitly allow the frontend origin
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    origins = [
-        "http://localhost:5173",  # front-end origin
-    ]
-    # CORS middleware configuration
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:5173"],  # Explicitly allow the frontend origin
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://chathera.com"],  # Explicitly allow the frontend origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # API routes

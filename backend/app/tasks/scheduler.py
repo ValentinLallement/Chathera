@@ -36,44 +36,6 @@ async def check_condition(condition: dict, db: AsyncSession, conversation: Conve
     return True
 
 
-async def send_push(subscription_info: dict, message: str):
-    """
-    Envoie la notification push en mode thread-safe (non bloquant l'event loop asyncio)
-    """
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(
-        None,
-        partial(
-            webpush,
-            subscription_info,
-            data=json.dumps({"message": message}),
-            vapid_private_key=VAPID_PRIVATE_KEY,
-            vapid_claims=VAPID_CLAIMS
-        )
-    )
-
-
-async def send_notification_to_user(user_id: int, message: str, db: AsyncSession):
-    stmt = select(PushSubscription).where(PushSubscription.user_id == user_id)
-    result = await db.execute(stmt)
-    subscriptions = result.scalars().all()
-
-    for sub in subscriptions:
-        subscription_info = {
-            "endpoint": sub.endpoint,
-            "keys": sub.keys
-        }
-        try:
-            await send_push(subscription_info, message)
-            print(f"Notification push envoyée à l'utilisateur {user_id}")
-        except WebPushException as ex:
-            print(f"Erreur WebPush: {repr(ex)}")
-            if ex.response and ex.response.status_code == 410:
-                print(f"Suppression abonnement push expiré pour user {user_id}, endpoint {sub.endpoint}")
-                await db.delete(sub)
-                await db.commit()
-
-
 async def task_scheduler():
     while True:
         async with lock:
