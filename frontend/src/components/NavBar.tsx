@@ -240,13 +240,6 @@ export default function NavBar() {
                     >
                       Upgrade
                     </Link>
-                    <Link
-                      to="/profile"
-                      className="text-lg font-medium text-white hover:text-violet-400 transition-colors py-2"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {user?.name || "Profile"}
-                    </Link>
                   </>
                 ) : (
                   <>
