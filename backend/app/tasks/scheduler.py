@@ -40,6 +40,7 @@ async def task_scheduler():
     while True:
         try:
             async with async_session() as db:
+                # Convert to timezone naive datetime for PostgreSQL storage
                 now = datetime.now(timezone.utc).replace(tzinfo=None)
 
                 # Get all pending actions
@@ -62,7 +63,8 @@ async def task_scheduler():
                                 msg = Message(
                                     user_id=conversation.bot_id,
                                     content=action.future_message,
-                                    conversation_id=conversation.id
+                                    conversation_id=conversation.id,
+                                    created_at=datetime.now(timezone.utc).replace(tzinfo=None)  # Make timezone naive
                                 )
                                 db.add(msg)
                                 await db.commit()
@@ -82,7 +84,7 @@ async def task_scheduler():
                                 user_id=conversation.bot_id,
                                 content=action.future_message,
                                 conversation_id=conversation.id,
-                                created_at=now,
+                                created_at=now,  # Using the already naive datetime
                                 read=False
                             )
                             db.add(future_msg)
