@@ -73,7 +73,7 @@ async def build_prompt(
                 print(f"Émotion par défaut créée pour bot_id {bot_id}: {emotion.mood}")
             return emotion
         except Exception as e:
-            print(f"Erreur dans get_current_emotion : {e}", exc_info=True)
+            print(f"Erreur dans get_current_emotion : {e}")
             # Retourner une émotion par défaut en cas d'erreur
             default_emotion = CompanionEmotion(
                 id=uuid4(),

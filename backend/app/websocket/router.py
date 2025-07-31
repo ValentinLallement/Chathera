@@ -95,7 +95,7 @@ async def chat(websocket: WebSocket):
                     await websocket.close(code=1008)
                     break
 
-                 try:
+                try:
                     bot_id = UUID(message_data.get("bot_id"))
                 except (ValueError, TypeError) as e:
                     print(f"Erreur bot_id invalide : {e}")
@@ -369,7 +369,7 @@ async def get_all_memories(conversation_id: UUID, db: AsyncSession) -> List[Memo
         return results.scalars().all()
 
     except Exception as e:
-        print(f"[get_all_memories] Erreur lors de la récupération des souvenirs : {e}", exc_info=True)
+        print(f"[get_all_memories] Erreur lors de la récupération des souvenirs : {e}")
         return []
     
 
@@ -410,7 +410,7 @@ async def retrieve_contextual_memories(user_message: str, conversation_id: str, 
         print(f"[Mem0 search] {len(souvenirs_vector)} souvenirs vectoriels : {[m.content for m in souvenirs_vector]}")
 
     except Exception as e:
-        print(f"[Mem0 search] Erreur : {e}", exc_info=True)
+        print(f"[Mem0 search] Erreur : {e}")
 
     try:
         mots_cles = ["anniversaire", "rendez-vous", "souvenir", "date", "lieu", "préférence"]
@@ -422,6 +422,6 @@ async def retrieve_contextual_memories(user_message: str, conversation_id: str, 
         if souvenirs_lexical:
             print(f"[Fallback lexical] {len(souvenirs_lexical)} souvenirs : {[m.content for m in souvenirs_lexical]}")
     except Exception as e:
-        print(f"[Fallback lexical] Erreur : {e}", exc_info=True)
+        print(f"[Fallback lexical] Erreur : {e}")
 
     return souvenirs_vector + souvenirs_lexical

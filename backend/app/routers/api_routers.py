@@ -494,7 +494,7 @@ async def create_bot_and_conversation(
 
     except Exception as e:
         await db.rollback()
-        print(f"Erreur serveur lors de la création du bot : {e}", exc_info=True)
+        print(f"Erreur serveur lors de la création du bot : {e}")
         raise HTTPException(status_code=500, detail="Erreur serveur lors de la création du bot.")
 
 
