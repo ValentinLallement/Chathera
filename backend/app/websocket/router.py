@@ -95,6 +95,17 @@ async def chat(websocket: WebSocket):
                     await websocket.close(code=1008)
                     break
 
+                 try:
+                    bot_id = UUID(message_data.get("bot_id"))
+                except (ValueError, TypeError) as e:
+                    print(f"Erreur bot_id invalide : {e}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "bot_id invalide",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    continue
+                    
                 has_access = await check_bot_access(db, user.id, bot_id, subscription.plan)
 
                 if not has_access:
@@ -116,17 +127,6 @@ async def chat(websocket: WebSocket):
                         report_usage(subscription_item_id=subscription.stripe_subscription_item_messages, quantity=1, increment=True)
                     except Exception as e:
                         print(f"Erreur Stripe : {e}")
-
-                try:
-                    bot_id = UUID(message_data.get("bot_id"))
-                except (ValueError, TypeError) as e:
-                    print(f"Erreur bot_id invalide : {e}")
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": "bot_id invalide",
-                        "timestamp": datetime.utcnow().isoformat()
-                    })
-                    continue
 
                 stmt_conv = select(Conversation).where(
                     Conversation.user_id == user.id,
