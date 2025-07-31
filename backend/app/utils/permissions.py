@@ -31,10 +31,16 @@ async def check_message_limit(subscription: Subscription, db: AsyncSession) -> b
 
     if subscription.status != "active":
         return False
-    
+
     # Réinitialisation mensuelle (sauf pour FREE)
     if subscription.plan in [PlanEnum.PREMIUM, PlanEnum.PAYG]:
-        if subscription.last_reset < today.replace(day=1):
+        # Convert subscription.last_reset to a date if needed
+        last_reset = (
+            subscription.last_reset.date()
+            if isinstance(subscription.last_reset, datetime)
+            else subscription.last_reset
+        )
+        if last_reset < today.replace(day=1):
             subscription.message_count = 0
             subscription.last_reset = today
             db.add(subscription)
@@ -44,10 +50,10 @@ async def check_message_limit(subscription: Subscription, db: AsyncSession) -> b
     if subscription.plan == PlanEnum.PAYG:
         if subscription.message_limit is not None:
             return subscription.message_count < subscription.message_limit
-        return True 
-    
+        return True
+
     if subscription.plan == PlanEnum.FREE:
-        if subscription.free_message_count >= 10 :
+        if subscription.free_message_count >= 10:
             return False
 
     if subscription.plan == PlanEnum.PREMIUM:
