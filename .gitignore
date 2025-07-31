@@ -52,6 +52,10 @@ dist/
 migrations/__pycache__/
 migrations/versions/__pycache__/
 
+backend/alembic/versions/
+alembic/versions/
+
+
 # === BASE DE DONNÉES TEMPORAIRE ===
 *.sqlite3
 *.db
