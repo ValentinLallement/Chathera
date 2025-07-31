@@ -22,7 +22,7 @@ VAPID_CLAIMS = {
 async def check_condition(condition: dict, db: AsyncSession, conversation: Conversation) -> bool:
     if condition.get("type") == "no_reply":
         hours = condition.get("timeout_hours", 24)
-        since = datetime.utcnow - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         stmt = select(Message).where(
             Message.conversation_id == conversation.id,
@@ -41,7 +41,7 @@ async def task_scheduler():
         try:
             async with async_session() as db:
                 # Convert to timezone naive datetime for PostgreSQL storage
-                now = datetime.utcnow.replace(tzinfo=None)
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
 
                 # Get all pending actions
                 actions = await db.execute(
@@ -64,7 +64,7 @@ async def task_scheduler():
                                     user_id=conversation.bot_id,
                                     content=action.future_message,
                                     conversation_id=conversation.id,
-                                    created_at=datetime.utcnow.replace(tzinfo=None)  # Make timezone naive
+                                    created_at=datetime.now(timezone.utc).replace(tzinfo=None)  # Make timezone naive
                                 )
                                 db.add(msg)
                                 await db.commit()

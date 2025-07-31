@@ -100,7 +100,7 @@ class EmailVerificationCode(SQLModel, table=True):
     code: str = Field(nullable=False)
     is_used: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    expires_at: datetime = Field(default_factory=lambda: datetime.utcnow + timedelta(minutes=10))
+    expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(minutes=10))
 
 # --------------  message  -----------------
 
@@ -289,7 +289,7 @@ class Subscription(SQLModel, table=True):
     start_date: datetime = Field(default_factory=datetime.utcnow)
     message_count: int = Field(default=0)
     free_message_count: int = Field(default=0)
-    last_reset: date = Field(default_factory=lambda: datetime.utcnow.date())
+    last_reset: date = Field(default_factory=lambda: datetime.now(timezone.utc).date())
     status: SubscriptionStatus = Field(default=SubscriptionStatus.active,nullable=True)
     message_limit: Optional[int] = Field(default=None)
 
