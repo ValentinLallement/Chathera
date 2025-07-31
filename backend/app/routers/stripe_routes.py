@@ -82,26 +82,9 @@ async def create_session(
         same_plan_subscription = result.scalars().first()
         if same_plan_subscription:
             print(f"[create_session] Abonnement du même type déjà actif: {same_plan_subscription.id}")
-            raise HTTPException(status_code=400, detail="You already have an active subscription of this type.")
+            raise HTTPException(status_code=400, detail="You already have an active subscription of this type.")    
 
-        # 2. Supprimer abonnement actif d'un autre type si existant
-        stmt = select(Subscription).where(
-            Subscription.user_id == user_id,
-            Subscription.status == SubscriptionStatus.active
-        )
-        result = await db.execute(stmt)
-        active_subscription = result.scalars().first()
-        if active_subscription:
-            try:
-                stripe.Subscription.delete(active_subscription.stripe_subscription_id)
-                print(f"[create_session] Ancien abonnement supprimé : {active_subscription.stripe_subscription_id}")
-                active_subscription.status = SubscriptionStatus.cancelled
-                await db.commit()
-            except Exception as e:
-                print(f"[create_session] Erreur suppression abonnement Stripe : {e}")
-                raise HTTPException(status_code=400, detail="Failed to cancel previous subscription")
-
-        # 3. Compter les bots si PAYG
+        # 2. Compter les bots si PAYG
         initial_bots_usage = 0
         if data.plan == "payg":
             stmt = select(func.count()).select_from(Bot).where(Bot.user_id == user_id)
