@@ -38,46 +38,40 @@ async def check_condition(condition: dict, db: AsyncSession, conversation: Conve
 
 async def task_scheduler():
     while True:
-        async with lock:
+        try:
             async with async_session() as db:
-                try:
-                    now = datetime.now(timezone.utc).replace(tzinfo=None)
-                    stmt_actions = select(FutureAction).where(FutureAction.date_action <= now)
-                    result_actions = await db.execute(stmt_actions)
-                    actions = result_actions.scalars().all()
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-                    for action in actions:
-                        stmt_conv = select(Conversation).where(Conversation.id == action.conversation_id)
-                        result_conv = await db.execute(stmt_conv)
-                        conversation = result_conv.scalars().first()
+                # Get all pending actions
+                actions = await db.execute(
+                    select(FutureAction)
+                    .where(FutureAction.date_action <= now)
+                )
+                actions = actions.scalars().all()
 
+                for action in actions:
+                    try:
+                        conversation = await db.get(Conversation, action.conversation_id)
                         if not conversation:
-                            await db.delete(action)
-                            await db.commit()
                             continue
 
-                        if action.condition and not await check_condition(action.condition, db, conversation):
-                            continue
-
-                        active_websockets = get_active_websockets()
-                        websocket = active_websockets.get(conversation.user_id)
+                        websocket = get_websocket(conversation.user_id)
 
                         if websocket:
                             try:
-                                await websocket.send_json({
-                                    "type": "reponse",
-                                    "message": action.future_message,
-                                    "timestamp": now.isoformat()
-                                })
                                 msg = Message(
                                     user_id=conversation.bot_id,
                                     content=action.future_message,
-                                    conversation_id=conversation.id,
-                                    timestamp=now,
-                                    read=True
+                                    conversation_id=conversation.id
                                 )
                                 db.add(msg)
                                 await db.commit()
+
+                                await websocket.send_json({
+                                    "type": "reponse",
+                                    "message": action.future_message,
+                                    "timestamp": msg.created_at.isoformat()
+                                })
                             except Exception as e:
                                 print(f"Erreur envoi WebSocket future_action pour user {conversation.user_id} : {e}")
                                 unregister_websocket(conversation.user_id)
@@ -88,19 +82,17 @@ async def task_scheduler():
                                 user_id=conversation.bot_id,
                                 content=action.future_message,
                                 conversation_id=conversation.id,
-                                timestamp=now,
+                                created_at=now,
                                 read=False
                             )
                             db.add(future_msg)
                             await db.commit()
 
-                            
-
                         await db.delete(action)
                         await db.commit()
-
-                except Exception as e:
-                    print(f"Erreur dans task_scheduler: {e}")
-                    
+                    except Exception as e:
+                        print(f"Error processing action {action.id}: {e}")
+        except Exception as e:
+                        print(f"Erreur dans task_scheduler: {e}")
 
         await asyncio.sleep(2.5)

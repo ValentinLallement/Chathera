@@ -109,7 +109,7 @@ class Message(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID
     content: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     conversation_id: uuid.UUID = Field(foreign_key="conversation.id")
 
     conversation: Optional["Conversation"] = Relationship(back_populates="messages")
@@ -131,7 +131,7 @@ class FutureAction(SQLModel, table=True):
     date_action: datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
     future_message: str = Field(nullable=False)
     condition: Optional[dict] = Field(sa_column=Column(JSON), default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relation vers Conversation
     conversation: Optional["Conversation"] = Relationship(back_populates="future_actions")

@@ -259,7 +259,7 @@ async def chat(websocket: WebSocket):
                             act_date = act_date.astimezone(timezone.utc).replace(tzinfo=None)
                         except Exception as e:
                             print(f"Erreur de parsing de date pour action différée : {e}")
-                            act_date = datetime.now(timezone.utc)
+                            act_date = datetime.now(timezone.utc).replace(tzinfo=None)
 
                         db.add(FutureAction(
                             conversation_id=conversation.id,
@@ -271,8 +271,7 @@ async def chat(websocket: WebSocket):
                 bot_msg = Message(
                     user_id=bot_id,
                     content=reply_msg,
-                    conversation_id=conversation.id,
-                    created_at=datetime.now(timezone.utc)
+                    conversation_id=conversation.id
                 )
                 db.add(bot_msg)
                 await db.commit()
