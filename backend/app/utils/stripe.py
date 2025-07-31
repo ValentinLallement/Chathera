@@ -60,7 +60,7 @@ async def log_subscription_history(db: AsyncSession, subscription: Subscription)
         stripe_subscription_id=subscription.stripe_subscription_id,
         stripe_subscription_item_messages=subscription.stripe_subscription_item_messages,
         stripe_subscription_item_bots=subscription.stripe_subscription_item_bots,
-        recorded_at=datetime.now(timezone.utc)
+        recorded_at=datetime.utcnow
     )
     db.add(history)
     await db.commit()

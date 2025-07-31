@@ -259,7 +259,7 @@ async def test_create_and_get_bots(client, email_test, unique_username, password
             user_id=user.id,
             plan=PlanEnum.FREE,
             status=SubscriptionStatus.active,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.utcnow
         )
         db.add(subscription)
         await db.commit()

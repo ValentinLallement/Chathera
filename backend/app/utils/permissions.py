@@ -27,7 +27,7 @@ async def check_bot_limit(subscription: Subscription, current_bot_count: int) ->
 
 
 async def check_message_limit(subscription: Subscription, db: AsyncSession) -> bool:
-    today = datetime.now(timezone.utc).date()
+    today = datetime.utcnow.date()
 
     if subscription.status != "active":
         return False

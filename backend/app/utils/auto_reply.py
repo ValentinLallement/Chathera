@@ -26,7 +26,7 @@ async def build_prompt(
 ) -> str:
 
     def get_current_date() -> str:
-        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
     def format_souvenirs(souvenirs: List[str]) -> str:
         return "\n".join(f"- {s}" for s in souvenirs) if souvenirs else "Aucun souvenir pertinent trouvé."
@@ -64,7 +64,7 @@ async def build_prompt(
                     mood="neutre",
                     energy="energy",  # Valeur numérique pour correspondre à la colonne energy (float)
                     style="normal",
-                    since=datetime.now(timezone.utc),
+                    since=datetime.utcnow,
                     duration=3600.0  # Durée par défaut en secondes (1 heure)
                 )
                 session.add(emotion)
@@ -81,7 +81,7 @@ async def build_prompt(
                 mood="neutre",
                 energy="energy",
                 style="normal",
-                since=datetime.now(timezone.utc),
+                since=datetime.utcnow,
                 duration=3600.0
             )
             return default_emotion
@@ -503,7 +503,7 @@ async def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, derni
     }
 
     def get_current_date() -> str:
-        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
     dernier_str = f"({dernier_message.get('date', get_current_date())}) - {dernier_message.get('auteur', 'Auteur inconnu')} : {dernier_message.get('contenu', 'Contenu inconnu')}"
 
@@ -555,7 +555,7 @@ async def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, derni
             return {
                 "type": "error",
                 "message": f"Erreur lors du parsing JSON de DeepSeek : {str(e)}",
-                "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
+                "timestamp": datetime.utcnow.isoformat() + "Z"
             }
 
         if not isinstance(parsed, dict):
@@ -569,7 +569,7 @@ async def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, derni
             try:
                 last_msg_date = date_parser.parse(dernier_message.get("date", ""))
             except Exception:
-                last_msg_date = datetime.now(timezone.utc)
+                last_msg_date = datetime.utcnow
 
             parsed["actions"] = [{
                 "type": "repondre",
@@ -623,7 +623,7 @@ def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_m
 
     # Fonction utilitaire interne pour obtenir la date au format souhaité
     def get_current_date() -> str:
-        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
     # Préparer le dernier message comme contexte utilisateur
     dernier_str = f"({dernier_message.get('date', get_current_date())}) - {dernier_message.get('auteur', 'Auteur inconnu')} : {dernier_message.get('contenu', 'Contenu inconnu')}"
@@ -671,7 +671,7 @@ def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_m
             return {
                 "type": "error",
                 "message": "Aucune réponse générée ni dans content ni dans reasoning.",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.utcnow.isoformat()
             }
 
         # 🧠 Extraction du JSON entre balises ```
@@ -687,7 +687,7 @@ def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_m
             return {
                 "type": "error",
                 "message": f"Erreur lors du parsing JSON d'OpenRouter : {str(e)}",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.utcnow.isoformat()
             }
 
         if not isinstance(parsed, dict):
@@ -701,7 +701,7 @@ def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_m
         elif "reponse" in parsed:
             parsed["actions"] = [{
                 "type": "repondre",
-                "date": datetime.utcfromtimestamp(response_data.get("created", datetime.now(timezone.utc).timestamp())).isoformat() + "Z",
+                "date": datetime.utcfromtimestamp(response_data.get("created", datetime.utcnow.timestamp())).isoformat() + "Z",
                 "message": parsed["reponse"]
             }]
             return parsed

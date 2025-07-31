@@ -112,7 +112,7 @@ async def register_draft(user: schemas.UserCreate, db: AsyncSession = Depends(ge
         email=user.email,
         code=code,
         is_used=False,
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)
+        expires_at=datetime.utcnow + timedelta(minutes=10)
     )
     db.add(db_code)
     await db.commit()
@@ -147,7 +147,7 @@ async def resend_verification_code(
         email=email,
         code=code,
         is_used=False,
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)
+        expires_at=datetime.utcnow + timedelta(minutes=10)
     )
     db.add(db_code)
     await db.commit()
@@ -171,7 +171,7 @@ async def verify_register_code(
             (models.EmailVerificationCode.email == email) &
             (models.EmailVerificationCode.code == payload.code) &
             (models.EmailVerificationCode.is_used == False) &
-            (models.EmailVerificationCode.expires_at > datetime.now(timezone.utc))
+            (models.EmailVerificationCode.expires_at > datetime.utcnow)
         )
     )
     result_verif = await db.execute(stmt_verif)
@@ -773,7 +773,7 @@ async def accept_legal_consent(
 
     consent = await get_or_create_user_consent(db, user.id)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow
     # Pour chaque champ accepté à True, on met à jour la date correspondante
     if consent_data.accepted_terms is True:
         consent.accepted_terms = True
@@ -803,7 +803,7 @@ async def update_legal_consent(
         raise HTTPException(status_code=404, detail="User not found")
 
     consent = await get_or_create_user_consent(db, user.id)
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow
 
     # Modifie chaque champ, met à jour la date ou supprime la date si False
     if update_data.accepted_terms is not None:
