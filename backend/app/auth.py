@@ -1,7 +1,7 @@
 import os
 
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from typing import Optional
@@ -26,9 +26,9 @@ async def hash_password(password: str):
 
 async def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = data.copy()
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -36,7 +36,7 @@ async def create_access_token(data: dict, expires_delta: Optional[timedelta] = N
 
 async def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7)):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
+    expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
@@ -96,7 +96,7 @@ async def verify_token(request: Request, db: AsyncSession = Depends(get_db)):
 async def create_password_reset_token(user_id: int, expires_delta: timedelta = timedelta(minutes=30)) -> str:
     to_encode = {
         "sub": str(user_id),
-        "exp": datetime.utcnow() + expires_delta
+        "exp": datetime.now(timezone.utc) + expires_delta
     }
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 

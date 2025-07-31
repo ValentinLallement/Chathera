@@ -2,7 +2,7 @@ import stripe
 import os
 
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,7 +60,7 @@ async def log_subscription_history(db: AsyncSession, subscription: Subscription)
         stripe_subscription_id=subscription.stripe_subscription_id,
         stripe_subscription_item_messages=subscription.stripe_subscription_item_messages,
         stripe_subscription_item_bots=subscription.stripe_subscription_item_bots,
-        recorded_at=datetime.utcnow()
+        recorded_at=datetime.now(timezone.utc)
     )
     db.add(history)
     await db.commit()

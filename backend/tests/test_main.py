@@ -4,7 +4,7 @@ import sys
 import os
 from uuid import uuid4
 from sqlalchemy import select
-from datetime import datetime
+from datetime import datetime, timezone
 from app.db.models.models import EmailVerificationCode, User, Subscription, PlanEnum, SubscriptionStatus
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -259,7 +259,7 @@ async def test_create_and_get_bots(client, email_test, unique_username, password
             user_id=user.id,
             plan=PlanEnum.FREE,
             status=SubscriptionStatus.active,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         db.add(subscription)
         await db.commit()

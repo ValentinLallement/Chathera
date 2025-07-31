@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from uuid import UUID,uuid4
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional,Union
 
 from app.config import DEEPSEEK_API_KEY, DEEPSEEK_URL,OPENROUTER_API_KEY
@@ -62,9 +62,9 @@ async def build_prompt(
                     id=uuid4(),
                     bot_id=bot_id,
                     mood="neutre",
-                    energy=0.5,  # Valeur numérique pour correspondre à la colonne energy (float)
+                    energy="energy",  # Valeur numérique pour correspondre à la colonne energy (float)
                     style="normal",
-                    since=datetime.utcnow(),
+                    since=datetime.now(timezone.utc),
                     duration=3600.0  # Durée par défaut en secondes (1 heure)
                 )
                 session.add(emotion)
@@ -79,9 +79,9 @@ async def build_prompt(
                 id=uuid4(),
                 bot_id=bot_id,
                 mood="neutre",
-                energy=0.5,
+                energy="energy",
                 style="normal",
-                since=datetime.utcnow(),
+                since=datetime.now(timezone.utc),
                 duration=3600.0
             )
             return default_emotion
@@ -555,7 +555,7 @@ async def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, derni
             return {
                 "type": "error",
                 "message": f"Erreur lors du parsing JSON de DeepSeek : {str(e)}",
-                "timestamp": datetime.utcnow().isoformat() + "Z"
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
             }
 
         if not isinstance(parsed, dict):
@@ -569,7 +569,7 @@ async def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, derni
             try:
                 last_msg_date = date_parser.parse(dernier_message.get("date", ""))
             except Exception:
-                last_msg_date = datetime.utcnow()
+                last_msg_date = datetime.now(timezone.utc)
 
             parsed["actions"] = [{
                 "type": "repondre",
@@ -671,7 +671,7 @@ def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_m
             return {
                 "type": "error",
                 "message": "Aucune réponse générée ni dans content ni dans reasoning.",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
         # 🧠 Extraction du JSON entre balises ```
@@ -687,7 +687,7 @@ def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_m
             return {
                 "type": "error",
                 "message": f"Erreur lors du parsing JSON d'OpenRouter : {str(e)}",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
         if not isinstance(parsed, dict):
@@ -701,7 +701,7 @@ def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_m
         elif "reponse" in parsed:
             parsed["actions"] = [{
                 "type": "repondre",
-                "date": datetime.utcfromtimestamp(response_data.get("created", datetime.utcnow().timestamp())).isoformat() + "Z",
+                "date": datetime.utcfromtimestamp(response_data.get("created", datetime.now(timezone.utc).timestamp())).isoformat() + "Z",
                 "message": parsed["reponse"]
             }]
             return parsed

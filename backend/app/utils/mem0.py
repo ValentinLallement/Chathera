@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import Session, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List, Union
@@ -29,7 +29,7 @@ async def mem0_add_memory(
         memory_type: type mémoire (int, MemoryType enum ou str).
         importance: importance mémoire (int, MemoryImportance enum ou str).
         user_id: ID utilisateur (int ou str).
-        timestamp: horodatage (datetime UTC). Si None, prend datetime.utcnow().
+        timestamp: horodatage (datetime UTC). Si None, prend datetime.now(timezone.utc).
         event_date: date de l'événement (datetime, optionnel pour MemoryType.EVENT).
 
     Returns:
@@ -43,7 +43,7 @@ async def mem0_add_memory(
         raise ValueError("user_id ne peut pas être vide ou None")
 
     if timestamp is None:
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
     # Convertir memory_type si c'est une chaîne
     if isinstance(memory_type, str):

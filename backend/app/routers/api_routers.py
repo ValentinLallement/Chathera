@@ -112,7 +112,7 @@ async def register_draft(user: schemas.UserCreate, db: AsyncSession = Depends(ge
         email=user.email,
         code=code,
         is_used=False,
-        expires_at=datetime.utcnow() + timedelta(minutes=10)
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)
     )
     db.add(db_code)
     await db.commit()
@@ -147,7 +147,7 @@ async def resend_verification_code(
         email=email,
         code=code,
         is_used=False,
-        expires_at=datetime.utcnow() + timedelta(minutes=10)
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)
     )
     db.add(db_code)
     await db.commit()
@@ -171,7 +171,7 @@ async def verify_register_code(
             (models.EmailVerificationCode.email == email) &
             (models.EmailVerificationCode.code == payload.code) &
             (models.EmailVerificationCode.is_used == False) &
-            (models.EmailVerificationCode.expires_at > datetime.utcnow())
+            (models.EmailVerificationCode.expires_at > datetime.now(timezone.utc))
         )
     )
     result_verif = await db.execute(stmt_verif)

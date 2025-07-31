@@ -51,7 +51,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "error",
                         "message": "Format de message invalide",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     continue
 
@@ -60,7 +60,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "error",
                         "message": "Le contenu du message ne peut pas être vide",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     continue
 
@@ -72,7 +72,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "error",
                         "message": "Aucun abonnement.",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     await websocket.close(code=1008)
                     break
@@ -81,7 +81,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "error",
                         "message": "Abonnement inactif.",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     await websocket.close(code=1008)
                     break
@@ -90,7 +90,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "limit_reached",
                         "message": "Limite atteinte.",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     await websocket.close(code=1008)
                     break
@@ -102,7 +102,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "error",
                         "message": "bot_id invalide",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     continue
                     
@@ -112,7 +112,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "access_denied",
                         "message": "Accès refusé : votre abonnement ne permet plus d'utiliser ce bot.",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     continue
                     
@@ -141,7 +141,7 @@ async def chat(websocket: WebSocket):
                     await db.commit()
                     await db.refresh(conversation)
 
-                timestamp = datetime.utcnow()
+                timestamp = datetime.now(timezone.utc)
                 user_msg = Message(
                     user_id=user.id,
                     content=content,
@@ -162,7 +162,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "error",
                         "message": "Erreur lors de la récupération des souvenirs",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     continue
 
@@ -194,7 +194,7 @@ async def chat(websocket: WebSocket):
                 directives_list = result_directives.scalars().all()
                 directives = "\n".join(f"- {d.content}" for d in directives_list) or "Aucune directive"
 
-                now, soon = datetime.utcnow(), datetime.utcnow() + timedelta(days=7)
+                now, soon = datetime.now(timezone.utc), datetime.now(timezone.utc) + timedelta(days=7)
                 stmt_events = select(MemoryEntry).where(
                     MemoryEntry.type == MemoryType.EVENT,
                     MemoryEntry.event_date != None,
@@ -219,7 +219,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "error",
                         "message": "Erreur lors de la construction du prompt",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     continue
 
@@ -237,7 +237,7 @@ async def chat(websocket: WebSocket):
                         await websocket.send_json({
                             "type": "error",
                             "message": auto_reply["error"],
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         })
                         continue
                 except Exception as e:
@@ -245,7 +245,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "error",
                         "message": "Erreur lors de la génération de la réponse",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     continue
 
@@ -259,7 +259,7 @@ async def chat(websocket: WebSocket):
                             act_date = act_date.astimezone(timezone.utc).replace(tzinfo=None)
                         except Exception as e:
                             print(f"Erreur de parsing de date pour action différée : {e}")
-                            act_date = datetime.utcnow()
+                            act_date = datetime.now(timezone.utc)
 
                         db.add(FutureAction(
                             conversation_id=conversation.id,
@@ -272,7 +272,7 @@ async def chat(websocket: WebSocket):
                     user_id=bot_id,
                     content=reply_msg,
                     conversation_id=conversation.id,
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc)
                 )
                 db.add(bot_msg)
                 await db.commit()
@@ -291,7 +291,7 @@ async def chat(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "error",
                         "message": "Erreur lors de la mise à jour de la mémoire",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     continue
 
@@ -309,7 +309,7 @@ async def chat(websocket: WebSocket):
                             m.get("type", "other"),
                             m.get("importance", "medium"),
                             str(user.id),
-                            datetime.utcnow(),
+                            datetime.now(timezone.utc),
                             event_date
                         )
                     except Exception as e:
@@ -317,7 +317,7 @@ async def chat(websocket: WebSocket):
                         await websocket.send_json({
                             "type": "error",
                             "message": "Erreur lors de l'ajout de MemoryEntry",
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         })
                         continue
 
@@ -336,7 +336,7 @@ def error_msg(message: str) -> dict:
     return {
         "type": "error",
         "message": message,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 def format_list(items: list[str], default: str = "Aucune donnée.") -> str:

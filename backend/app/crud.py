@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from passlib.context import CryptContext
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Union
 
 from fastapi import HTTPException
@@ -34,7 +34,7 @@ async def create_user_from_draft(db: AsyncSession, email: str) -> models.User:
         .where(
             (models.EmailVerificationCode.email == email) &
             (models.EmailVerificationCode.is_used == True) &
-            (models.EmailVerificationCode.expires_at > datetime.utcnow())
+            (models.EmailVerificationCode.expires_at > datetime.now(timezone.utc))
         )
         .order_by(models.EmailVerificationCode.created_at.desc())
     )
@@ -269,8 +269,8 @@ async def update_user_subscription(
             plan=PlanEnum.FREE,
             message_limit=None,
             message_count=0,
-            start_date=datetime.utcnow(),
-            last_reset=datetime.utcnow().date()
+            start_date=datetime.now(timezone.utc),
+            last_reset=datetime.now(timezone.utc).date()
         )
         db.add(subscription)
         await db.flush()  # flush async
@@ -284,9 +284,9 @@ async def update_user_subscription(
                 f"Invalid plan value '{new_plan}'. Valid values are: {[e.value for e in PlanEnum]}"
             )
         subscription.plan = new_plan
-        subscription.start_date = datetime.utcnow()
+        subscription.start_date = datetime.now(timezone.utc)
         subscription.message_count = 0
-        subscription.last_reset = datetime.utcnow().date()
+        subscription.last_reset = datetime.now(timezone.utc).date()
 
         if not message_limit_provided:
             subscription.message_limit = MESSAGE_LIMITS.get(new_plan, None)

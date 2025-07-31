@@ -22,7 +22,7 @@ VAPID_CLAIMS = {
 async def check_condition(condition: dict, db: AsyncSession, conversation: Conversation) -> bool:
     if condition.get("type") == "no_reply":
         hours = condition.get("timeout_hours", 24)
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         stmt = select(Message).where(
             Message.conversation_id == conversation.id,
@@ -84,8 +84,6 @@ async def task_scheduler():
                                 websocket = None
 
                         if not websocket:
-                            energy_value = "energy"
-                           
                             future_msg = Message(
                                 user_id=conversation.bot_id,
                                 content=action.future_message,
