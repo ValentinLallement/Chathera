@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 
@@ -773,7 +773,7 @@ async def accept_legal_consent(
 
     consent = await get_or_create_user_consent(db, user.id)
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     # Pour chaque champ accepté à True, on met à jour la date correspondante
     if consent_data.accepted_terms is True:
         consent.accepted_terms = True
@@ -803,7 +803,7 @@ async def update_legal_consent(
         raise HTTPException(status_code=404, detail="User not found")
 
     consent = await get_or_create_user_consent(db, user.id)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Modifie chaque champ, met à jour la date ou supprime la date si False
     if update_data.accepted_terms is not None:

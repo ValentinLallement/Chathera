@@ -41,7 +41,7 @@ async def task_scheduler():
         async with lock:
             async with async_session() as db:
                 try:
-                    now = datetime.utcnow().replace(tzinfo=None)
+                    now = datetime.now(timezone.utc).replace(tzinfo=None)
                     stmt_actions = select(FutureAction).where(FutureAction.date_action <= now)
                     result_actions = await db.execute(stmt_actions)
                     actions = result_actions.scalars().all()
@@ -84,6 +84,8 @@ async def task_scheduler():
                                 websocket = None
 
                         if not websocket:
+                            energy_value = "energy"
+                           
                             future_msg = Message(
                                 user_id=conversation.bot_id,
                                 content=action.future_message,
