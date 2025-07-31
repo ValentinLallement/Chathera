@@ -109,7 +109,7 @@ class Message(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID
     content: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     conversation_id: uuid.UUID = Field(foreign_key="conversation.id")
 
     conversation: Optional["Conversation"] = Relationship(back_populates="messages")
