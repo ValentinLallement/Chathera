@@ -84,12 +84,9 @@ async def read_conversation_messages(
     )
     messages = result.scalars().all()
 
-    if not messages:
-        raise HTTPException(status_code=404, detail="Aucun message trouvé pour cette conversation.")
-
     # Retourne messages + accès
     return {
-        "messages": messages,
+        "messages": messages,  # Will be empty list if no messages
         "has_access": has_access
     }
 
