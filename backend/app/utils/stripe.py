@@ -37,8 +37,8 @@ def create_checkout_session(user_id: UUID, plan: str, initial_bots_usage: int = 
             "plan": plan,
             "initial_bots_usage": str(initial_bots_usage),
         },
-        success_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/success",
-        cancel_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/cancel",
+        success_url=f"{os.getenv('FRONTEND_URL', 'https://chathera.com')}/success",
+        cancel_url=f"{os.getenv('FRONTEND_URL', 'https://chathera.com')}/cancel",
     )
 
     return session.url
