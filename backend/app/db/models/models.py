@@ -220,7 +220,7 @@ class Bot(SQLModel, table=True):
 class CompanionEmotion(SQLModel, table=True):
     __tablename__ = "companion_emotions"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: UUID = Field(default_factory=uuid.uuid4, primary_key=True)
 
     bot_id: UUID = Field(foreign_key="bot.id", index=True, unique=True)
     bot: "Bot" = Relationship(back_populates="emotion")
