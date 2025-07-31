@@ -26,7 +26,7 @@ async def build_prompt(
 ) -> str:
 
     def get_current_date() -> str:
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     def format_souvenirs(souvenirs: List[str]) -> str:
         return "\n".join(f"- {s}" for s in souvenirs) if souvenirs else "Aucun souvenir pertinent trouvé."
@@ -503,7 +503,7 @@ async def get_auto_reply_from_deepseek(prompt: str, conversation_id: UUID, derni
     }
 
     def get_current_date() -> str:
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     dernier_str = f"({dernier_message.get('date', get_current_date())}) - {dernier_message.get('auteur', 'Auteur inconnu')} : {dernier_message.get('contenu', 'Contenu inconnu')}"
 
@@ -623,7 +623,7 @@ def get_auto_reply_from_openrouter(prompt: str, conversation_id: UUID, dernier_m
 
     # Fonction utilitaire interne pour obtenir la date au format souhaité
     def get_current_date() -> str:
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     # Préparer le dernier message comme contexte utilisateur
     dernier_str = f"({dernier_message.get('date', get_current_date())}) - {dernier_message.get('auteur', 'Auteur inconnu')} : {dernier_message.get('contenu', 'Contenu inconnu')}"
