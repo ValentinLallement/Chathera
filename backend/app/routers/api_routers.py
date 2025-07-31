@@ -638,6 +638,7 @@ async def save_avatar(
 
     # Sauvegarde de l'avatar
     bot.avatar_url = png_url
+    bot.url = payload.glb_url
     await db.commit()
 
     return JSONResponse(
