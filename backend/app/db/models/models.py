@@ -112,10 +112,14 @@ class Message(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
-    conversation_id: uuid.UUID
+    conversation_id: uuid.UUID = Field(foreign_key="conversation.id")  # Add foreign key constraint
     read: bool = Field(default=True)
 
-    conversation: Optional["Conversation"] = Relationship(back_populates="messages")
+    # Define the relationship with explicit back_populates
+    conversation: Optional["Conversation"] = Relationship(
+        back_populates="messages",
+        sa_relationship_kwargs={"foreign_keys": [conversation_id]}
+    )
 
 # ----------------  action future  ---------------
 
