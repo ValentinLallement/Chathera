@@ -164,7 +164,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         result = await db.execute(stmt)
         subscription = result.scalars().first()
 
-       if subscription:
+        if subscription:
             old_stripe_subscription_id = subscription.stripe_subscription_id
             if old_stripe_subscription_id and old_stripe_subscription_id != new_stripe_subscription_id:
                 try:
