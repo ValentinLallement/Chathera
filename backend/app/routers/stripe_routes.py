@@ -201,7 +201,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
     elif event["type"] == "invoice.paid":
         invoice = event["data"]["object"]
-        stripe_subscription_id = invoice["subscription"]
+        stripe_subscription_id = invoice.get("subscription")
         stmt = select(Subscription).where(Subscription.stripe_subscription_id == stripe_subscription_id)
         result = await db.execute(stmt)
         subscription = result.scalars().first()
@@ -211,7 +211,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
     elif event["type"] == "invoice.payment_failed":
         invoice = event["data"]["object"]
-        stripe_subscription_id = invoice["subscription"]
+        stripe_subscription_id = invoice.get("subscription")
         stmt = select(Subscription).where(Subscription.stripe_subscription_id == stripe_subscription_id)
         result = await db.execute(stmt)
         subscription = result.scalars().first()
