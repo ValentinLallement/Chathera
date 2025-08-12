@@ -166,6 +166,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         if subscription and subscription.stripe_subscription_id != new_stripe_subscription_id:
             try:
+                print("plan trouvé")
                 stripe.Subscription.delete(subscription.stripe_subscription_id)
             except Exception as e:
                 print(f"[Webhook] Erreur annulation ancien abonnement : {e}")
@@ -200,7 +201,18 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 print(f"[Webhook] Erreur enregistrement usage initial : {e}")
 
     elif event["type"] == "invoice.paid":
-        pass
+        invoice = event["data"]["object"]
+    
+        stripe_subscription_id = invoice.get("subscription")
+        if not stripe_subscription_id:
+            parent = invoice.get("parent", {})
+            subscription_details = parent.get("subscription_details", {}) if parent else {}
+            stripe_subscription_id = subscription_details.get("subscription")
+    
+        if not stripe_subscription_id:
+            # On peut essayer dans les lignes, ou ignorer
+            print("[Webhook] invoice.paid reçu sans subscription, on ignore")
+            return {"status": "ignored"}
 
     elif event["type"] == "invoice.payment_failed":
         invoice = event["data"]["object"]
