@@ -166,6 +166,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         if subscription and subscription.stripe_subscription_id != new_stripe_subscription_id:
             try:
+                print("plan trouvé")
                 stripe.Subscription.delete(subscription.stripe_subscription_id)
             except Exception as e:
                 print(f"[Webhook] Erreur annulation ancien abonnement : {e}")
@@ -185,7 +186,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             await db.commit()
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database commit error")
-
+        print(subscription)
         # Enregistrement de l'usage initial des bots
         if plan == "payg" and item_bots_id and initial_bots_usage > 0:
             try:
@@ -201,17 +202,21 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
     elif event["type"] == "invoice.paid":
         invoice = event["data"]["object"]
-        stripe_subscription_id = invoice["subscription"]
-        stmt = select(Subscription).where(Subscription.stripe_subscription_id == stripe_subscription_id)
-        result = await db.execute(stmt)
-        subscription = result.scalars().first()
-        if subscription:
-            subscription.status = SubscriptionStatus.active
-            await db.commit()
+    
+        stripe_subscription_id = invoice.get("subscription")
+        if not stripe_subscription_id:
+            parent = invoice.get("parent", {})
+            subscription_details = parent.get("subscription_details", {}) if parent else {}
+            stripe_subscription_id = subscription_details.get("subscription")
+    
+        if not stripe_subscription_id:
+            # On peut essayer dans les lignes, ou ignorer
+            print("[Webhook] invoice.paid reçu sans subscription, on ignore")
+            return {"status": "ignored"}
 
     elif event["type"] == "invoice.payment_failed":
         invoice = event["data"]["object"]
-        stripe_subscription_id = invoice["subscription"]
+        stripe_subscription_id = invoice.get("subscription")
         stmt = select(Subscription).where(Subscription.stripe_subscription_id == stripe_subscription_id)
         result = await db.execute(stmt)
         subscription = result.scalars().first()
