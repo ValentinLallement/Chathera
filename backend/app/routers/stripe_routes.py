@@ -164,14 +164,18 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         result = await db.execute(stmt)
         subscription = result.scalars().first()
 
-        if subscription and subscription.stripe_subscription_id != new_stripe_subscription_id:
-            try:
-                print("plan trouvé")
-                stripe.Subscription.delete(subscription.stripe_subscription_id)
-            except Exception as e:
-                print(f"[Webhook] Erreur annulation ancien abonnement : {e}")
-
-        if not subscription:
+       if subscription:
+            old_stripe_subscription_id = subscription.stripe_subscription_id
+            if old_stripe_subscription_id and old_stripe_subscription_id != new_stripe_subscription_id:
+                try:
+                    print(f"[Webhook] Ancien abonnement trouvé, suppression de l'abonnement Stripe ID: {old_stripe_subscription_id}")
+                    stripe.Subscription.delete(old_stripe_subscription_id)
+                except Exception as e:
+                    print(f"[Webhook] Erreur annulation ancien abonnement : {e}")
+            else:
+                print("[Webhook] Aucun ancien abonnement à annuler ou abonnement identique.")
+        else:
+            print("[Webhook] Aucun abonnement existant trouvé pour cet utilisateur.")
             subscription = Subscription(user_id=user_id)
             db.add(subscription)
 
