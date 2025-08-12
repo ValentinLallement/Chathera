@@ -112,7 +112,7 @@ async def register_draft(user: schemas.UserCreate, db: AsyncSession = Depends(ge
         email=user.email,
         code=code,
         is_used=False,
-        expires_at=datetime.utcnow() + timedelta(minutes=10)
+        expires_at=datetime.utcnow + timedelta(minutes=10)
     )
     db.add(db_code)
     await db.commit()
