@@ -193,6 +193,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         try:
             await db.commit()
         except Exception as e:
+            print(f"[Webhook] Commit error: {repr(e)}")
             raise HTTPException(status_code=500, detail="Database commit error")
         print(subscription)
         # Enregistrement de l'usage initial des bots
