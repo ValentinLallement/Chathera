@@ -185,7 +185,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             await db.commit()
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database commit error")
-
+        print(subscription)
         # Enregistrement de l'usage initial des bots
         if plan == "payg" and item_bots_id and initial_bots_usage > 0:
             try:
@@ -200,14 +200,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 print(f"[Webhook] Erreur enregistrement usage initial : {e}")
 
     elif event["type"] == "invoice.paid":
-        invoice = event["data"]["object"]
-        stripe_subscription_id = invoice.get("subscription")
-        stmt = select(Subscription).where(Subscription.stripe_subscription_id == stripe_subscription_id)
-        result = await db.execute(stmt)
-        subscription = result.scalars().first()
-        if subscription:
-            subscription.status = SubscriptionStatus.active
-            await db.commit()
+        pass
 
     elif event["type"] == "invoice.payment_failed":
         invoice = event["data"]["object"]
