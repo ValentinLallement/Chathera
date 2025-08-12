@@ -185,7 +185,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         subscription.stripe_subscription_id = new_stripe_subscription_id
         subscription.stripe_subscription_item_messages = item_messages_id
         subscription.stripe_subscription_item_bots = item_bots_id
-        if stripe_subscription_id:
+        if new_stripe_subscription_id:
             print("stripe_sub_id")
             print(subscription.stripe_subscription_id)
         print("plan")
