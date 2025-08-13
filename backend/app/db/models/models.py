@@ -286,7 +286,7 @@ class Subscription(SQLModel, table=True):
     user_id: UUID = Field(foreign_key="user.id", nullable=False)
 
     plan: PlanEnum = Field(default=PlanEnum.FREE)    
-    start_date: datetime = Field(default_factory=datetime.utcnow)
+    start_date: date = Field(default_factory=lambda: datetime.now(timezone.utc).date())
     message_count: int = Field(default=0)
     free_message_count: int = Field(default=0)
     last_reset: date = Field(default_factory=lambda: datetime.now(timezone.utc).date())
