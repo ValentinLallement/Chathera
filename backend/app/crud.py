@@ -269,7 +269,7 @@ async def update_user_subscription(
             plan=PlanEnum.FREE,
             message_limit=None,
             message_count=0,
-            start_date=datetime.now(timezone.utc),
+            start_date=datetime.now(timezone.utc).date(),
             last_reset=datetime.now(timezone.utc).date()
         )
         db.add(subscription)
@@ -284,7 +284,7 @@ async def update_user_subscription(
                 f"Invalid plan value '{new_plan}'. Valid values are: {[e.value for e in PlanEnum]}"
             )
         subscription.plan = new_plan
-        subscription.start_date = datetime.now(timezone.utc)
+        subscription.start_date = datetime.now(timezone.utc).date()
         subscription.message_count = 0
         subscription.last_reset = datetime.now(timezone.utc).date()
 

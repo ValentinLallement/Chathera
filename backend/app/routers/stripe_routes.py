@@ -180,7 +180,8 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             db.add(subscription)
 
         subscription.plan = plan
-        subscription.start_date = datetime.now(timezone.utc)
+        subscription.start_date = datetime.now(timezone.utc).date()  # Utilisation de date() pour correspondre au type dans le modèle
+        subscription.last_reset = datetime.now(timezone.utc).date()
         subscription.status = SubscriptionStatus.active
         subscription.stripe_subscription_id = new_stripe_subscription_id
         subscription.stripe_subscription_item_messages = item_messages_id
@@ -190,7 +191,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             print(subscription.stripe_subscription_id)
         print("plan")
         print(subscription.plan)
-        print("DEBUG start_date:", subscription.start_date, subscription.start_date.tzinfo)
+        print("DEBUG start_date:", subscription.start_date, type(subscription.start_date))
         print("DEBUG last_reset:", subscription.last_reset, type(subscription.last_reset))
 
         try:
@@ -324,7 +325,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             subscription.stripe_subscription_item_bots = None
             subscription.stripe_subscription_item_messages = None
             subscription.message_limit = None
-            subscription.start_date = datetime.now(timezone.utc)
+            subscription.start_date = datetime.now(timezone.utc).date()  # Utilisation de date() pour correspondre au type dans le modèle
 
         else:
             try:
@@ -332,12 +333,12 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
                 if PREMIUM_PRICE_ID in price_ids:
                     if subscription.plan != PlanEnum.PREMIUM:
-                        subscription.start_date = datetime.now(timezone.utc)
+                        subscription.start_date = datetime.now(timezone.utc).date()
                     subscription.plan = PlanEnum.PREMIUM
 
                 elif any(pid in price_ids for pid in [MESSAGE_PRICE_ID, BOT_PRICE_ID]):
                     if subscription.plan != PlanEnum.PAYG:
-                        subscription.start_date = datetime.now(timezone.utc)
+                        subscription.start_date = datetime.now(timezone.utc).date()
                     subscription.plan = PlanEnum.PAYG
                     subscription.message_count = 0
                 else:
