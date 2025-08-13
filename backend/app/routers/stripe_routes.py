@@ -181,6 +181,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         subscription.plan = plan
         subscription.start_date = datetime.now(timezone.utc)
+        subscription.last_reset = datetime.now(timezone.utc).date()
         subscription.status = SubscriptionStatus.active
         subscription.stripe_subscription_id = new_stripe_subscription_id
         subscription.stripe_subscription_item_messages = item_messages_id
