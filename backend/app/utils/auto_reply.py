@@ -64,8 +64,8 @@ async def build_prompt(
                     mood="neutre",
                     energy="energy",  # Valeur numérique pour correspondre à la colonne energy (float)
                     style="normal",
-                    since=datetime.now(timezone.utc),
-                    duration=3600.0  # Durée par défaut en secondes (1 heure)
+                    since=datetime.now(timezone.utc).replace(tzinfo=None),
+                    duration = timedelta(seconds=3600)
                 )
                 session.add(emotion)
                 await session.commit()
@@ -81,8 +81,8 @@ async def build_prompt(
                 mood="neutre",
                 energy="energy",
                 style="normal",
-                since=datetime.now(timezone.utc),
-                duration=3600.0
+                since=datetime.now(timezone.utc).replace(tzinfo=None),
+                duration = timedelta(seconds=3600)
             )
             return default_emotion
 
