@@ -190,6 +190,9 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             print(subscription.stripe_subscription_id)
         print("plan")
         print(subscription.plan)
+        print("DEBUG start_date:", subscription.start_date, subscription.start_date.tzinfo)
+        print("DEBUG last_reset:", subscription.last_reset, type(subscription.last_reset))
+
         try:
             await db.commit()
         except Exception as e:
