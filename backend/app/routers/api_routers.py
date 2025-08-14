@@ -5,9 +5,10 @@ import uuid
 import random
 import string
 import stripe
+import httpx
 
 from app.db.models import models
-from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Request
+from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Request, Response
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import StreamingResponse, JSONResponse
 
@@ -600,7 +601,7 @@ async def get_my_bots(token: str = Depends(dependencies.oauth2_scheme), db: Asyn
             "name": bot.name,
             "gender": bot.gender if bot.gender else None,
             "avatar_url": bot.avatar_url,
-            "url": bot.url,
+            "url": bot.glb_url if bot.gender else None,
             "type":bot.type,
             "last_message": last_message_info,
         })
@@ -638,7 +639,8 @@ async def save_avatar(
 
     # Sauvegarde de l'avatar
     bot.avatar_url = png_url
-    bot.url = payload.glb_url
+    bot.glb_url = payload.glb_url
+    bot.base_url = f"https://www.chathera.com/api/models/{bot.id}"
     await db.commit()
 
     return JSONResponse(
@@ -649,6 +651,35 @@ async def save_avatar(
             "avatar_url": bot.avatar_url,
         },
     )
+
+@api_router.get("/models/{bot_id}")
+async def get_model(
+    bot_id: UUID,
+    db: AsyncSession = Depends(dependencies.get_db)
+):
+    
+    # Récupérer le bot
+    result = await db.execute(select(Bot).where(Bot.id == bot_id))
+    bot = result.scalars().first()
+    if not bot or not bot.glb_url:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(bot.glb_url, timeout=20.0)
+            r.raise_for_status()
+
+        return StreamingResponse(
+            iter([r.content]),
+            media_type="model/gltf-binary",
+            headers={
+                "Access-Control-Allow-Origin": "*"
+            }
+        )
+
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Error fetching model: {e}")
+    
 
 # ----------------- Abonnements -----------------
 

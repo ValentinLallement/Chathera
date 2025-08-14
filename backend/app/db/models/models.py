@@ -211,7 +211,8 @@ class Bot(SQLModel, table=True):
     gender: GenderEnum = Field(default=GenderEnum.female, nullable=True)
 
     avatar_url: Optional[str] = Field(default=None, max_length=300)
-    url : Optional[str] = Field(default=None, max_length=300)
+    glb_url : Optional[str] = Field(default=None, max_length=300)
+    base_url : Optional[str] = Field(default=None, max_length=300)
 
     type: TypeEnum = Field(default=TypeEnum.free, nullable=True)
 
