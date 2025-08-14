@@ -640,7 +640,7 @@ async def save_avatar(
     # Sauvegarde de l'avatar
     bot.avatar_url = png_url
     bot.glb_url = payload.glb_url
-    bot.base_url = f"https://www.chathera.com/api/models/{bot.id}"
+    bot.base_url = f"https://api.chathera.com/api/models/{bot.id}"
     await db.commit()
 
     return JSONResponse(
@@ -655,9 +655,8 @@ async def save_avatar(
 @api_router.get("/models/{bot_id}")
 async def get_model(
     bot_id: UUID,
-    db: AsyncSession = Depends(dependencies.get_db)
+    db: AsyncSession = Depends(get_db)
 ):
-    
     # Récupérer le bot
     result = await db.execute(select(Bot).where(Bot.id == bot_id))
     bot = result.scalars().first()
@@ -665,21 +664,24 @@ async def get_model(
         raise HTTPException(status_code=404, detail="Model not found")
     
     try:
+        # Récupérer le vrai fichier GLB binaire
         async with httpx.AsyncClient() as client:
             r = await client.get(bot.glb_url, timeout=20.0)
             r.raise_for_status()
 
+        # Renvoi direct du binaire GLB
         return StreamingResponse(
-            iter([r.content]),
+            content=iter([r.content]),  # itérable attendu par StreamingResponse
             media_type="model/gltf-binary",
             headers={
                 "Access-Control-Allow-Origin": "*"
             }
         )
 
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Error fetching model: {e}")
     except httpx.RequestError as e:
         raise HTTPException(status_code=502, detail=f"Error fetching model: {e}")
-    
 
 # ----------------- Abonnements -----------------
 
