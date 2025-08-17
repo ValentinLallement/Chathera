@@ -673,7 +673,11 @@ async def get_model(
         return StreamingResponse(
             BytesIO(r.content),
             media_type="model/gltf-binary",
-            headers={"Access-Control-Allow-Origin": "*"}
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET",
+                "Access-Control-Allow-Headers": "*"
+            }
         )
 
     except httpx.HTTPStatusError as e:
