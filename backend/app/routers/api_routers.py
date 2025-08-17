@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from sqlmodel import select, desc,delete,func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
+from io import BytesIO
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
@@ -671,11 +671,9 @@ async def get_model(
 
         # Renvoi direct du binaire GLB
         return StreamingResponse(
-            content=iter([r.content]),  # itérable attendu par StreamingResponse
+            BytesIO(r.content),
             media_type="model/gltf-binary",
-            headers={
-                "Access-Control-Allow-Origin": "*"
-            }
+            headers={"Access-Control-Allow-Origin": "*"}
         )
 
     except httpx.HTTPStatusError as e:
